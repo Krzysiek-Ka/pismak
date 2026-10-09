@@ -293,6 +293,11 @@ Po aktywacji:
 uv pip install -r requirements.txt
 ```
 
+`psycopg` używa systemowej biblioteki klienta PostgreSQL `libpq` (bez wariantu
+`[binary]`). Na Windowsie zainstaluj klienta PostgreSQL i dodaj jego katalog `bin`
+(np. `C:\Program Files\PostgreSQL\17\bin`) do zmiennej `PATH`. Następnie uruchom
+ponownie VS Code/Jupyter, aby kernel zobaczył `libpq.dll`.
+
 Testy uruchom:
 
 ```cmd

@@ -63,6 +63,7 @@ outputs/*
 # RAG
 # ==========================================
 
+src/Zrodlowyszukiwator/RAG/RAW/
 chroma/
 chroma_db/
 vector_db/
