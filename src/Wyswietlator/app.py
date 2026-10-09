@@ -42,7 +42,7 @@ from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 LOGGER = configure_logging(PROJECT_ROOT)
 
 st.set_page_config(
-    page_title="Pismak — Wyświetlator",
+    page_title="Pismak",
     page_icon="📝",
     layout="wide",
 )
@@ -73,6 +73,59 @@ def init_state() -> None:
 def notify_model_wait() -> None:
     """Show a non-sensitive notice when another session is using the local model."""
     st.info("Lokalny model jest zajęty. Oczekiwanie na swoją kolej...")
+
+
+def show_thinking_overlay(message: str):
+    """Display a large blocking overlay while a model request is running."""
+    overlay = st.empty()
+    overlay.markdown(
+        f"""
+        <style>
+        .pismak-thinking-overlay {{
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(5px);
+        }}
+        .pismak-thinking-card {{
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            width: min(90vw, 560px);
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            background: var(--secondary-background-color, #fff);
+            color: var(--text-color, #172033);
+            box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+        }}
+        .pismak-thinking-spinner {{
+            flex: 0 0 2.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border: 4px solid rgba(128, 128, 128, 0.25);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: pismak-spin 0.8s linear infinite;
+        }}
+        .pismak-thinking-card strong {{ font-size: 1.35rem; }}
+        .pismak-thinking-card p {{ margin: 0.35rem 0 0; opacity: 0.8; }}
+        @keyframes pismak-spin {{ to {{ transform: rotate(360deg); }} }}
+        </style>
+        <div class="pismak-thinking-overlay" role="status" aria-live="polite">
+            <div class="pismak-thinking-card">
+                <span class="pismak-thinking-spinner"></span>
+                <div><strong>Model myśli</strong><p>{message}</p></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    return overlay
 
 
 def reset_case() -> None:
@@ -165,7 +218,7 @@ def show_evidence(evidence_pack: EvidencePack) -> None:
 init_state()
 
 st.title("Pismak")
-st.caption("Wyświetlator")
+st.caption("Od opisu sprawy, przez sprawdzone źródła, do projektu pisma.")
 
 try:
     models = load_models()
@@ -227,127 +280,8 @@ with st.container(border=True):
         st.rerun()
 
 
-if st.session_state.case_brief is not None:
-    # Ten widok pojawia się dopiero po zakończeniu wywiadu i utworzeniu briefu.
-    show_brief(st.session_state.case_brief)
-
-    if st.session_state.evidence_pack is not None:
-        show_evidence(st.session_state.evidence_pack)
-
-    if st.session_state.letter_markdown is None:
-        # Pipeline uruchamiamy tylko raz dla danej sprawy, zanim powstanie letter.md.
-        if st.button(
-            "Znajdź źródła i wygeneruj pismo",
-            type="primary",
-            use_container_width=True,
-        ):
-            try:
-                client = load_client()
-                pipeline_started = time.perf_counter()
-
-                with st.status(
-                    "Uruchamiam pipeline...",
-                    expanded=True,
-                ) as status:
-                    # Etap 1: RAG wybiera fragmenty źródeł do EvidencePack.
-                    st.write("1/2 Źródłowyszukiwator")
-                    LOGGER.info(
-                        "rag_started session_id=%s model=%s",
-                        st.session_state.session_id,
-                        zrodla_model,
-                    )
-                    zrodla, docs, chunks = build_zrodlowyszukiwator(
-                        client=client,
-                        model=zrodla_model,
-                        on_wait=notify_model_wait,
-                        session_id=st.session_state.session_id,
-                    )
-                    st.caption(f"Baza RAG: {docs} dokumentów, {chunks} chunków.")
-                    LOGGER.info(
-                        "rag_ready session_id=%s documents=%d chunks=%d",
-                        st.session_state.session_id,
-                        docs,
-                        chunks,
-                    )
-
-                    evidence_pack = zrodla.run(st.session_state.case_brief)
-                    st.session_state.evidence_pack = evidence_pack
-                    st.write(f"Znaleziono {len(evidence_pack.evidence)} źródeł.")
-
-                    st.write("2/2 Pismogenerator")
-                    # Etap 2: generator domenowy tworzy DraftLetter z briefu i dowodów.
-                    draft = pismogenerator.build_draft(
-                        case_brief=st.session_state.case_brief,
-                        evidence_pack=evidence_pack,
-                        llm=LLMClient(
-                            client=client,
-                            model_name=pismo_model,
-                            on_wait=notify_model_wait,
-                            stage="pismogenerator",
-                            session_id=st.session_state.session_id,
-                        ),
-                        llm_temperature=0.2,
-                    )
-                    letter = render_letter(
-                        draft,
-                        evidence_pack,
-                        st.session_state.case_brief.available_evidence,
-                    )
-
-                    st.session_state.draft = draft
-                    st.session_state.letter_markdown = letter
-                    st.session_state.stage = "DONE"
-
-                    run_dir = save_run(
-                        project_root=PROJECT_ROOT,
-                        messages=st.session_state.messages,
-                        case_brief=st.session_state.case_brief,
-                        evidence_pack=evidence_pack,
-                        draft=draft,
-                        letter_markdown=letter,
-                        run_dir=st.session_state.run_dir,
-                    )
-                    st.session_state.run_dir = run_dir
-                    LOGGER.info(
-                        "pipeline_completed session_id=%s model=%s evidence=%d elapsed_seconds=%.3f",
-                        st.session_state.session_id,
-                        pismo_model,
-                        len(evidence_pack.evidence),
-                        time.perf_counter() - pipeline_started,
-                    )
-
-                    status.update(
-                        label="Pismo gotowe",
-                        state="complete",
-                    )
-
-                # Po zapisaniu wyników odśwież widok, aby pokazać gotowy dokument.
-                st.rerun()
-
-            except Exception:
-                LOGGER.exception(
-                    "pipeline_failed session_id=%s", st.session_state.session_id
-                )
-                st.error("Wystąpił błąd podczas przetwarzania sprawy. Spróbuj ponownie za chwilę.")
-
-
-# Gotowy draft jest wyświetlany niezależnie od tego, czy użytkownik odświeżył stronę.
-if st.session_state.letter_markdown is not None:
-    with st.container(border=True):
-        st.subheader("Draft")
-        st.markdown(st.session_state.letter_markdown)
-
-        st.download_button(
-            "Pobierz draft.md",
-            data=st.session_state.letter_markdown.encode("utf-8"),
-            file_name="pismo.md",
-            mime="text/markdown",
-            type="primary",
-            use_container_width=True,
-        )
-
 st.divider()
-st.subheader("Chat")
+st.subheader("Rozmowa")
 
 # Historia rozmowy jest renderowana ze stanu, a nie przechowywana w lokalnej zmiennej.
 for message in st.session_state.messages:
@@ -375,6 +309,9 @@ if st.session_state.case_brief is None:
         # chat_input zwraca tekst tylko po zatwierdzeniu wiadomości przez użytkownika.
         st.session_state.messages.append({"role": "user", "content": prompt.strip()})
 
+        thinking_overlay = show_thinking_overlay(
+            "Analizuję opis i przygotowuję odpowiedź lub podsumowanie sprawy."
+        )
         try:
             client = load_client()
             interview_started = time.perf_counter()
@@ -491,9 +428,124 @@ if st.session_state.case_brief is None:
         except Exception:
             LOGGER.exception("interview_failed session_id=%s", st.session_state.session_id)
             st.error("Wystąpił błąd podczas rozmowy. Spróbuj ponownie za chwilę.")
+        finally:
+            thinking_overlay.empty()
 
 else:
     st.chat_input(
-        "Wywiad zakończony — użyj przycisku generowania powyżej.",
+        "Wywiad zakończony — podsumowanie sprawy znajduje się poniżej.",
         disabled=True,
     )
+
+
+if st.session_state.case_brief is not None:
+    # Wyniki są celowo umieszczone pod historią pytań i odpowiedzi.
+    show_brief(st.session_state.case_brief)
+
+    if st.session_state.evidence_pack is not None:
+        show_evidence(st.session_state.evidence_pack)
+
+    if st.session_state.letter_markdown is None:
+        if st.button(
+            "Znajdź źródła i wygeneruj pismo",
+            type="primary",
+            use_container_width=True,
+        ):
+            thinking_overlay = show_thinking_overlay(
+                "Wyszukuję źródła i przygotowuję projekt pisma."
+            )
+            try:
+                client = load_client()
+                pipeline_started = time.perf_counter()
+
+                with st.status("Uruchamiam pipeline...", expanded=True) as status:
+                    st.write("1/2 Źródłowyszukiwator")
+                    LOGGER.info(
+                        "rag_started session_id=%s model=%s",
+                        st.session_state.session_id,
+                        zrodla_model,
+                    )
+                    zrodla, docs, chunks = build_zrodlowyszukiwator(
+                        client=client,
+                        model=zrodla_model,
+                        on_wait=notify_model_wait,
+                        session_id=st.session_state.session_id,
+                    )
+                    st.caption(f"Baza RAG: {docs} dokumentów, {chunks} chunków.")
+                    LOGGER.info(
+                        "rag_ready session_id=%s documents=%d chunks=%d",
+                        st.session_state.session_id,
+                        docs,
+                        chunks,
+                    )
+
+                    evidence_pack = zrodla.run(st.session_state.case_brief)
+                    st.session_state.evidence_pack = evidence_pack
+                    st.write(f"Znaleziono {len(evidence_pack.evidence)} źródeł.")
+
+                    st.write("2/2 Pismogenerator")
+                    draft = pismogenerator.build_draft(
+                        case_brief=st.session_state.case_brief,
+                        evidence_pack=evidence_pack,
+                        llm=LLMClient(
+                            client=client,
+                            model_name=pismo_model,
+                            on_wait=notify_model_wait,
+                            stage="pismogenerator",
+                            session_id=st.session_state.session_id,
+                        ),
+                        llm_temperature=0.2,
+                    )
+                    letter = render_letter(
+                        draft,
+                        evidence_pack,
+                        st.session_state.case_brief.available_evidence,
+                    )
+
+                    st.session_state.draft = draft
+                    st.session_state.letter_markdown = letter
+                    st.session_state.stage = "DONE"
+
+                    run_dir = save_run(
+                        project_root=PROJECT_ROOT,
+                        messages=st.session_state.messages,
+                        case_brief=st.session_state.case_brief,
+                        evidence_pack=evidence_pack,
+                        draft=draft,
+                        letter_markdown=letter,
+                        run_dir=st.session_state.run_dir,
+                    )
+                    st.session_state.run_dir = run_dir
+                    LOGGER.info(
+                        "pipeline_completed session_id=%s model=%s evidence=%d elapsed_seconds=%.3f",
+                        st.session_state.session_id,
+                        pismo_model,
+                        len(evidence_pack.evidence),
+                        time.perf_counter() - pipeline_started,
+                    )
+
+                    status.update(label="Pismo gotowe", state="complete")
+
+                st.rerun()
+
+            except Exception:
+                LOGGER.exception("pipeline_failed session_id=%s", st.session_state.session_id)
+                st.error("Wystąpił błąd podczas przetwarzania sprawy. Spróbuj ponownie za chwilę.")
+            finally:
+                thinking_overlay.empty()
+
+
+# Gotowy draft jest wyświetlany niezależnie od tego, czy użytkownik odświeżył stronę.
+if st.session_state.letter_markdown is not None:
+    with st.container(border=True):
+        st.subheader("Projekt pisma")
+        st.markdown(st.session_state.letter_markdown)
+
+        st.download_button(
+            "Pobierz pismo.md",
+            data=st.session_state.letter_markdown.encode("utf-8"),
+            file_name="pismo.md",
+            mime="text/markdown",
+            type="primary",
+            use_container_width=True,
+        )

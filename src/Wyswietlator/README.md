@@ -1,8 +1,8 @@
-# Wyświetlator
+# Interfejs Pismaka
 
 ## Cel
 
-Wyświetlator jest interfejsem użytkownika aplikacji Pismak. Łączy wywiad, wyszukiwanie źródeł i generowanie pisma w jeden przepływ Streamlit, pokazuje wyniki i pozwala pobrać gotowy projekt.
+Pismak pomaga przejść od opisu problemu, przez doprecyzowującą rozmowę i wyszukanie źródeł, do projektu pisma do instytucji publicznej.
 
 ## Struktura
 
@@ -12,6 +12,6 @@ Wyświetlator jest interfejsem użytkownika aplikacji Pismak. Łączy wywiad, wy
 
 ## Przepływ danych
 
-Użytkownik opisuje sprawę w czacie; Wyświetlator przekazuje rozmowę do Dopytywatora i przechowuje ją w stanie sesji. Po utworzeniu `CaseBrief` uruchamia Źródłowyszukiwacz, który zwraca `EvidencePack`, a następnie Pismogenerator, który tworzy i waliduje projekt. Interfejs wyświetla brief, źródła i pismo oraz udostępnia pobranie pliku Markdown. Rozmowa i kolejne artefakty są zapisywane w katalogu uruchomienia w `outputs/`.
+Użytkownik opisuje sprawę w rozmowie; interfejs przekazuje ją do Dopytywatora i przechowuje w stanie sesji. Po utworzeniu `CaseBrief` uruchamia Źródłowyszukiwacz, który zwraca `EvidencePack`, a następnie Pismogenerator, który tworzy i waliduje projekt. Rozmowa jest wyświetlana jako pierwsza, a poniżej znajdują się podsumowanie sprawy, źródła i pismo do pobrania. Rozmowa i kolejne artefakty są zapisywane w katalogu uruchomienia w `outputs/`.
 
 Przepływ: rozmowa → `CaseBrief` → `EvidencePack` → projekt pisma → podgląd, pobranie i zapis wyników.
