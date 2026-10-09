@@ -1,0 +1,24 @@
+{
+  "recipient": "Komendant Straży Miejskiej we Wrocławiu",
+  "sender": "",
+  "request_summary": "Wnnioskuję o wzmocnienie działań Straży Miejskiej we Wrocławiu w celu skuteczniejszego egzekwowania przepisów ruchu drogowego.",
+  "argumentation_markdown": "\\\n\\\n**Opis problemu**\\\n\\\nUżytkownik zwraca uwagę na potrzebę wzmocnienia działań Straży Miejskiej we Wrocławiu, sugerując, że funkcjonariusze powinni szukać wyroków potwierdzających ich uprawnienia do blokowania i holowania pojazdów oraz lepiej szkolić się w zakresie ruchu drogowego. Brak jest szczegółowych przepisów prawnych ani konkretnych przykładów naruszeń, ale użytkownik podkreśla, że Straż Miejska powinna skuteczniej egzekwować przepisy ruchu drogowego, aby zwiększyć bezpieczeństwo na drogach i poprawić jakość życia mieszkańców.\\\n\\\n**Argumentacja**\\\n\\\n1. **Ustalenie zakresu uprawnień Straży Miejskiej**\\\n\\\nStraż Miejska we Wrocławiu powinna przeanalizować swoje uprawnienia w zakresie blokowania i holowania pojazdów, aby upewnić się, że działa zgodnie z prawem.\\\n\\\n2. **Lepsze szkolenie funkcjonariuszy**\\\n\\\nFunkcjonariusze Straży Miejskiej powinni być lepiej szkoleni w zakresie ruchu drogowego, aby lepiej rozpoznawać i egzekwować przepisy.\\\n\\\n3. **Dostęp do sprzętu pomiarowego i narzędzi**\\\n\\\nStraż Miejska powinna zapewnić sobie dostęp do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń, aby skutecznie egzekwować przepisy i unikać sytuacji, w których brak sprzętu uniemożliwia interwencję.\\\n\\\n**Dowody**\\\n\\\n- **Przykład z 12 maja 2026**: Strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego ([U1]).\\\n\\\n**Wnioski**\\\n\\\nWzmocnienie działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego jest kluczowe dla zwiększenia bezpieczeństwa na drogach i poprawy jakości życia mieszkańców.\\\n\\\n**Źródła**\\\n\\\n[1] Strategia Rozwoju Wrocławia \\\"Wrocław 2050\\\" (E1, E2, E3, E4)\\\n[2] Wrocławska polityka mobilności (E4)\\\n[3] Przykład z 12 maja 2026 (U1)\\\n\\\n\\\n**Podpis**\\\n\\\n\\\n**W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o:**\\\n\\\n\\\n\\\n",
+  "sources": [
+    "E1",
+    "E2",
+    "E3",
+    "E4",
+    "U1"
+  ],
+  "claims_requiring_verification": [
+    "Ustalenie zakresu uprawnień Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów.",
+    "Ocena skuteczności szkoleń funkcjonariuszy w zakresie ruchu drogowego.",
+    "Analiza dostępności sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń w Straży Miejskiej we Wrocławiu."
+  ],
+  "missing_fields": [
+    "Brak"
+  ],
+  "assumptions_used": [
+    "Brak"
+  ]
+}

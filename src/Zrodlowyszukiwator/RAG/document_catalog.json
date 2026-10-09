@@ -1,0 +1,161 @@
+{
+  "documents": [
+    {
+      "filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "city": "Wrocław",
+      "issuer": "Gmina Wrocław",
+      "adopting_body": "Rada Miejska Wrocławia",
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "valid_from": "2025-10-20",
+      "valid_to": null,
+      "is_active": true,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "strategia",
+        "rozwój miasta",
+        "Wrocław 2050"
+      ],
+      "relations": [],
+      "notes": "Dokument nadrzędny dla polityk, programów i planów działań w hierarchii merytorycznej RAG."
+    },
+    {
+      "filename": "00_Strategia_2030.pdf",
+      "document_id": "wroclaw-strategy-2030",
+      "title": "Strategia Rozwoju Wrocławia „Wrocław 2030”",
+      "document_kind": "strategy",
+      "city": "Wrocław",
+      "issuer": "Gmina Wrocław",
+      "adopting_body": "Rada Miejska Wrocławia",
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "valid_from": "2017-01-01",
+      "valid_to": "2025-10-20",
+      "is_active": false,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "strategia",
+        "rozwój miasta",
+        "Wrocław 2030"
+      ],
+      "relations": [],
+      "notes": "Dokument nadrzędny dla polityk, programów i planów działań w hierarchii merytorycznej RAG."
+    },
+    {
+      "filename": "01_Polityka-rowerowa-wroclawia.pdf",
+      "document_id": "wroclaw-bicycle-policy-2010",
+      "title": "Polityka Rowerowa Wrocławia",
+      "document_kind": "policy",
+      "city": "Wrocław",
+      "issuer": "Gmina Wrocław",
+      "adopting_body": "Rada Miejska Wrocławia",
+      "legal_form": "annex",
+      "adoption_act_number": "LV/1688/10",
+      "adoption_date": "2010-10-14",
+      "valid_from": "2010-10-14",
+      "valid_to": null,
+      "is_active": null,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "rowery",
+        "mobilność",
+        "transport rowerowy",
+        "polityka"
+      ],
+      "relations": [],
+      "notes": "Polityka przyjęta jako załącznik do uchwały; wskazuje również na standardy techniczne przyjęte odrębnym zarządzeniem."
+    },
+    {
+      "filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+      "document_id": "wroclaw-mobility-policy-2013",
+      "title": "Wrocławska polityka mobilności",
+      "document_kind": "policy",
+      "city": "Wrocław",
+      "issuer": "Gmina Wrocław",
+      "adopting_body": "Rada Miejska Wrocławia",
+      "legal_form": "annex",
+      "adoption_act_number": "XLVIII/1169/13",
+      "adoption_date": "2013-09-19",
+      "valid_from": null,
+      "valid_to": null,
+      "is_active": null,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "mobilność",
+        "transport",
+        "piesi",
+        "rowery",
+        "komunikacja miejska",
+        "transport zbiorowy"
+      ],
+      "relations": [],
+      "notes": "Załącznik do uchwały Rady Miejskiej; dokument kierunkowy w obszarze mobilności."
+    },
+    {
+      "filename": "02_Wrocławski_program_tramwajowy_2.0.pdf",
+      "document_id": "wroclaw-tram-program-2-0",
+      "title": "Wrocławski Program Tramwajowy 2.0 — raport",
+      "document_kind": "program",
+      "city": "Wrocław",
+      "issuer": "Urząd Miejski Wrocławia",
+      "adopting_body": null,
+      "legal_form": "report",
+      "adoption_act_number": null,
+      "adoption_date": null,
+      "valid_from": null,
+      "valid_to": null,
+      "is_active": null,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "tramwaje",
+        "transport zbiorowy",
+        "komunikacja miejska",
+        "inwestycje",
+        "program"
+      ],
+      "relations": [
+        {
+          "target_document_id": "wroclaw-mobility-policy-2013",
+          "relation": "references",
+          "note": "Program wprost nawiązuje do celów Wrocławskiej Polityki Mobilności."
+        }
+      ],
+      "notes": "Materiał analityczny wspomagający decyzje inwestycyjne; umieszczony między polityką a standardami w hierarchii merytorycznej."
+    },
+    {
+      "filename": "03_Wroclawskie_standardy_dostepnosci_przestrzeni_miejskich.pdf",
+      "document_id": "wroclaw-accessibility-standards",
+      "title": "Wrocławskie standardy dostępności przestrzeni miejskich",
+      "document_kind": "standard",
+      "city": "Wrocław",
+      "issuer": "Gmina Wrocław / Miejski Ośrodek Pomocy Społecznej we Wrocławiu",
+      "adopting_body": null,
+      "legal_form": "standalone",
+      "adoption_act_number": null,
+      "adoption_date": null,
+      "valid_from": null,
+      "valid_to": null,
+      "is_active": null,
+      "source_url": null,
+      "language": "pl",
+      "tags": [
+        "dostępność",
+        "projektowanie uniwersalne",
+        "przestrzeń publiczna",
+        "standardy"
+      ],
+      "relations": [],
+      "notes": "Dokument wytycznych; tekst wskazuje obowiązek stosowania przez jednostki organizacyjne miasta."
+    }
+  ]
+}

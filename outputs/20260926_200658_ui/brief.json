@@ -1,0 +1,60 @@
+{
+  "title": "Prośba o wzmocnienie działań Straży Miejskiej we Wrocławiu",
+  "problem_description": "Użytkownik prosi o wzmocnienie działań Straży Miejskiej we Wrocławiu, sugerując, że funkcjonariusze powinni szukać wyroków potwierdzających ich uprawnienia do blokowania i holowania pojazdów oraz lepiej szkolić się w zakresie ruchu drogowego.",
+  "location": "Wrocław",
+  "time_context": "2026",
+  "desired_outcome": "Wzmocnienie działań Straży Miejskiej we Wrocławiu w celu skuteczniejszego egzekwowania przepisów ruchu drogowego.",
+  "requested_actions": [
+    "Przeanalizowanie możliwości prawnych Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów.",
+    "Zalecenie lepszego szkolenia funkcjonariuszy w zakresie ruchu drogowego.",
+    "Zapewnienie funkcjonariuszom dostępu do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń."
+  ],
+  "institution": "Straż Miejska we Wrocławiu",
+  "addressee": "Komendant Straży Miejskiej we Wrocławiu",
+  "affected_groups": [
+    "Mieszkańcy Wrocławia",
+    "Kierowcy naruszający przepisy ruchu drogowego"
+  ],
+  "public_interest_arguments": [
+    "Zwiększenie bezpieczeństwa na drogach poprzez skuteczniejsze egzekwowanie przepisów.",
+    "Poprawa jakości życia mieszkańców poprzez zmniejszenie liczby naruszeń ruchu drogowego."
+  ],
+  "claims": [
+    {
+      "statement": "Straż Miejska we Wrocławiu powinna szukać wyroków potwierdzających jej uprawnienia do blokowania i holowania pojazdów.",
+      "status": "user_statement",
+      "evidence_description": "Brak"
+    },
+    {
+      "statement": "Funkcjonariusze Straży Miejskiej we Wrocławiu powinni być lepiej szkoleni w zakresie ruchu drogowego.",
+      "status": "user_statement",
+      "evidence_description": "Brak"
+    },
+    {
+      "statement": "Straż Miejska we Wrocławiu powinna zapewnić sobie dostęp do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń.",
+      "status": "user_statement",
+      "evidence_description": "Brak"
+    }
+  ],
+  "available_evidence": [
+    "Przykład z 12 maja 2026, kiedy strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego."
+  ],
+  "previous_actions": [
+    "Brak"
+  ],
+  "likely_counterarguments": [
+    "Brak"
+  ],
+  "missing_information": [
+    "Brak"
+  ],
+  "facts_to_verify": [
+    "Ustalenie zakresu uprawnień Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów.",
+    "Ocena skuteczności szkoleń funkcjonariuszy w zakresie ruchu drogowego.",
+    "Analiza dostępności sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń w Straży Miejskiej we Wrocławiu."
+  ],
+  "preferred_tone": "neutralny",
+  "user_notes": [
+    "Użytkownik sugeruje, że Straż Miejska we Wrocławiu powinna skuteczniej egzekwować przepisy ruchu drogowego, ale nie przedstawia szczegółowych przepisów prawnych ani konkretnych przykładów naruszeń."
+  ]
+}

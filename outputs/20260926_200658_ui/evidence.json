@@ -1,0 +1,146 @@
+{
+  "query_summary": "Prośba o wzmocnienie działań Straży Miejskiej we Wrocławiu",
+  "research_plan": {
+    "case_summary": "Prośba o wzmocnienie działań Straży Miejskiej we Wrocławiu",
+    "intents": [
+      {
+        "semantic_query": "Wzmocnienie działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego",
+        "lexical_query": "Straż Miejska we Wrocławiu, wzmocnienie działań, egzekwowanie przepisów, ruch drogowy",
+        "purpose": "Zidentyfikowanie istniejących strategii i polityk dotyczących działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego.",
+        "priority": 1
+      },
+      {
+        "semantic_query": "Analiza zakresu uprawnień Straży Miejskiej we Wrocławiu do blokowania i holowania pojazdów",
+        "lexical_query": "uprawnienia Straży Miejskiej, blokowanie, holowanie, przepisy ruchu drogowego",
+        "purpose": "Zweryfikowanie, czy Straż Miejska we Wrocławiu ma prawne podstawy do podejmowania działań w zakresie blokowania i holowania pojazdów.",
+        "priority": 2
+      },
+      {
+        "semantic_query": "Ocena skuteczności szkoleń funkcjonariuszy Straży Miejskiej we Wrocławiu w zakresie ruchu drogowego",
+        "lexical_query": "szkolenia Straży Miejskiej, ruch drogowy, skuteczność",
+        "purpose": "Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego.",
+        "priority": 3
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "evidence_id": "E1",
+      "chunk_id": "wroclaw-strategy-2050-2025:00361:e76f04f89291",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "page_start": 187,
+      "page_end": 187,
+      "section_path": [
+        "m. Martwi nas, że rośnie liczba samochodów we Wrocławiu. W 2023 roku było ich już",
+        "Grupa białoruska:"
+      ],
+      "excerpt": "• polityka na rzecz integracji uchodźców wojennych i migrantów – 30,5%, • polityka społeczna i sprawy socjalne mieszkańców – 27,1%, • zwiększanie dostępności mieszkań na wynajem oferowanych przez gminę i firmy prywatne – 25,4%, • zwiększanie atrakcyjności inwestycyjnej Wrocławia – 19,8%, • odnowienie zdegradowanych obszarów miasta – 16,9%.\n\n• odnowienie zdegradowanych obszarów miasta – 34,3%, • zapobieganie negatywnym zmianom klimatycznym – 29,1%, • polityka na rzecz integracji uchodźców wojennych i migrantów – 24,6%, • zwiększanie atrakcyjności inwestycyjnej Wrocławia – 24,6%, • zwiększanie dostępności mieszkań na wynajem oferowanych przez gminę i firmy prywatne – 24%.",
+      "source_url": null,
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.016216216216216217,
+      "rerank_score": null,
+      "relevance_reason": "No matching text found.",
+      "matched_intents": [
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E2",
+      "chunk_id": "wroclaw-strategy-2050-2025:00129:293b6ac2adb5",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "page_start": 64,
+      "page_end": 64,
+      "section_path": [
+        "EKOSYSTEM",
+        "Straty wody z sieci"
+      ],
+      "excerpt": "z ruchem pojazdów na drogach publicznych, w wyniku którego nastąpiły śmierć lub uszkodzenie ciała osób. Za śmiertelną ofiarę wypadku drogowego uznaje się osobę zmarłą w wyniku doznanych obrażeń na miejscu lub w ciągu 30 dni. Dążenie do wartości 0 ofiar śmiertelnych rocznie we Wrocławiu\n\nwodociągowej dm3 spadek",
+      "source_url": null,
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.01764705882352941,
+      "rerank_score": null,
+      "relevance_reason": "No matching text found.",
+      "matched_intents": [
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E3",
+      "chunk_id": "wroclaw-strategy-2050-2025:00367:7d1d8af55067",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "page_start": 191,
+      "page_end": 195,
+      "section_path": [
+        "m. Martwi nas, że rośnie liczba samochodów we Wrocławiu. W 2023 roku było ich już",
+        "Wnioski z diagnoz i badań"
+      ],
+      "excerpt": "• Cenią Wrocław, ale obawiają się o przyszłość rynku pracy, dostępność mieszkań oraz wystarczający poziom kompetencji i profesjonalizmu lokalnej administracji, zwłaszcza w radzeniu sobie z poważnymi wyzwaniami. • Są raczej obojętni na skalę sublokalną, osiedlową. Myślą i żyją w skali całego miasta. Najchętniej spędzają czas na Starym Mieście i na Wielkiej Wyspie (Pergola, Hala Stulecia). • Ideałem dla nich jest miasto ekologiczne i zielone, ze sprawną komunikacją miejską. Ale nie są zgodni w kwestii skali ograniczania ruchu samochodowego. • Nie mają tożsamości lokalnej. Bycie Wrocławianką czy Wrocławianinem nie ma dla nich większego znaczenia. • Wolą aktywność indywidualną i dbałość o własne emocje niż aktywność społeczną, obywatelską. • Sprawnie łączą aktywność w rzeczywistości cyfrowej z tą prowadzoną w przestrzeni miejskiej.\n\nPojawiły się też sygnały ostrzegawcze. Młodzież woli działania indywidualne, własne. Nie ufa instytucjom. Obojętnie traktuje więzi sąsiedzkie, osiedlowe, choć jest otwarta na obcokrajowców. Jednocześnie może w każdej chwili opuścić Wrocław, jeśli miasto nie poradzi sobie z głównymi wyzwaniami, takimi jak zmiana klimatu, zanieczyszczenie powietrza, hałas, przestępczość czy jakość transportu zbiorowego. Dystans młodzieży wobec osiedlowego, sąsiedzkiego wymiaru życia uwrażliwia nas na jeszcze jedną kwestię. Osiedle i miejsce zamieszkania wraz z najbliższym otoczeniem nie jest głównym punktem czy przejawem życia miasta. Są inne, przynajmniej równie ważne – to miejsca i aktywności ważne dla całego Wrocławia, a czasem też dla regionu, kraju czy Europy. Ważniejsze od fizycznego sąsiedztwa mogą być rozległe terytorialnie sieci kontaktów, dla których głównym kanałem komunikacji jest internet. Miarą atrakcyjności miasta zaś nie jest wyłącznie atrakcyjność miejsc zamieszkiwania. Dlatego, nie lekceważąc wymiaru osiedlowego, musimy pamiętać, że przynajmniej równie ważne są działania w skali ogólnomiejskiej.\n\n7.2.4.",
+      "source_url": null,
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.01791044776119403,
+      "rerank_score": null,
+      "relevance_reason": "No matching text found.",
+      "matched_intents": [
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E4",
+      "chunk_id": "wroclaw-mobility-policy-2013:00020:f830b1b6199d",
+      "document_id": "wroclaw-mobility-policy-2013",
+      "document_title": "Wrocławska polityka mobilności",
+      "document_kind": "policy",
+      "hierarchy_rank": 80,
+      "legal_form": "annex",
+      "adoption_act_number": "XLVIII/1169/13",
+      "adoption_date": "2013-09-19",
+      "is_active": null,
+      "page_start": 16,
+      "page_end": 16,
+      "section_path": [
+        "MONITOROWANIE REALIZACJI WROCŁAWSKIEJ POLITYKI MOBILNOŚCI",
+        "Pozytywny > 70% i"
+      ],
+      "excerpt": "stycji Liczba zakładów pracy, dla których opracowano i wdrożono plan mobil- ności\n\ndów pracy\n\nnia w ruchu samochodów osobo- wych, szczególnie w centrum\n\n% mieszkańców popierają- cych ograniczenia w ruchu samochodów osobowych\n\nwzrost w następnych latach",
+      "source_url": null,
+      "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+      "retrieval_score": 0.01643835616438356,
+      "rerank_score": null,
+      "relevance_reason": "No matching text found.",
+      "matched_intents": [
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    }
+  ],
+  "unsupported_topics": [
+    "Zidentyfikowanie istniejących strategii i polityk dotyczących działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego.",
+    "Zweryfikowanie, czy Straż Miejska we Wrocławiu ma prawne podstawy do podejmowania działań w zakresie blokowania i holowania pojazdów."
+  ],
+  "search_notes": [
+    "Liczba zapytań: 3",
+    "Kandydaci po hybrid retrieval: 20",
+    "Źródła w EvidencePack: 4",
+    "hierarchy_rank jest metadanym/tie-breakerem, a nie oceną mocy prawnej."
+  ]
+}
