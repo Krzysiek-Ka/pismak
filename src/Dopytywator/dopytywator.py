@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.Dopytywator import dopytywator_helper_functions, prompts, structures
+from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 
 
 def get_problem() -> str:
@@ -47,6 +48,7 @@ def ask_questions(
                 ),
                 response_model=structures.InterviewTurnResult,
                 temperature=temperature,
+                max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
             )
 
             if DEBUG:
@@ -103,6 +105,7 @@ def build_brief(
         user_prompt=prompts.brief_user_prompt(messages),
         response_model=structures.CaseBrief,
         temperature=0.0,
+        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
     )
 
     readiness_errors = dopytywator_helper_functions.validate_brief_readiness(case_brief)

@@ -84,7 +84,7 @@ def validate_draft(
 # ________________________________
 # render listu  letter.md
 
-PHASE0_OPENING_FORMULA = "W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o"
+PHASE0_OPENING_FORMULA = "Jako wieloletni mieszkaniec naszego kochango miasta, wnioskuję o"
 PHASE0_DOCUMENT_TYPE = "WNIOSEK"
 
 

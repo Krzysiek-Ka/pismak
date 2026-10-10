@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions, prompts, structures
+from src.Pismogenerator.constants import PISMOGENERATOR_MAX_OUTPUT_TOKENS
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
 
@@ -56,6 +57,7 @@ def build_draft(
         user_prompt=user_prompt,
         response_model=structures.DraftLetter,
         temperature=llm_temperature,
+        max_output_tokens=PISMOGENERATOR_MAX_OUTPUT_TOKENS,
     )
     # Renderer sam dodaje formułę nadawcy i podpis w Phase 0.
     draft = draft.model_copy(update={"sender": ""})

@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import json
+import logging
+from time import perf_counter
 from typing import Any
 
 from pydantic import BaseModel
 
 from src._shared.llm_runtime import llm_generation_lock
+from src._shared.serwer import (
+    COMPACT_OUTPUT_INSTRUCTION,
+    LLMOutputLimitError,
+    log_model_response,
+    recover_partial_structured_response,
+)
 
 from ..rag_retrieval.models import SearchIntent
 from .models import ResearchPlan
+
+ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS = 4096
+LOGGER = logging.getLogger("pismak")
 
 
 class LLMQueryPlanner:
@@ -43,12 +54,17 @@ Zasady:
         model: str,
         on_wait: Any = None,
         session_id: str | None = None,
+        allow_fallback: bool = True,
+        provider: str = "ollama",
     ) -> None:
         """Initialize the query planner with an LLM client and model identifier."""
         self.client = client
         self.model = model
         self.on_wait = on_wait
         self.session_id = session_id
+        self.allow_fallback = allow_fallback
+        self.provider = provider
+        self.last_model: str | None = None
 
     @staticmethod
     def _brief_dict(case_brief: Any) -> dict[str, Any]:
@@ -62,34 +78,126 @@ Zasady:
     def _llm_plan(self, brief: dict[str, Any]) -> ResearchPlan:
         """Request a structured research plan from the configured language model."""
         schema = ResearchPlan.model_json_schema()
-        with llm_generation_lock(
-            self.on_wait,
-            stage="query_planner",
-            session_id=self.session_id,
-        ):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": json.dumps(brief, ensure_ascii=False, indent=2),
-                    },
-                ],
-                temperature=0.1,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "ResearchPlan",
-                        "strict": True,
-                        "schema": schema,
-                    },
-                },
+        started = perf_counter()
+        user_prompt = json.dumps(brief, ensure_ascii=False, indent=2)
+        content: str | None = None
+        attempt = 1
+        try:
+            for attempt in (1, 2):
+                with llm_generation_lock(
+                    self.on_wait,
+                    stage="query_planner",
+                    session_id=self.session_id,
+                ):
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self.SYSTEM_PROMPT},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        temperature=0.1,
+                        max_tokens=ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                        response_format={
+                            "type": "json_schema",
+                            "json_schema": {
+                                "name": "ResearchPlan",
+                                "strict": True,
+                                "schema": schema,
+                            },
+                        },
+                    )
+                self.last_model = getattr(response, "model", None)
+                choice = response.choices[0]
+                content = choice.message.content
+                if getattr(choice, "finish_reason", None) == "length":
+                    LOGGER.warning(
+                        "llm_output_truncated stage=query_planner session_id=%s provider=%s "
+                        "model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s",
+                        self.session_id or "-",
+                        self.provider,
+                        self.last_model or self.model,
+                        ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                        attempt,
+                        str(attempt == 1).lower(),
+                        extra={"session_id": self.session_id},
+                    )
+                    log_model_response(
+                        outcome="truncated",
+                        stage="query_planner",
+                        session_id=self.session_id,
+                        response=content,
+                        provider=self.provider,
+                        model=self.last_model or self.model,
+                        attempt=attempt,
+                    )
+                    if attempt == 1:
+                        user_prompt += "\n\n" + COMPACT_OUTPUT_INSTRUCTION
+                        continue
+                    partial = recover_partial_structured_response(content, ResearchPlan)
+                    if partial is not None:
+                        LOGGER.warning(
+                            "llm_partial_response_recovered stage=query_planner session_id=%s",
+                            self.session_id or "-",
+                            extra={"session_id": self.session_id},
+                        )
+                        return partial
+                    raise LLMOutputLimitError(
+                        "Plan wyszukiwania został ucięty i nie dało się go zwalidować.",
+                        partial_response=content,
+                    )
+                if not content:
+                    raise RuntimeError("Planner zwrócił pustą odpowiedź")
+                plan = ResearchPlan.model_validate_json(content)
+                break
+            else:
+                raise RuntimeError("Planner nie zwrócił odpowiedzi.")
+        except LLMOutputLimitError:
+            LOGGER.warning(
+                "llm_output_limit stage=query_planner session_id=%s provider=%s model=%s "
+                "max_output_tokens=%d elapsed_seconds=%.3f",
+                self.session_id or "-",
+                self.provider,
+                self.last_model or self.model,
+                ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                perf_counter() - started,
+                extra={"session_id": self.session_id},
             )
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("Planner zwrócił pustą odpowiedź")
-        return ResearchPlan.model_validate_json(content)
+            log_model_response(
+                outcome="invalid",
+                stage="query_planner",
+                session_id=self.session_id,
+                response=content,
+                provider=self.provider,
+                model=self.last_model or self.model,
+                attempt=attempt,
+            )
+            raise
+        except Exception as exc:
+            LOGGER.error(
+                "llm_request_failed stage=query_planner session_id=%s provider=%s model=%s "
+                "max_output_tokens=%d attempt=1 retry_scheduled=false error_type=%s "
+                "elapsed_seconds=%.3f",
+                self.session_id or "-",
+                self.provider,
+                self.last_model or self.model,
+                ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                type(exc).__name__,
+                perf_counter() - started,
+                extra={"session_id": self.session_id},
+            )
+            raise
+        self.last_model = getattr(response, "model", None)
+        LOGGER.info(
+            "llm_request_completed stage=query_planner session_id=%s provider=%s model=%s "
+            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f",
+            self.session_id or "-",
+            self.provider,
+            self.last_model or self.model,
+            ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+            perf_counter() - started,
+            extra={"session_id": self.session_id},
+        )
+        return plan
 
     @staticmethod
     def _fallback_plan(brief: dict[str, Any]) -> ResearchPlan:
@@ -139,6 +247,9 @@ Zasady:
             plan = self._llm_plan(brief)
             if plan.intents:
                 return plan
+            if not self.allow_fallback:
+                raise RuntimeError("Planner zwrócił plan bez zapytań.")
         except Exception:
-            pass
+            if not self.allow_fallback:
+                raise
         return self._fallback_plan(brief)

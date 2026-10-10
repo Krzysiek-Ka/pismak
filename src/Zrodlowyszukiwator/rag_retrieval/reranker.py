@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 import json
+import logging
+from time import perf_counter
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
 from src._shared.llm_runtime import llm_generation_lock
+from src._shared.serwer import (
+    COMPACT_OUTPUT_INSTRUCTION,
+    LLMOutputLimitError,
+    log_model_response,
+    recover_partial_structured_response,
+)
 
 from .models import RetrievedChunk
+
+ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS = 4096
+LOGGER = logging.getLogger("pismak")
 
 
 class RerankedItem(BaseModel):
@@ -57,6 +68,8 @@ Zasady:
         max_selected: int = 6,
         on_wait: Any = None,
         session_id: str | None = None,
+        allow_fallback: bool = True,
+        provider: str = "ollama",
     ) -> None:
         """Initialize the optional LLM reranker and its selection limit."""
         self.client = client
@@ -64,35 +77,133 @@ Zasady:
         self.max_selected = max_selected
         self.on_wait = on_wait
         self.session_id = session_id
+        self.allow_fallback = allow_fallback
+        self.provider = provider
+        self.last_model: str | None = None
 
     def _structured(self, user_prompt: str, response_model: type[T]) -> T:
         """Request and validate one structured reranking response from the model."""
         schema = response_model.model_json_schema()
-        with llm_generation_lock(
-            self.on_wait,
-            stage="reranking",
-            session_id=self.session_id,
-        ):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.0,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": response_model.__name__,
-                        "strict": True,
-                        "schema": schema,
-                    },
-                },
+        started = perf_counter()
+        compact_prompt = user_prompt
+        content: str | None = None
+        attempt = 1
+        try:
+            for attempt in (1, 2):
+                with llm_generation_lock(
+                    self.on_wait,
+                    stage="reranking",
+                    session_id=self.session_id,
+                ):
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self.SYSTEM_PROMPT},
+                            {"role": "user", "content": compact_prompt},
+                        ],
+                        temperature=0.0,
+                        max_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                        response_format={
+                            "type": "json_schema",
+                            "json_schema": {
+                                "name": response_model.__name__,
+                                "strict": True,
+                                "schema": schema,
+                            },
+                        },
+                    )
+                self.last_model = getattr(response, "model", None)
+                choice = response.choices[0]
+                content = choice.message.content
+                if getattr(choice, "finish_reason", None) == "length":
+                    LOGGER.warning(
+                        "llm_output_truncated stage=reranking session_id=%s provider=%s "
+                        "model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s",
+                        self.session_id or "-",
+                        self.provider,
+                        self.last_model or self.model,
+                        ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                        attempt,
+                        str(attempt == 1).lower(),
+                        extra={"session_id": self.session_id},
+                    )
+                    log_model_response(
+                        outcome="truncated",
+                        stage="reranking",
+                        session_id=self.session_id,
+                        response=content,
+                        provider=self.provider,
+                        model=self.last_model or self.model,
+                        attempt=attempt,
+                    )
+                    if attempt == 1:
+                        compact_prompt += "\n\n" + COMPACT_OUTPUT_INSTRUCTION
+                        continue
+                    partial = recover_partial_structured_response(content, response_model)
+                    if partial is not None:
+                        LOGGER.warning(
+                            "llm_partial_response_recovered stage=reranking session_id=%s",
+                            self.session_id or "-",
+                            extra={"session_id": self.session_id},
+                        )
+                        return partial
+                    raise LLMOutputLimitError(
+                        "Wynik rerankera został ucięty i nie dało się go zwalidować.",
+                        partial_response=content,
+                    )
+                if not content:
+                    raise RuntimeError("Reranker zwrócił pustą odpowiedź")
+                result = response_model.model_validate_json(content)
+                break
+            else:
+                raise RuntimeError("Reranker nie zwrócił odpowiedzi.")
+        except LLMOutputLimitError:
+            LOGGER.warning(
+                "llm_output_limit stage=reranking session_id=%s provider=%s model=%s "
+                "max_output_tokens=%d elapsed_seconds=%.3f",
+                self.session_id or "-",
+                self.provider,
+                self.last_model or self.model,
+                ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                perf_counter() - started,
+                extra={"session_id": self.session_id},
             )
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("Reranker zwrócił pustą odpowiedź")
-        return response_model.model_validate_json(content)
+            log_model_response(
+                outcome="invalid",
+                stage="reranking",
+                session_id=self.session_id,
+                response=content,
+                provider=self.provider,
+                model=self.last_model or self.model,
+                attempt=attempt,
+            )
+            raise
+        except Exception as exc:
+            LOGGER.error(
+                "llm_request_failed stage=reranking session_id=%s provider=%s model=%s "
+                "max_output_tokens=%d attempt=1 retry_scheduled=false error_type=%s "
+                "elapsed_seconds=%.3f",
+                self.session_id or "-",
+                self.provider,
+                self.last_model or self.model,
+                ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                type(exc).__name__,
+                perf_counter() - started,
+                extra={"session_id": self.session_id},
+            )
+            raise
+        self.last_model = getattr(response, "model", None)
+        LOGGER.info(
+            "llm_request_completed stage=reranking session_id=%s provider=%s model=%s "
+            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f",
+            self.session_id or "-",
+            self.provider,
+            self.last_model or self.model,
+            ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+            perf_counter() - started,
+            extra={"session_id": self.session_id},
+        )
+        return result
 
     def rerank(
         self,
@@ -132,6 +243,8 @@ Zasady:
         try:
             result = self._structured(user_prompt, RerankResult)
         except Exception:
+            if not self.allow_fallback:
+                raise
             # Retrieval ma działać nawet, jeśli mały lokalny LLM nie zwróci
             # poprawnego structured output.
             return [
@@ -152,6 +265,8 @@ Zasady:
                 break
 
         if not selected:
+            if not self.allow_fallback:
+                raise RuntimeError("Reranker nie wybrał żadnych źródeł.")
             return [
                 (c, "Wybrano przez fallback hybrid ranking.", 0)
                 for c in candidates[: self.max_selected]

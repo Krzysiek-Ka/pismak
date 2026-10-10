@@ -40,6 +40,12 @@ Minimalny warunek zakończenia:
 - brakujące informacje można jawnie wypisać.
 
 Zwracaj wyłącznie dane zgodne ze schematem InterviewTurnResult.
+
+Zwróć dokładnie jeden obiekt JSON zgodny z przekazanym schematem.
+Nie używaj Markdown ani bloków kodu, w szczególności ```json.
+Nie dodawaj żadnego tekstu przed obiektem JSON ani po nim.
+Odpowiedź ma być krótka i zawierać wyłącznie dane wymagane przez schemat.
+
 """.strip()
 
 
@@ -67,6 +73,12 @@ Jeżeli nie:
 - nie powtarzaj informacji już podanych.
 
 Zwróć InterviewTurnResult.
+
+Zwróć dokładnie jeden obiekt JSON zgodny z przekazanym schematem.
+Nie używaj Markdown ani bloków kodu, w szczególności ```json.
+Nie dodawaj żadnego tekstu przed obiektem JSON ani po nim.
+Odpowiedź ma być krótka i zawierać wyłącznie dane wymagane przez schemat.
+
 """.strip()
 
 

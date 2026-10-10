@@ -2,10 +2,44 @@
 
 from __future__ import annotations
 
+import logging
 from threading import Event, Thread
+from types import SimpleNamespace
+
+import pytest
 
 from src._shared import serwer
 from src._shared.llm_runtime import llm_generation_lock
+
+
+def _completion(
+    content: str | None,
+    *,
+    finish_reason: str = "stop",
+    model: str = "vendor/model",
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        model=model,
+        choices=[
+            SimpleNamespace(
+                finish_reason=finish_reason,
+                message=SimpleNamespace(content=content),
+            )
+        ],
+    )
+
+
+def _client(completions) -> SimpleNamespace:
+    return SimpleNamespace(chat=SimpleNamespace(completions=completions))
+
+
+class _CaptureHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
 
 
 class TestCheckAvailableModel:
@@ -92,83 +126,264 @@ class TestLLMClient:
         assert second_entered.is_set()
 
     def test_llm_client__call_structured_returns_parsed_model(self) -> None:
-        """Verify structured responses are returned directly from parsed model output."""
+        """Verify raw structured JSON is validated and returned as the response model."""
 
-        class FakeMessage:
-            def __init__(self, parsed) -> None:
-                self.parsed = parsed
-                self.content = None
-
-        class FakeChoice:
-            def __init__(self, parsed) -> None:
-                self.message = FakeMessage(parsed)
-
-        class FakeCompletion:
-            def __init__(self, parsed) -> None:
-                self.choices = [FakeChoice(parsed)]
+        class FakeModel(serwer.BaseModel):
+            value: str
 
         class FakeCompletions:
-            def __init__(self, parsed) -> None:
-                self._parsed = parsed
+            def __init__(self) -> None:
+                self.calls = []
 
-            def parse(self, **kwargs):
-                return FakeCompletion(self._parsed)
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                return _completion('{"value":"ok"}', model="vendor/actual-model")
 
-        class FakeChat:
-            def __init__(self, parsed) -> None:
-                self.completions = FakeCompletions(parsed)
-
-        class FakeBeta:
-            def __init__(self, parsed) -> None:
-                self.chat = FakeChat(parsed)
-
-        class FakeClient:
-            def __init__(self, parsed) -> None:
-                self.beta = FakeBeta(parsed)
-
-        class FakeModel:
-            def __init__(self, value: str) -> None:
-                self.value = value
-
-        client = serwer.LLMClient(FakeClient(FakeModel("ok")), "model-name")
+        completions = FakeCompletions()
+        client = serwer.LLMClient(_client(completions), "model-name")
 
         result = client._call_structured(
             system_prompt="system",
             user_prompt="user",
             response_model=FakeModel,
             temperature=0.0,
+            max_output_tokens=512,
+            attempt=1,
         )
 
         assert isinstance(result, FakeModel)
         assert result.value == "ok"
+        assert client.last_model == "vendor/actual-model"
+        assert completions.calls[0]["max_tokens"] == 512
+        assert completions.calls[0]["response_format"]["json_schema"]["strict"] is True
 
     def test_llm_client__generate_structured_raises_error_when_retries_fail(self) -> None:
         """Verify a repeated structured-output failure raises the project-specific runtime error."""
 
+        class ResponseModel(serwer.BaseModel):
+            ok: bool
+
         class FakeCompletions:
-            def parse(self, **kwargs):
-                raise RuntimeError("bad payload")
+            calls = 0
 
-        class FakeChat:
-            def __init__(self) -> None:
-                self.completions = FakeCompletions()
+            def create(self, **kwargs):
+                self.calls += 1
+                raise serwer.LLMResponseError("bad payload")
 
-        class FakeBeta:
-            def __init__(self) -> None:
-                self.chat = FakeChat()
+        completions = FakeCompletions()
+        client = serwer.LLMClient(_client(completions), "model-name")
 
-        class FakeClient:
-            def __init__(self) -> None:
-                self.beta = FakeBeta()
-
-        client = serwer.LLMClient(FakeClient(), "model-name")
-
-        try:
+        with pytest.raises(serwer.LLMResponseError, match="dwukrotnie"):
             client.generate_structured(
                 system_prompt="system",
                 user_prompt="user",
-                response_model=dict,
+                response_model=ResponseModel,
+                max_output_tokens=768,
             )
-            raise AssertionError("Expected LLMResponseError")
-        except serwer.LLMResponseError:
-            pass
+        assert completions.calls == 2
+
+    def test_llm_client__does_not_retry_transport_errors(self) -> None:
+        """Verify network/provider failures are not repeated as structured-output repairs."""
+
+        class ResponseModel(serwer.BaseModel):
+            ok: bool
+
+        class FakeCompletions:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise RuntimeError("provider unavailable")
+
+        completions = FakeCompletions()
+        client = serwer.LLMClient(_client(completions), "model-name")
+
+        with pytest.raises(RuntimeError, match="provider unavailable"):
+            client.generate_structured(
+                system_prompt="system",
+                user_prompt="user",
+                response_model=ResponseModel,
+                max_output_tokens=768,
+            )
+
+        assert completions.calls == 1
+
+    def test_llm_client__caps_each_repair_attempt_with_the_same_output_limit(self) -> None:
+        """Verify the one repair request cannot exceed the original output token cap."""
+
+        class ResponseModel(serwer.BaseModel):
+            ok: bool
+
+        class FakeCompletions:
+            def __init__(self) -> None:
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                if len(self.calls) == 1:
+                    raise serwer.LLMResponseError("invalid response")
+                return _completion('{"ok":true}', model="model-name")
+
+        completions = FakeCompletions()
+        client = _client(completions)
+        llm = serwer.LLMClient(client, "model-name")
+
+        result = llm.generate_structured(
+            system_prompt="system",
+            user_prompt="user",
+            response_model=ResponseModel,
+            max_output_tokens=384,
+        )
+
+        assert result == ResponseModel(ok=True)
+        assert [call["max_tokens"] for call in completions.calls] == [384, 384]
+
+    def test_llm_client__retries_with_a_compact_prompt_when_output_limit_is_reached(
+        self,
+    ) -> None:
+        """Verify a truncated response is retried once with an instruction to shorten it."""
+
+        class ResponseModel(serwer.BaseModel):
+            ok: bool
+
+        class FakeCompletions:
+            def __init__(self) -> None:
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                if len(self.calls) == 1:
+                    return _completion(
+                        '{"short_summary":"long',
+                        finish_reason="length",
+                        model="vendor/long-output",
+                    )
+                return _completion('{"ok":true}', model="vendor/long-output")
+
+        completions = FakeCompletions()
+        client = _client(completions)
+        llm = serwer.LLMClient(client, "openrouter/free", provider="openrouter")
+
+        capture = _CaptureHandler()
+        serwer.LOGGER.addHandler(capture)
+        try:
+            result = llm.generate_structured(
+                system_prompt="system",
+                user_prompt="user",
+                response_model=ResponseModel,
+                max_output_tokens=1024,
+            )
+        finally:
+            serwer.LOGGER.removeHandler(capture)
+
+        assert result == ResponseModel(ok=True)
+        assert len(completions.calls) == 2
+        assert "krótszą" in completions.calls[1]["messages"][1]["content"]
+        assert all(call["max_tokens"] == 1024 for call in completions.calls)
+        assert llm.last_model == "vendor/long-output"
+        assert completions.calls[0]["response_format"] == completions.calls[1]["response_format"]
+        messages = "\n".join(capture.messages)
+        assert "llm_model_response outcome=truncated" in messages
+        assert "short_summary" in messages
+
+    def test_llm_client__logs_invalid_model_response_content(self) -> None:
+        """Verify both rejected structured responses are recorded for diagnosing schema errors."""
+
+        class ResponseModel(serwer.BaseModel):
+            required: str
+
+        class FakeCompletions:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                return _completion('{"unexpected":"bad model answer"}')
+
+        completions = FakeCompletions()
+        llm = serwer.LLMClient(_client(completions), "model-name")
+
+        capture = _CaptureHandler()
+        serwer.LOGGER.addHandler(capture)
+        try:
+            with pytest.raises(serwer.LLMResponseError, match="dwukrotnie"):
+                llm.generate_structured(
+                    system_prompt="system",
+                    user_prompt="user",
+                    response_model=ResponseModel,
+                    max_output_tokens=512,
+                )
+        finally:
+            serwer.LOGGER.removeHandler(capture)
+
+        assert completions.calls == 2
+        messages = "\n".join(capture.messages)
+        assert messages.count("llm_model_response outcome=invalid") == 2
+        assert "bad model answer" in messages
+
+    def test_llm_client__returns_valid_partial_response_after_compact_retry_is_truncated(
+        self,
+    ) -> None:
+        """Verify a truncated JSON tail is recovered only when the partial model validates."""
+
+        class ResponseModel(serwer.BaseModel):
+            summary: str
+            completed: bool
+
+        class FakeCompletions:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                return _completion(
+                    '{"summary":"partial but complete","completed":true',
+                    finish_reason="length",
+                    model="vendor/long-output",
+                )
+
+        completions = FakeCompletions()
+        client = _client(completions)
+        llm = serwer.LLMClient(client, "openrouter/free", provider="openrouter")
+
+        result = llm.generate_structured(
+            system_prompt="system",
+            user_prompt="user",
+            response_model=ResponseModel,
+            max_output_tokens=1024,
+        )
+
+        assert result == ResponseModel(summary="partial but complete", completed=True)
+        assert completions.calls == 2
+
+    def test_llm_client__keeps_unrecoverable_partial_response_on_output_limit_error(self) -> None:
+        """Verify unusable truncated JSON is retained for the UI warning instead of logged as an API error."""
+
+        class ResponseModel(serwer.BaseModel):
+            required: str
+
+        class FakeCompletions:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                return _completion(
+                    '{"incomplete":',
+                    finish_reason="length",
+                    model="vendor/long-output",
+                )
+
+        completions = FakeCompletions()
+        client = _client(completions)
+        llm = serwer.LLMClient(client, "openrouter/free", provider="openrouter")
+
+        with pytest.raises(serwer.LLMOutputLimitError) as error:
+            llm.generate_structured(
+                system_prompt="system",
+                user_prompt="user",
+                response_model=ResponseModel,
+                max_output_tokens=1024,
+            )
+
+        assert completions.calls == 2
+        assert error.value.partial_response == '{"incomplete":'

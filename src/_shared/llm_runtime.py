@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from threading import Lock
 from time import perf_counter
 
+from openai import LengthFinishReasonError
+
 _LLM_LOCK = Lock()
 _LOGGER = logging.getLogger("pismak")
 
@@ -30,12 +32,28 @@ def llm_generation_lock(
         stage,
         session_id or "-",
         acquired_at - started,
+        extra={"session_id": session_id},
     )
 
     try:
         yield
-    except Exception:
-        _LOGGER.exception("llm_failed stage=%s session_id=%s", stage, session_id or "-")
+    except LengthFinishReasonError as exc:
+        _LOGGER.warning(
+            "llm_output_truncated stage=%s session_id=%s error_type=%s",
+            stage,
+            session_id or "-",
+            type(exc).__name__,
+            extra={"session_id": session_id},
+        )
+        raise
+    except Exception as exc:
+        _LOGGER.error(
+            "llm_failed stage=%s session_id=%s error_type=%s",
+            stage,
+            session_id or "-",
+            type(exc).__name__,
+            extra={"session_id": session_id},
+        )
         raise
     finally:
         _LLM_LOCK.release()
@@ -44,4 +62,5 @@ def llm_generation_lock(
             stage,
             session_id or "-",
             perf_counter() - acquired_at,
+            extra={"session_id": session_id},
         )

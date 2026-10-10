@@ -28,7 +28,7 @@ STAŁE PHASE 0
 5. Typ pisma jest stały: WNIOSEK.
 6. Pole sender pozostaw jako pusty ciąg znaków.
 7. Końcowy renderer sam doda:
-   "W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o ..."
+   "W imieniu (...), wnioskuję o ..."
 8. Końcowy renderer sam doda podpis.
 
 request_summary:

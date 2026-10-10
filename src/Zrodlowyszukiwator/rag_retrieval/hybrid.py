@@ -114,5 +114,6 @@ class HybridRetriever:
             len(intents),
             len(ranked),
             perf_counter() - started,
+            extra={"session_id": self.session_id},
         )
         return ranked[:top_k]

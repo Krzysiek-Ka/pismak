@@ -3,13 +3,29 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import uuid
-from logging.handlers import RotatingFileHandler
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from openai import OpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AuthenticationError,
+    BadRequestError,
+    OpenAI,
+    PermissionDeniedError,
+    RateLimitError,
+)
 
+from src._shared.serwer import (
+    LLMConfigurationError,
+    LLMOutputLimitError,
+    LLMResponseError,
+    set_up_client,
+)
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions
 from src.Pismogenerator.structures import DraftLetter
@@ -28,30 +44,47 @@ from src.Zrodlowyszukiwator.rag_retrieval import (
 MAX_USER_MESSAGE_CHARS = 5000
 MAX_INTERVIEW_QUESTIONS = 12
 LOGGER = logging.getLogger("pismak")
+_CASE_LOG_HANDLERS: dict[str, logging.FileHandler] = {}
+_CASE_LOG_HANDLERS_LOCK = threading.Lock()
 
 
-def configure_logging(project_root: Path) -> logging.Logger:
-    """Configure rotating local logs without recording user-provided content."""
-    log_path = (project_root / "logs" / "pismak.log").resolve()
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+class _SessionLogFilter(logging.Filter):
+    def __init__(self, session_id: str) -> None:
+        super().__init__()
+        self.session_id = session_id
 
-    if not any(
-        isinstance(handler, RotatingFileHandler)
-        and Path(handler.baseFilename) == log_path
-        for handler in LOGGER.handlers
-    ):
-        handler = RotatingFileHandler(
-            log_path,
-            maxBytes=2_000_000,
-            backupCount=3,
-            encoding="utf-8",
-        )
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        LOGGER.addHandler(handler)
+    def filter(self, record: logging.LogRecord) -> bool:
+        return getattr(record, "session_id", None) == self.session_id
 
+
+def configure_logging(project_root: Path, session_id: str) -> logging.Logger:
+    """Create one private log file per case and route only that case's records to it."""
     LOGGER.setLevel(logging.INFO)
     LOGGER.propagate = False
+    with _CASE_LOG_HANDLERS_LOCK:
+        if session_id not in _CASE_LOG_HANDLERS:
+            log_dir = (project_root / "logs").resolve()
+            log_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            handler = logging.FileHandler(
+                log_dir / f"pismak_{timestamp}.log",
+                encoding="utf-8",
+            )
+            handler.addFilter(_SessionLogFilter(session_id))
+            handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+            LOGGER.addHandler(handler)
+            _CASE_LOG_HANDLERS[session_id] = handler
+
     return LOGGER
+
+
+def close_case_logging(session_id: str) -> None:
+    """Close and remove a case's file handler after that case has ended."""
+    with _CASE_LOG_HANDLERS_LOCK:
+        handler = _CASE_LOG_HANDLERS.pop(session_id, None)
+        if handler is not None:
+            LOGGER.removeHandler(handler)
+            handler.close()
 
 
 def validate_user_message(message: str) -> None:
@@ -70,6 +103,41 @@ def get_openai_client(ollama_url: str | None = None) -> OpenAI:
     )
 
 
+def get_llm_client(provider: str) -> OpenAI:
+    """Create a client for the explicitly selected provider."""
+    if provider == "ollama":
+        return get_openai_client()
+    if provider == "openrouter":
+        return set_up_client("openrouter")
+    raise ValueError(f"Nieznany dostawca modelu: {provider}")
+
+
+def llm_error_message(error: Exception) -> str:
+    """Return a safe, actionable message without exposing request details."""
+    if isinstance(error, LLMConfigurationError):
+        return str(error)
+    if isinstance(error, (AuthenticationError, PermissionDeniedError)):
+        return "OpenRouter odrzucił klucz API. Sprawdź OPENROUTER_KEY w pliku .env."
+    if isinstance(error, RateLimitError):
+        return "OpenRouter odrzucił zapytanie z powodu limitu. Spróbuj później."
+    if isinstance(error, APITimeoutError):
+        return "Przekroczono czas oczekiwania na odpowiedź modelu. Spróbuj ponownie."
+    if isinstance(error, APIConnectionError):
+        return "Nie udało się połączyć z usługą modelu. Sprawdź połączenie internetowe."
+    if isinstance(error, BadRequestError):
+        return "Wybrany model nie obsłużył wymaganej odpowiedzi strukturalnej."
+    if isinstance(error, APIStatusError) and error.status_code >= 500:
+        return "Usługa modelu jest chwilowo niedostępna. Spróbuj później."
+    if isinstance(error, LLMOutputLimitError):
+        return (
+            "Odpowiedź modelu została ucięta. Aplikacja ponowiła generowanie z prośbą o "
+            "krótszy wynik, ale nie udało się odzyskać kompletnej struktury."
+        )
+    if isinstance(error, LLMResponseError):
+        return "Model nie zwrócił poprawnych danych. Nie utworzono wyniku."
+    return "Wystąpił błąd podczas generowania odpowiedzi. Sprawdź log aplikacji."
+
+
 def list_generation_models(client: OpenAI) -> list[str]:
     """Return available model names excluding embedding-only models."""
     models = sorted(m.id for m in client.models.list().data)
@@ -85,8 +153,13 @@ def build_zrodlowyszukiwator(
     model: str,
     on_wait: Any = None,
     session_id: str | None = None,
+    provider: str = "ollama",
 ) -> tuple[BriefToEvidencePipeline, int, int]:
     """Assemble the existing RAG planner, retriever, reranker, and evidence pipeline."""
+    if provider not in ("ollama", "openrouter"):
+        raise ValueError(f"Nieznany dostawca modelu: {provider}")
+    allow_fallback = provider != "openrouter"
+
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise RuntimeError("Brak DATABASE_URL w .env.")
@@ -109,6 +182,8 @@ def build_zrodlowyszukiwator(
         model=model,
         on_wait=on_wait,
         session_id=session_id,
+        allow_fallback=allow_fallback,
+        provider=provider,
     )
     retriever = HybridRetriever(
         repository=repo,
@@ -123,6 +198,8 @@ def build_zrodlowyszukiwator(
         max_selected=6,
         on_wait=on_wait,
         session_id=session_id,
+        allow_fallback=allow_fallback,
+        provider=provider,
     )
 
     pipeline = BriefToEvidencePipeline(
@@ -160,6 +237,7 @@ def save_run(
     evidence_pack: Any | None = None,
     draft: DraftLetter | None = None,
     letter_markdown: str | None = None,
+    model_usage: dict[str, list[dict[str, str]]] | None = None,
     run_dir: Path | None = None,
 ) -> Path:
     """Persist current UI artifacts to a uniquely named local output directory."""
@@ -196,6 +274,12 @@ def save_run(
     if letter_markdown is not None:
         (run_dir / "letter.md").write_text(
             letter_markdown,
+            encoding="utf-8",
+        )
+
+    if model_usage is not None:
+        (run_dir / "models.json").write_text(
+            json.dumps(model_usage, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
 

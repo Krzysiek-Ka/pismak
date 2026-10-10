@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
@@ -24,22 +25,26 @@ load_dotenv(PROJECT_ROOT / ".env", override=True)
 from services import (
     MAX_INTERVIEW_QUESTIONS,
     build_zrodlowyszukiwator,
+    close_case_logging,
     configure_logging,
+    get_llm_client,
     get_openai_client,
     list_generation_models,
+    llm_error_message,
     render_letter,
     save_run,
     validate_user_message,
 )
 
-from src._shared.serwer import LLMClient
+from src._shared.serwer import OPENROUTER_MODEL, LLMClient, LLMOutputLimitError
 from src.Dopytywator import prompts as dopytywator_prompts
+from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 from src.Dopytywator.dopytywator_helper_functions import validate_brief_readiness
 from src.Dopytywator.structures import CaseBrief, ConversationMessage, InterviewTurnResult
 from src.Pismogenerator import pismogenerator
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
-LOGGER = configure_logging(PROJECT_ROOT)
+LOGGER = logging.getLogger("pismak")
 
 st.set_page_config(
     page_title="Pismak",
@@ -62,17 +67,24 @@ def init_state() -> None:
         "draft": None,
         "letter_markdown": None,
         "run_dir": None,
+        "model_usage": {},
     }
+    new_session = "session_id" not in st.session_state
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
-            if key == "session_id":
-                LOGGER.info("session_started session_id=%s", value)
+    configure_logging(PROJECT_ROOT, st.session_state.session_id)
+    if new_session:
+        LOGGER.info(
+            "session_started session_id=%s",
+            st.session_state.session_id,
+            extra={"session_id": st.session_state.session_id},
+        )
 
 
 def notify_model_wait() -> None:
-    """Show a non-sensitive notice when another session is using the local model."""
-    st.info("Lokalny model jest zajęty. Oczekiwanie na swoją kolej...")
+    """Show a non-sensitive notice while a model request waits for its turn."""
+    st.info("Model jest zajęty. Oczekiwanie na swoją kolej...")
 
 
 def show_thinking_overlay(message: str):
@@ -131,7 +143,9 @@ def show_thinking_overlay(message: str):
 def reset_case() -> None:
     """Clear the current case state and initialize a fresh UI session."""
     # Usuwamy tylko dane tej sprawy; ustawienia modeli pozostają w widgetach.
+    close_case_logging(st.session_state.session_id)
     for key in [
+        "session_id",
         "stage",
         "messages",
         "question_count",
@@ -140,6 +154,7 @@ def reset_case() -> None:
         "draft",
         "letter_markdown",
         "run_dir",
+        "model_usage",
     ]:
         if key in st.session_state:
             del st.session_state[key]
@@ -158,6 +173,31 @@ def load_models() -> list[str]:
     """Load and cache the available generation model names."""
     client = get_openai_client()
     return list_generation_models(client)
+
+
+def record_model_usage(stage: str, provider: str, configured_model: str, llm: LLMClient) -> None:
+    """Keep provider and returned model identifiers in the local run metadata."""
+    model = llm.last_model or configured_model
+    usage = st.session_state.model_usage
+    usage.setdefault(stage, []).append({"provider": provider, "model": model})
+    LOGGER.info(
+        "llm_model_used stage=%s provider=%s model=%s session_id=%s",
+        stage,
+        provider,
+        model,
+        st.session_state.session_id,
+        extra={"session_id": st.session_state.session_id},
+    )
+
+
+def require_external_processing_consent(providers: tuple[str, ...]) -> bool:
+    """Prevent prompts from leaving the app until the user acknowledges the privacy notice."""
+    if "openrouter" in providers and not st.session_state.get(
+        "cfg_external_processing_consent", False
+    ):
+        st.error("Potwierdź zgodę na przetwarzanie zewnętrzne przed wysłaniem zapytania.")
+        return False
+    return True
 
 
 def show_brief(brief: CaseBrief) -> None:
@@ -217,53 +257,48 @@ def show_evidence(evidence_pack: EvidencePack) -> None:
 # Ten kod wykonuje się przy każdym rerun, dlatego inicjalizacja musi być idempotentna.
 init_state()
 
-st.title("Pismak")
+st.title("Pismak - twój asystent w pisaniu wniosków")
 st.caption("Od opisu sprawy, przez sprawdzone źródła, do projektu pisma.")
-
-try:
-    models = load_models()
-except Exception:
-    LOGGER.exception("model_list_failed")
-    st.error("Model lokalny jest obecnie niedostępny. Spróbuj ponownie za chwilę.")
-    st.stop()
-
-if not models:
-    st.error("Ollama nie zwróciła żadnego modelu generatywnego. Sprawdź `ollama list`.")
-    st.stop()
-
 
 # Panel konfiguracji zapisuje wartości widgetów w session_state dzięki ich kluczom.
 with st.container(border=True):
     st.subheader("Konfiguracja")
 
-    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+    provider_columns = st.columns([2, 2, 2, 1])
+    provider_options = ["ollama", "openrouter"]
+    provider_labels = {
+        "ollama": "Lokalny model (Ollama)",
+        "openrouter": "Losowy darmowy model (OpenRouter)",
+    }
 
-    with c1:
-        dopytywator_model = st.selectbox(
-            "Dopytywator",
-            models,
-            key="cfg_dopytywator_model",
+    with provider_columns[0]:
+        dopytywator_provider = st.selectbox(
+            "Dostawca — Dopytywator",
+            provider_options,
+            format_func=provider_labels.get,
+            key="cfg_dopytywator_provider",
             disabled=st.session_state.question_count > 0,
         )
 
-    with c2:
-        zrodla_model = st.selectbox(
-            "Źródłowyszukiwator",
-            models,
-            key="cfg_zrodla_model",
+    with provider_columns[1]:
+        zrodla_provider = st.selectbox(
+            "Dostawca — Źródłowyszukiwacz",
+            provider_options,
+            format_func=provider_labels.get,
+            key="cfg_zrodla_provider",
             disabled=st.session_state.case_brief is not None,
         )
-        st.caption("Planner i reranker. Embeddings: " + os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"))
 
-    with c3:
-        pismo_model = st.selectbox(
-            "Pismogenerator",
-            models,
-            key="cfg_pismo_model",
+    with provider_columns[2]:
+        pismo_provider = st.selectbox(
+            "Dostawca — Pismogenerator",
+            provider_options,
+            format_func=provider_labels.get,
+            key="cfg_pismo_provider",
             disabled=st.session_state.draft is not None,
         )
 
-    with c4:
+    with provider_columns[3]:
         max_questions = int(
             st.number_input(
                 "Max pytań",
@@ -274,6 +309,74 @@ with st.container(border=True):
                 disabled=st.session_state.question_count > 0,
             )
         )
+
+    models: list[str] = []
+    model_list_error: Exception | None = None
+    if "ollama" in (dopytywator_provider, zrodla_provider, pismo_provider):
+        try:
+            models = load_models()
+        except Exception as exc:
+            model_list_error = exc
+            LOGGER.exception("model_list_failed")
+
+    model_columns = st.columns([2, 2, 2, 1])
+
+    def choose_model(label: str, provider: str, key: str, disabled: bool) -> str | None:
+        if provider == "openrouter":
+            st.caption(f"OpenRouter dobiera darmowy model ({OPENROUTER_MODEL}).")
+            return OPENROUTER_MODEL
+        if models:
+            return st.selectbox(label, models, key=key, disabled=disabled)
+        if model_list_error:
+            st.error("Nie udało się pobrać modeli Ollama. Sprawdź, czy Ollama działa.")
+        else:
+            st.error("Brak modeli generatywnych w Ollama. Sprawdź `ollama list`.")
+        return None
+
+    with model_columns[0]:
+        dopytywator_model = choose_model(
+            "Model — Dopytywator",
+            dopytywator_provider,
+            "cfg_dopytywator_model",
+            st.session_state.question_count > 0,
+        )
+
+    with model_columns[1]:
+        zrodla_model = choose_model(
+            "Model — Źródłowyszukiwacz",
+            zrodla_provider,
+            "cfg_zrodla_model",
+            st.session_state.case_brief is not None,
+        )
+        st.caption("Planner i reranker. Embeddings: " + os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"))
+
+    with model_columns[2]:
+        pismo_model = choose_model(
+            "Model — Pismogenerator",
+            pismo_provider,
+            "cfg_pismo_model",
+            st.session_state.draft is not None,
+        )
+
+    selected_providers = (dopytywator_provider, zrodla_provider, pismo_provider)
+    if "openrouter" in selected_providers:
+        st.warning(
+            "OpenRouter wysyła treść zapytań do usługi zewnętrznej i dalej do dostawcy "
+            "wybranego przez router. Dostawcy mogą stosować różne zasady retencji i "
+            "wykorzystania danych. Nie wysyłaj poufnych danych bez świadomej decyzji."
+        )
+        st.checkbox(
+            "Rozumiem i zgadzam się na wysyłanie treści zapytań do OpenRouter.",
+            key="cfg_external_processing_consent",
+        )
+
+    model_usage = st.session_state.model_usage
+    if model_usage:
+        with st.expander("Modele użyte w tej sprawie", expanded=False):
+            for stage, calls in model_usage.items():
+                if calls:
+                    latest = calls[-1]
+                    st.caption(f"{stage}: {latest['provider']} — {latest['model']}")
 
     if st.button("Nowa sprawa", type="secondary"):
         reset_case()
@@ -300,6 +403,11 @@ if st.session_state.case_brief is None:
     prompt = st.chat_input(placeholder)
 
     if prompt:
+        if not require_external_processing_consent((dopytywator_provider,)):
+            st.stop()
+        if dopytywator_model is None:
+            st.error("Wybierz dostawcę Ollama z dostępnym modelem albo OpenRouter.")
+            st.stop()
         try:
             validate_user_message(prompt)
         except ValueError as exc:
@@ -313,37 +421,44 @@ if st.session_state.case_brief is None:
             "Analizuję opis i przygotowuję odpowiedź lub podsumowanie sprawy."
         )
         try:
-            client = load_client()
+            client = (
+                load_client()
+                if dopytywator_provider == "ollama"
+                else get_llm_client(dopytywator_provider)
+            )
             interview_started = time.perf_counter()
             conversation = [
                 ConversationMessage.model_validate(message) for message in st.session_state.messages
             ]
+            dopytywator_llm = LLMClient(
+                client=client,
+                model_name=dopytywator_model,
+                on_wait=notify_model_wait,
+                stage="dopytywator",
+                session_id=st.session_state.session_id,
+                provider=dopytywator_provider,
+            )
 
             # Po osiągnięciu limitu pytań pomijamy kolejne pytanie i budujemy brief.
             if st.session_state.question_count >= max_questions:
-                brief = LLMClient(
-                    client=client,
-                    model_name=dopytywator_model,
-                    on_wait=notify_model_wait,
-                    stage="case_brief",
-                    session_id=st.session_state.session_id,
-                ).generate_structured(
+                brief = dopytywator_llm.generate_structured(
                     system_prompt=dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
                     user_prompt=dopytywator_prompts.brief_user_prompt(conversation),
                     response_model=CaseBrief,
                     temperature=0.0,
+                    max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
+                )
+                record_model_usage(
+                    "Dopytywator",
+                    dopytywator_provider,
+                    dopytywator_model,
+                    dopytywator_llm,
                 )
                 st.session_state.case_brief = brief
                 st.session_state.stage = "BRIEF_READY"
             else:
                 # W przeciwnym razie model decyduje, czy zadać następne pytanie.
-                result = LLMClient(
-                    client=client,
-                    model_name=dopytywator_model,
-                    on_wait=notify_model_wait,
-                    stage="dopytywator",
-                    session_id=st.session_state.session_id,
-                ).generate_structured(
+                result = dopytywator_llm.generate_structured(
                     system_prompt=dopytywator_prompts.DOPYTYWATOR_INTERVIEW_SYSTEM_PROMPT,
                     user_prompt=dopytywator_prompts.interviewer_user_prompt(
                         conversation,
@@ -352,21 +467,29 @@ if st.session_state.case_brief is None:
                     ),
                     response_model=InterviewTurnResult,
                     temperature=0.1,
+                    max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
+                )
+                record_model_usage(
+                    "Dopytywator",
+                    dopytywator_provider,
+                    dopytywator_model,
+                    dopytywator_llm,
                 )
 
                 if result.ready_to_build_brief:
                     # Model uznał, że informacje są wystarczające do zbudowania briefu.
-                    brief = LLMClient(
-                        client=client,
-                        model_name=dopytywator_model,
-                        on_wait=notify_model_wait,
-                        stage="case_brief",
-                        session_id=st.session_state.session_id,
-                    ).generate_structured(
+                    brief = dopytywator_llm.generate_structured(
                         system_prompt=dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
                         user_prompt=dopytywator_prompts.brief_user_prompt(conversation),
                         response_model=CaseBrief,
                         temperature=0.0,
+                        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
+                    )
+                    record_model_usage(
+                        "Dopytywator",
+                        dopytywator_provider,
+                        dopytywator_model,
+                        dopytywator_llm,
                     )
                     st.session_state.case_brief = brief
                     st.session_state.stage = "BRIEF_READY"
@@ -412,6 +535,7 @@ if st.session_state.case_brief is None:
                     project_root=PROJECT_ROOT,
                     messages=st.session_state.messages,
                     case_brief=st.session_state.case_brief,
+                    model_usage=st.session_state.model_usage,
                     run_dir=st.session_state.run_dir,
                 )
                 st.session_state.run_dir = run_dir
@@ -421,13 +545,30 @@ if st.session_state.case_brief is None:
                 st.session_state.session_id,
                 dopytywator_model,
                 time.perf_counter() - interview_started,
+                extra={"session_id": st.session_state.session_id},
             )
             # Wszystkie zmiany stanu są już zapisane, więc odświeżamy interfejs.
             st.rerun()
 
-        except Exception:
-            LOGGER.exception("interview_failed session_id=%s", st.session_state.session_id)
-            st.error("Wystąpił błąd podczas rozmowy. Spróbuj ponownie za chwilę.")
+        except Exception as exc:
+            if isinstance(exc, LLMOutputLimitError):
+                LOGGER.warning(
+                    "interview_output_truncated session_id=%s",
+                    st.session_state.session_id,
+                    extra={"session_id": st.session_state.session_id},
+                )
+                message = llm_error_message(exc)
+                if exc.partial_response:
+                    message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
+                st.warning(message)
+            else:
+                LOGGER.error(
+                    "interview_failed session_id=%s error_type=%s",
+                    st.session_state.session_id,
+                    type(exc).__name__,
+                    extra={"session_id": st.session_state.session_id},
+                )
+                st.error(llm_error_message(exc))
         finally:
             thinking_overlay.empty()
 
@@ -446,30 +587,42 @@ if st.session_state.case_brief is not None:
         show_evidence(st.session_state.evidence_pack)
 
     if st.session_state.letter_markdown is None:
-        if st.button(
-            "Znajdź źródła i wygeneruj pismo",
-            type="primary",
-            use_container_width=True,
+        if (
+            st.button(
+                "Znajdź źródła i wygeneruj pismo",
+                type="primary",
+                use_container_width=True,
+            )
+            and require_external_processing_consent((zrodla_provider, pismo_provider))
+            and zrodla_model is not None
+            and pismo_model is not None
         ):
             thinking_overlay = show_thinking_overlay(
                 "Wyszukuję źródła i przygotowuję projekt pisma."
             )
             try:
-                client = load_client()
+                zrodla_client = (
+                    load_client()
+                    if zrodla_provider == "ollama"
+                    else get_llm_client(zrodla_provider)
+                )
                 pipeline_started = time.perf_counter()
 
                 with st.status("Uruchamiam pipeline...", expanded=True) as status:
                     st.write("1/2 Źródłowyszukiwator")
                     LOGGER.info(
-                        "rag_started session_id=%s model=%s",
+                        "rag_started session_id=%s provider=%s model=%s",
                         st.session_state.session_id,
+                        zrodla_provider,
                         zrodla_model,
+                        extra={"session_id": st.session_state.session_id},
                     )
                     zrodla, docs, chunks = build_zrodlowyszukiwator(
-                        client=client,
+                        client=zrodla_client,
                         model=zrodla_model,
                         on_wait=notify_model_wait,
                         session_id=st.session_state.session_id,
+                        provider=zrodla_provider,
                     )
                     st.caption(f"Baza RAG: {docs} dokumentów, {chunks} chunków.")
                     LOGGER.info(
@@ -477,24 +630,67 @@ if st.session_state.case_brief is not None:
                         st.session_state.session_id,
                         docs,
                         chunks,
+                        extra={"session_id": st.session_state.session_id},
                     )
 
-                    evidence_pack = zrodla.run(st.session_state.case_brief)
+                    try:
+                        evidence_pack = zrodla.run(st.session_state.case_brief)
+                    finally:
+                        for stage_name, component in (
+                            ("Planner", zrodla.planner),
+                            ("Reranker", zrodla.reranker),
+                        ):
+                            if component.last_model:
+                                model_usage = st.session_state.model_usage
+                                model_usage.setdefault(stage_name, []).append(
+                                    {
+                                        "provider": zrodla_provider,
+                                        "model": component.last_model,
+                                    }
+                                )
+                                LOGGER.info(
+                                    "llm_model_used stage=%s provider=%s model=%s session_id=%s",
+                                    stage_name,
+                                    zrodla_provider,
+                                    component.last_model,
+                                    st.session_state.session_id,
+                                    extra={"session_id": st.session_state.session_id},
+                                )
+                        st.session_state.run_dir = save_run(
+                            project_root=PROJECT_ROOT,
+                            messages=st.session_state.messages,
+                            case_brief=st.session_state.case_brief,
+                            model_usage=st.session_state.model_usage,
+                            run_dir=st.session_state.run_dir,
+                        )
                     st.session_state.evidence_pack = evidence_pack
                     st.write(f"Znaleziono {len(evidence_pack.evidence)} źródeł.")
 
                     st.write("2/2 Pismogenerator")
+                    pismo_client = (
+                        load_client()
+                        if pismo_provider == "ollama"
+                        else get_llm_client(pismo_provider)
+                    )
+                    pismo_llm = LLMClient(
+                        client=pismo_client,
+                        model_name=pismo_model,
+                        on_wait=notify_model_wait,
+                        stage="pismogenerator",
+                        session_id=st.session_state.session_id,
+                        provider=pismo_provider,
+                    )
                     draft = pismogenerator.build_draft(
                         case_brief=st.session_state.case_brief,
                         evidence_pack=evidence_pack,
-                        llm=LLMClient(
-                            client=client,
-                            model_name=pismo_model,
-                            on_wait=notify_model_wait,
-                            stage="pismogenerator",
-                            session_id=st.session_state.session_id,
-                        ),
+                        llm=pismo_llm,
                         llm_temperature=0.2,
+                    )
+                    record_model_usage(
+                        "Pismogenerator",
+                        pismo_provider,
+                        pismo_model,
+                        pismo_llm,
                     )
                     letter = render_letter(
                         draft,
@@ -513,6 +709,7 @@ if st.session_state.case_brief is not None:
                         evidence_pack=evidence_pack,
                         draft=draft,
                         letter_markdown=letter,
+                        model_usage=st.session_state.model_usage,
                         run_dir=st.session_state.run_dir,
                     )
                     st.session_state.run_dir = run_dir
@@ -522,15 +719,32 @@ if st.session_state.case_brief is not None:
                         pismo_model,
                         len(evidence_pack.evidence),
                         time.perf_counter() - pipeline_started,
+                        extra={"session_id": st.session_state.session_id},
                     )
 
                     status.update(label="Pismo gotowe", state="complete")
 
                 st.rerun()
 
-            except Exception:
-                LOGGER.exception("pipeline_failed session_id=%s", st.session_state.session_id)
-                st.error("Wystąpił błąd podczas przetwarzania sprawy. Spróbuj ponownie za chwilę.")
+            except Exception as exc:
+                if isinstance(exc, LLMOutputLimitError):
+                    LOGGER.warning(
+                        "pipeline_output_truncated session_id=%s",
+                        st.session_state.session_id,
+                        extra={"session_id": st.session_state.session_id},
+                    )
+                    message = llm_error_message(exc)
+                    if exc.partial_response:
+                        message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
+                    st.warning(message)
+                else:
+                    LOGGER.error(
+                        "pipeline_failed session_id=%s error_type=%s",
+                        st.session_state.session_id,
+                        type(exc).__name__,
+                        extra={"session_id": st.session_state.session_id},
+                    )
+                    st.error(llm_error_message(exc))
             finally:
                 thinking_overlay.empty()
 

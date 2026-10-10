@@ -572,6 +572,14 @@ evidence.json
 draft.json
 letter.md
 ```
+
+Logi aplikacji są zapisywane osobno dla każdej sprawy w katalogu `logs/`,
+pod nazwami `pismak_<timestamp>.log`. Po wybraniu „Nowa sprawa” powstaje
+nowy plik, a logi równoległych sesji nie są mieszane.
+Jeśli odpowiedź modelu jest niepoprawna albo ucięta, log zawiera jej treść
+(maksymalnie 20 000 znaków, zapisaną jako JSON-escaped tekst). Może ona zawierać
+dane sprawy, dlatego logi należy chronić tak samo jak pozostałe dane lokalne.
+
 Wyświetlator wymaga działającej Ollamy, PostgreSQL z tabelami `rag_documents` i
 `rag_chunks` oraz zainstalowanego `bge-m3`. Przy pustej bazie RAG najpierw trzeba
 wykonać ingestion dokumentów.
