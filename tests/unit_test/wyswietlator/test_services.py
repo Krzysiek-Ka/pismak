@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from pathlib import Path
 
 import pytest
 
-from src._shared.serwer import LLMConfigurationError
+from src._shared.serwer import LLMConfigurationError, LLMResponseError
+from src.Pismogenerator.pismogenerator import DraftValidationError
+from src.Pismogenerator.structures import DraftLetter
+from src.Zrodlowyszukiwator.rag_retrieval import DatabaseConnectionError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WYSWIETLATOR_DIR = PROJECT_ROOT / "src" / "Wyswietlator"
@@ -49,6 +53,50 @@ class TestGetLlmClient:
         message = services.llm_error_message(LLMConfigurationError("Brak OPENROUTER_KEY."))
 
         assert "OPENROUTER_KEY" in message
+
+
+class TestLlmErrorMessage:
+    def test_llm_error_message__explains_local_postgres_docker_failure(self) -> None:
+        """Verify the UI preserves actionable Docker guidance for local database failures."""
+        expected = "Uruchom Docker Desktop i kontener PostgreSQL."
+
+        assert services.llm_error_message(DatabaseConnectionError(expected)) == expected
+
+    def test_llm_error_message__preserves_draft_validation_details(self) -> None:
+        """Verify draft validation failures show their rejected-source explanation."""
+        error = DraftValidationError(["Model dodał niedozwolone źródła: U1; U2"])
+
+        message = services.llm_error_message(error)
+
+        assert "DraftLetter nie przeszedł walidacji" in message
+        assert "Model dodał niedozwolone źródła: U1; U2" in message
+
+    def test_llm_error_message__preserves_structured_output_failure_reason(self) -> None:
+        """Verify structured-output failures expose the specific schema rejection."""
+        error = LLMResponseError(
+            "Model dwukrotnie zwrócił niepoprawny structured output dla InterviewTurnResult. "
+            "Ostatni błąd: next_question: Field required (missing)"
+        )
+
+        message = services.llm_error_message(error)
+
+        assert "InterviewTurnResult" in message
+        assert "next_question: Field required (missing)" in message
+
+    def test_error_location__identifies_project_file_and_line(self) -> None:
+        """Verify exception diagnostics point to the project code that raised the error."""
+
+        def raise_validation_error() -> None:
+            raise DraftValidationError(["Model dodał niedozwolone źródła: U1; U2"])
+
+        try:
+            raise_validation_error()
+        except DraftValidationError as error:
+            location = services.error_location(error)
+
+        assert location is not None
+        assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
+        assert "in raise_validation_error" in location
 
 
 class TestBuildZrodlowyszukiwator:
@@ -113,6 +161,28 @@ class TestBuildZrodlowyszukiwator:
 
 
 class TestSaveRun:
+    def test_save_run__persists_rejected_draft_and_validation_errors(self, tmp_path: Path) -> None:
+        """Verify a rejected draft is preserved separately from any valid draft artifact."""
+        rejected_draft = DraftLetter(
+            recipient="Urząd",
+            request_summary="sprawdzenie sprawy",
+            argumentation_markdown="A" * 120,
+            sources=["U1", "U2"],
+        )
+
+        run_dir = services.save_run(
+            project_root=tmp_path,
+            messages=[],
+            draft_with_error=rejected_draft,
+            draft_validation_errors=["Model dodał niedozwolone źródła: U1; U2"],
+            run_dir=tmp_path / "run",
+        )
+
+        saved = json.loads((run_dir / "draft_with_error.json").read_text(encoding="utf-8"))
+        assert saved["draft"]["sources"] == ["U1", "U2"]
+        assert saved["validation_errors"] == ["Model dodał niedozwolone źródła: U1; U2"]
+        assert not (run_dir / "draft.json").exists()
+
     def test_save_run__persists_actual_provider_and_model_metadata(self, tmp_path: Path) -> None:
         """Verify each run records provider/model diagnostics without storing credentials."""
         usage = {"Dopytywator": [{"provider": "openrouter", "model": "vendor/actual-model"}]}

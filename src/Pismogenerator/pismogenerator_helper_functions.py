@@ -14,17 +14,21 @@ def validate_draft(
     """Validate a draft letter against the Phase 0 constraints for the app."""
     errors: list[str] = []
 
+    # Renderer nie uzupełnia adresata automatycznie, więc bez wartości list nie wskazywałby odbiorcy.
     if not draft.recipient.strip():
         errors.append("Projekt nie ma adresata ani oznaczenia braku")
 
+    # Nadawcę, formułę otwierającą i podpis składa deterministycznie renderer w Phase 0.
     if draft.sender.strip():
         errors.append("Pole nadawcy powinno pozostać puste w Phase 0")
 
     summary = draft.request_summary.strip()
 
+    # Podsumowanie jest używane w stałej formule wnioskującej, dlatego nie może być puste.
     if not summary:
         errors.append("Brak krótkiego podsumowania wniosku")
 
+    # Renderer dokleja przed podsumowaniem „wnioskuję o”; początkowe „o” dawałoby „o o…”.
     if summary.lower().startswith("o "):
         errors.append(
             "request_summary nie powinno zaczynać się od 'o' — renderer dodaje 'wnioskuję o'"
@@ -39,15 +43,18 @@ def validate_draft(
         "działając w trybie",
     ]
 
+    # Phase 0 nie ustala podstaw prawnych; te zwroty mogłyby sugerować niezweryfikowaną podstawę.
     combined_main_text = (draft.request_summary + "\n" + draft.argumentation_markdown).lower()
 
     for phrase in forbidden_legal_phrases:
         if phrase in combined_main_text:
             errors.append(f"Phase 0 nie powinno dodawać podstawy prawnej: {phrase!r}")
 
+    # Bardzo krótki tekst zwykle oznacza, że model pominął uzasadnienie wniosku.
     if len(draft.argumentation_markdown.strip()) < 100:
         errors.append("Argumentacja projektu jest podejrzanie krótka")
 
+    # Dozwolone są wyłącznie identyfikatory ze znalezionych dowodów albo materiałów użytkownika.
     allowed_source_ids = {evidence.evidence_id for evidence in evidence_pack.evidence}
     allowed_source_ids.update(f"U{index}" for index, _ in enumerate(user_evidence, start=1))
     illegal_sources = [source for source in draft.sources if source not in allowed_source_ids]
@@ -56,15 +63,17 @@ def validate_draft(
 
     # Kontrola odwołań [1], [2], ...
     refs = [int(x) for x in re.findall(r"\[(\d+)\]", draft.argumentation_markdown)]
+    # Przypis bez listy źródeł nie ma celu, do którego czytelnik mógłby go odnieść.
     if refs and not draft.sources:
         errors.append("Argumentacja zawiera przypisy, ale lista sources jest pusta")
 
+    # Numery przypisów są pozycjami na liście sources; większy numer byłby nierozwiązywalny.
     if refs and max(refs) > len(draft.sources):
         errors.append(
             "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
         )
 
-    # facts_to_verify powinny pozostać jawne.
+    # Te braki muszą pozostać widoczne w sekcji kontrolnej, by użytkownik zweryfikował je przed wysłaniem.
     missing_verification_flags = [
         fact
         for fact in case_brief.facts_to_verify

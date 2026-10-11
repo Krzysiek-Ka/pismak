@@ -6,6 +6,21 @@ from src.Pismogenerator.constants import PISMOGENERATOR_MAX_OUTPUT_TOKENS
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
 
+class DraftValidationError(ValueError):
+    """Raised when generated draft content violates application constraints."""
+
+    def __init__(
+        self,
+        errors: list[str],
+        *,
+        draft: structures.DraftLetter | None = None,
+    ) -> None:
+        self.draft = draft
+        self.validation_errors = errors
+        details = "\n".join(f" - {error}" for error in errors)
+        super().__init__(f"DraftLetter nie przeszedł walidacji:\n{details}")
+
+
 def extract_sources_from_brief(case_brief: CaseBrief) -> list[str]:
     """Extract the allowed source candidates from a brief, preferring explicit sources when present."""
     if hasattr(case_brief, "model_dump"):
@@ -67,12 +82,7 @@ def build_draft(
     )
 
     if draft_errors:
-        print("DraftLetter nie przeszedł walidacji:")
-        for error in draft_errors:
-            print(" -", error)
-        raise ValueError(
-            "Nie zapisuję listu. Popraw prompt/model albo wykonaj jedną naprawę draftu."
-        )
+        raise DraftValidationError(draft_errors, draft=draft)
 
     return draft
 

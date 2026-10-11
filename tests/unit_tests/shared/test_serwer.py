@@ -173,14 +173,32 @@ class TestLLMClient:
         completions = FakeCompletions()
         client = serwer.LLMClient(_client(completions), "model-name")
 
-        with pytest.raises(serwer.LLMResponseError, match="dwukrotnie"):
+        with pytest.raises(serwer.LLMResponseError, match="dwukrotnie") as error:
             client.generate_structured(
                 system_prompt="system",
                 user_prompt="user",
                 response_model=ResponseModel,
                 max_output_tokens=768,
             )
+
+        assert "ResponseModel" in str(error.value)
+        assert "bad payload" in str(error.value)
         assert completions.calls == 2
+
+    def test_structured_output_error_detail__describes_validation_without_input_values(self) -> None:
+        """Verify schema diagnostics identify missing fields but never include rejected content."""
+
+        class ResponseModel(serwer.BaseModel):
+            required: str
+
+        with pytest.raises(serwer.ValidationError) as error:
+            ResponseModel.model_validate({"extra": "private user content"})
+
+        detail = serwer.structured_output_error_detail(error.value)
+
+        assert "required" in detail
+        assert "missing" in detail
+        assert "private user content" not in detail
 
     def test_llm_client__does_not_retry_transport_errors(self) -> None:
         """Verify network/provider failures are not repeated as structured-output repairs."""

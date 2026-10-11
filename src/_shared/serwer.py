@@ -139,6 +139,19 @@ class LLMOutputLimitError(LLMResponseError):
         self.partial_response = partial_response
 
 
+def structured_output_error_detail(error: Exception) -> str:
+    """Summarize structured-output failures without logging rejected input values."""
+    if isinstance(error, ValidationError):
+        details = []
+        for item in error.errors(include_input=False, include_url=False, include_context=False):
+            location = ".".join(str(part) for part in item["loc"]) or "odpowiedź"
+            details.append(f"{location}: {item['msg']} ({item['type']})")
+        return "; ".join(details) or "odpowiedź nie spełnia schematu"
+    if isinstance(error, LLMResponseError):
+        return str(error)
+    return type(error).__name__
+
+
 def recover_partial_structured_response(
     content: str | None,
     response_model: type[T],
@@ -246,16 +259,19 @@ class LLMClient:
             retry_scheduled = attempt == 1 and isinstance(exc, (ValidationError, LLMResponseError))
             LOGGER.error(
                 "llm_request_failed stage=%s session_id=%s provider=%s model=%s "
-                "max_output_tokens=%d attempt=%d retry_scheduled=%s error_type=%s "
+                "response_model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s "
+                "error_type=%s error_detail=%s "
                 "elapsed_seconds=%.3f",
                 self.stage,
                 self.session_id or "-",
                 self.provider,
                 self.last_model or self.model_name,
+                response_model.__name__,
                 max_output_tokens,
                 attempt,
                 str(retry_scheduled).lower(),
                 type(exc).__name__,
+                structured_output_error_detail(exc),
                 perf_counter() - started,
                 extra={"session_id": self.session_id},
             )
@@ -356,5 +372,7 @@ class LLMClient:
                 raise
             except (ValidationError, LLMResponseError) as second_error:
                 raise LLMResponseError(
-                    "Model dwukrotnie zwrócił niepoprawny structured output."
+                    f"Model dwukrotnie zwrócił niepoprawny structured output dla "
+                    f"{response_model.__name__}. Ostatni błąd: "
+                    f"{structured_output_error_detail(second_error)}"
                 ) from second_error

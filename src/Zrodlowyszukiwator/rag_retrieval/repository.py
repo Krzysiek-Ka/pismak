@@ -7,6 +7,10 @@ import numpy as np
 from .models import RetrievalFilters, RetrievedChunk
 
 
+class DatabaseConnectionError(RuntimeError):
+    """Raised when the configured PostgreSQL server cannot be reached."""
+
+
 class RetrievalRepository:
     """Czyta z tabel rag_documents i rag_chunks utworzonych przez rag_ingestion."""
 
@@ -19,6 +23,7 @@ class RetrievalRepository:
         try:
             import psycopg
             from pgvector.psycopg import register_vector
+            from psycopg.conninfo import conninfo_to_dict
         except ImportError as exc:
             raise RuntimeError(
                 "Nie można załadować sterownika PostgreSQL. "
@@ -26,7 +31,26 @@ class RetrievalRepository:
                 "jest dostępna w PATH. Po zmianie PATH uruchom ponownie kernel."
             ) from exc
 
-        conn = psycopg.connect(self.database_url)
+        try:
+            conn = psycopg.connect(self.database_url)
+        except psycopg.OperationalError as exc:
+            conninfo = conninfo_to_dict(self.database_url)
+            host = conninfo.get("host", "")
+            if host.lower() in ("localhost", "127.0.0.1", "::1"):
+                port = conninfo.get("port", "5432")
+                message = (
+                    f"Nie można połączyć się z lokalną bazą PostgreSQL ({host}:{port}). "
+                    "Jeśli baza działa w Dockerze, uruchom Docker Desktop i kontener "
+                    "poleceniem `docker compose up -d postgres`. Jeśli Docker już działa, "
+                    "sprawdź port i DATABASE_URL."
+                )
+            else:
+                message = (
+                    "Nie można połączyć się z bazą PostgreSQL. "
+                    "Sprawdź DATABASE_URL oraz dostępność serwera."
+                )
+            raise DatabaseConnectionError(message) from exc
+
         register_vector(conn)
         return conn
 

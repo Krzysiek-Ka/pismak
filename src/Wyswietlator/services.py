@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import threading
+import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -25,9 +26,11 @@ from src._shared.serwer import (
     LLMOutputLimitError,
     LLMResponseError,
     set_up_client,
+    structured_output_error_detail,
 )
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions
+from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
 from src.Zrodlowyszukiwator.brief_to_evidence import (
     BriefToEvidencePipeline,
@@ -40,6 +43,7 @@ from src.Zrodlowyszukiwator.rag_retrieval import (
     LLMReranker,
     RetrievalRepository,
 )
+from src.Zrodlowyszukiwator.rag_retrieval.repository import DatabaseConnectionError
 
 MAX_USER_MESSAGE_CHARS = 5000
 MAX_INTERVIEW_QUESTIONS = 12
@@ -114,6 +118,10 @@ def get_llm_client(provider: str) -> OpenAI:
 
 def llm_error_message(error: Exception) -> str:
     """Return a safe, actionable message without exposing request details."""
+    if isinstance(error, DraftValidationError):
+        return str(error)
+    if isinstance(error, DatabaseConnectionError):
+        return str(error)
     if isinstance(error, LLMConfigurationError):
         return str(error)
     if isinstance(error, (AuthenticationError, PermissionDeniedError)):
@@ -134,8 +142,20 @@ def llm_error_message(error: Exception) -> str:
             "krótszy wynik, ale nie udało się odzyskać kompletnej struktury."
         )
     if isinstance(error, LLMResponseError):
-        return "Model nie zwrócił poprawnych danych. Nie utworzono wyniku."
+        return f"Model nie zwrócił poprawnych danych. {structured_output_error_detail(error)}"
     return "Wystąpił błąd podczas generowania odpowiedzi. Sprawdź log aplikacji."
+
+
+def error_location(error: Exception) -> str | None:
+    """Return the innermost project source location recorded on an exception."""
+    project_root = Path(__file__).resolve().parents[2]
+    for frame in reversed(traceback.extract_tb(error.__traceback__)):
+        try:
+            relative_path = Path(frame.filename).resolve().relative_to(project_root)
+        except ValueError:
+            continue
+        return f"{relative_path.as_posix()}:{frame.lineno} in {frame.name}"
+    return None
 
 
 def list_generation_models(client: OpenAI) -> list[str]:
@@ -236,6 +256,8 @@ def save_run(
     case_brief: CaseBrief | None = None,
     evidence_pack: Any | None = None,
     draft: DraftLetter | None = None,
+    draft_with_error: DraftLetter | None = None,
+    draft_validation_errors: list[str] | None = None,
     letter_markdown: str | None = None,
     model_usage: dict[str, list[dict[str, str]]] | None = None,
     run_dir: Path | None = None,
@@ -268,6 +290,19 @@ def save_run(
     if draft is not None:
         (run_dir / "draft.json").write_text(
             draft.model_dump_json(indent=2),
+            encoding="utf-8",
+        )
+
+    if draft_with_error is not None:
+        (run_dir / "draft_with_error.json").write_text(
+            json.dumps(
+                {
+                    "draft": draft_with_error.model_dump(mode="json"),
+                    "validation_errors": draft_validation_errors or [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
             encoding="utf-8",
         )
 

@@ -27,6 +27,7 @@ from services import (
     build_zrodlowyszukiwator,
     close_case_logging,
     configure_logging,
+    error_location,
     get_llm_client,
     get_openai_client,
     list_generation_models,
@@ -42,6 +43,7 @@ from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 from src.Dopytywator.dopytywator_helper_functions import validate_brief_readiness
 from src.Dopytywator.structures import CaseBrief, ConversationMessage, InterviewTurnResult
 from src.Pismogenerator import pismogenerator
+from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
 LOGGER = logging.getLogger("pismak")
@@ -562,13 +564,22 @@ if st.session_state.case_brief is None:
                     message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
                 st.warning(message)
             else:
+                message = llm_error_message(exc)
+                location = error_location(exc)
+                if location:
+                    message += f"\n\nMiejsce błędu: {location}"
                 LOGGER.error(
-                    "interview_failed session_id=%s error_type=%s",
+                    "interview_failed session_id=%s stage=dopytywator provider=%s "
+                    "model=%s error_type=%s error_location=%s error_message=%s",
                     st.session_state.session_id,
+                    dopytywator_provider,
+                    dopytywator_model,
                     type(exc).__name__,
+                    location or "-",
+                    " ".join(message.splitlines()),
                     extra={"session_id": st.session_state.session_id},
                 )
-                st.error(llm_error_message(exc))
+                st.error(message)
         finally:
             thinking_overlay.empty()
 
@@ -738,13 +749,31 @@ if st.session_state.case_brief is not None:
                         message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
                     st.warning(message)
                 else:
+                    if isinstance(exc, DraftValidationError) and exc.draft is not None:
+                        st.session_state.run_dir = save_run(
+                            project_root=PROJECT_ROOT,
+                            messages=st.session_state.messages,
+                            case_brief=st.session_state.case_brief,
+                            evidence_pack=st.session_state.evidence_pack,
+                            draft_with_error=exc.draft,
+                            draft_validation_errors=exc.validation_errors,
+                            model_usage=st.session_state.model_usage,
+                            run_dir=st.session_state.run_dir,
+                        )
+                    message = llm_error_message(exc)
+                    location = error_location(exc)
+                    if location:
+                        message += f"\n\nMiejsce błędu: {location}"
                     LOGGER.error(
-                        "pipeline_failed session_id=%s error_type=%s",
+                        "pipeline_failed session_id=%s error_type=%s error_location=%s "
+                        "error_message=%s",
                         st.session_state.session_id,
                         type(exc).__name__,
+                        location or "-",
+                        " ".join(message.splitlines()),
                         extra={"session_id": st.session_state.session_id},
                     )
-                    st.error(llm_error_message(exc))
+                    st.error(message)
             finally:
                 thinking_overlay.empty()
 
