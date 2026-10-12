@@ -355,6 +355,37 @@ Sprawdź:
 ollama list
 ```
 
+### 4.4. Okno kontekstu
+
+Pismak mieści prompt i odpowiedź modelu w jednym oknie kontekstu. Jego rozmiar
+ustawia `PISMAK_CONTEXT_TOKENS` w `.env` (domyślnie 8192 tokeny). Gdy danych jest
+więcej, aplikacja skraca fragmenty źródeł wysyłane do modelu i obniża limit
+długości odpowiedzi, a zbyt długą rozmowę zgłasza w interfejsie.
+
+Ollama musi mieć ustawione co najmniej takie samo okno. Jej wartość domyślna bywa
+mniejsza (np. 4096), a prompt dłuższy niż okno Ollama obcina bez żadnego błędu.
+Ustaw okno w `Modelfile`:
+
+```text
+FROM ./pllum-4b-chat-2512-q4_k_m.gguf
+PARAMETER num_ctx 8192
+```
+
+albo dla wszystkich modeli zmienną środowiskową `OLLAMA_CONTEXT_LENGTH=8192`
+(wymaga ponownego uruchomienia Ollamy). Po pierwszym zapytaniu sprawdź kolumnę
+`CONTEXT`:
+
+```cmd
+ollama ps
+```
+
+`PISMAK_CONTEXT_TOKENS` nie może być większe niż ta wartość ani niż okno
+najmniejszego modelu, który da się wybrać w interfejsie (Bielik 4.5B v3 ma okno
+8192). Większe okno w Ollamie zwiększa zużycie pamięci.
+
+Dla modeli OpenRouter okno ustawia osobno `PISMAK_OPENROUTER_CONTEXT_TOKENS`
+(domyślnie 32768).
+
 ---
 
 ## 5. Docker i baza danych

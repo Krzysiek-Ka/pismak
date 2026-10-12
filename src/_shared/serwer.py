@@ -9,6 +9,7 @@ from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, ValidationError
 from pydantic_core import from_json
 
+from src._shared.context_budget import fit_output_tokens, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 
 OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1/"
@@ -201,6 +202,14 @@ class LLMClient:
         started = perf_counter()
         response_content: str | None = None
         try:
+            # Limit wyjścia jest zmniejszany, gdy prompt zajmuje większą część okna kontekstu.
+            max_output_tokens = fit_output_tokens(
+                provider=self.provider,
+                prompt_chars=len(system_prompt) + len(user_prompt),
+                max_output_tokens=max_output_tokens,
+                stage=self.stage,
+                session_id=self.session_id,
+            )
             with llm_generation_lock(
                 self.on_wait,
                 stage=self.stage,
@@ -288,7 +297,7 @@ class LLMClient:
 
         LOGGER.info(
             "llm_request_completed stage=%s session_id=%s provider=%s model=%s "
-            "max_output_tokens=%d attempt=%d elapsed_seconds=%.3f",
+            "max_output_tokens=%d attempt=%d elapsed_seconds=%.3f %s",
             self.stage,
             self.session_id or "-",
             self.provider,
@@ -296,6 +305,7 @@ class LLMClient:
             max_output_tokens,
             attempt,
             perf_counter() - started,
+            usage_summary(completion),
             extra={"session_id": self.session_id},
         )
         return result

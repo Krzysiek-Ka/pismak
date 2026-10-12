@@ -21,6 +21,7 @@ from openai import (
     RateLimitError,
 )
 
+from src._shared.context_budget import LLMInputLimitError, input_char_budget
 from src._shared.serwer import (
     LLMConfigurationError,
     LLMOutputLimitError,
@@ -28,6 +29,8 @@ from src._shared.serwer import (
     set_up_client,
     structured_output_error_detail,
 )
+from src.Dopytywator import prompts as dopytywator_prompts
+from src.Dopytywator.constants import DOPYTYWATOR_RESERVED_OUTPUT_TOKENS
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions
 from src.Pismogenerator.pismogenerator import DraftValidationError
@@ -91,10 +94,41 @@ def close_case_logging(session_id: str) -> None:
             handler.close()
 
 
-def validate_user_message(message: str) -> None:
+def conversation_char_limit(provider: str) -> int:
+    """Return how many conversation characters fit in the interview and brief prompts."""
+    interview_chars = len(dopytywator_prompts.DOPYTYWATOR_INTERVIEW_SYSTEM_PROMPT) + len(
+        dopytywator_prompts.interviewer_user_prompt(
+            [],
+            question_number=MAX_INTERVIEW_QUESTIONS,
+            max_interview_questions=MAX_INTERVIEW_QUESTIONS,
+        )
+    )
+    brief_chars = len(dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT) + len(
+        dopytywator_prompts.brief_user_prompt([])
+    )
+    budget = input_char_budget(provider, reserved_output_tokens=DOPYTYWATOR_RESERVED_OUTPUT_TOKENS)
+    return budget - max(interview_chars, brief_chars)
+
+
+def validate_user_message(
+    message: str,
+    *,
+    conversation_chars: int = 0,
+    provider: str | None = None,
+) -> None:
     """Reject oversized user input before adding it to the conversation state."""
     if len(message) > MAX_USER_MESSAGE_CHARS:
         raise ValueError(f"Wiadomość jest zbyt długa (limit: {MAX_USER_MESSAGE_CHARS} znaków).")
+    if provider is None:
+        return
+    # Cała rozmowa trafia do promptu, więc limit zależy od okna kontekstu modelu.
+    remaining = max(0, conversation_char_limit(provider) - conversation_chars)
+    if len(message) > remaining:
+        raise ValueError(
+            "Rozmowa jest zbyt długa dla wybranego modelu "
+            f"(pozostało miejsca na {remaining} znaków). "
+            "Skróć wiadomość albo rozpocznij nową sprawę."
+        )
 
 
 def get_openai_client(ollama_url: str | None = None) -> OpenAI:
@@ -136,6 +170,11 @@ def llm_error_message(error: Exception) -> str:
         return "Wybrany model nie obsłużył wymaganej odpowiedzi strukturalnej."
     if isinstance(error, APIStatusError) and error.status_code >= 500:
         return "Usługa modelu jest chwilowo niedostępna. Spróbuj później."
+    if isinstance(error, LLMInputLimitError):
+        return (
+            "Dane sprawy nie mieszczą się w oknie kontekstu wybranego modelu. "
+            "Rozpocznij nową sprawę i opisz ją krócej."
+        )
     if isinstance(error, LLMOutputLimitError):
         return (
             "Odpowiedź modelu została ucięta. Aplikacja ponowiła generowanie z prośbą o "

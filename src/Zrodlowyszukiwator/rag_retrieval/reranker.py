@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
+from src._shared.context_budget import fit_output_tokens, input_char_budget, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 from src._shared.serwer import (
     COMPACT_OUTPUT_INSTRUCTION,
@@ -18,6 +19,10 @@ from src._shared.serwer import (
 from .models import RetrievedChunk
 
 ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS = 4096
+# Miejsce zostawiane na odpowiedź przy dopasowywaniu promptu do okna kontekstu.
+RERANKER_RESERVED_OUTPUT_TOKENS = 1024
+RERANKER_MAX_TEXT_CHARS = 1800
+RERANKER_MIN_TEXT_CHARS = 500
 LOGGER = logging.getLogger("pismak")
 
 
@@ -90,6 +95,13 @@ Zasady:
         attempt = 1
         try:
             for attempt in (1, 2):
+                max_tokens = fit_output_tokens(
+                    provider=self.provider,
+                    prompt_chars=len(self.SYSTEM_PROMPT) + len(compact_prompt),
+                    max_output_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                    stage="reranking",
+                    session_id=self.session_id,
+                )
                 with llm_generation_lock(
                     self.on_wait,
                     stage="reranking",
@@ -102,7 +114,7 @@ Zasady:
                             {"role": "user", "content": compact_prompt},
                         ],
                         temperature=0.0,
-                        max_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+                        max_tokens=max_tokens,
                         response_format={
                             "type": "json_schema",
                             "json_schema": {
@@ -195,15 +207,79 @@ Zasady:
         self.last_model = getattr(response, "model", None)
         LOGGER.info(
             "llm_request_completed stage=reranking session_id=%s provider=%s model=%s "
-            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f",
+            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f %s",
             self.session_id or "-",
             self.provider,
             self.last_model or self.model,
-            ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+            max_tokens,
             perf_counter() - started,
+            usage_summary(response),
             extra={"session_id": self.session_id},
         )
         return result
+
+    def _user_prompt(
+        self,
+        case_brief: dict,
+        candidates: list[RetrievedChunk],
+        text_chars: int,
+    ) -> str:
+        """Serialize the brief and the candidates with their text cut to the given length."""
+        candidate_payload = []
+        for c in candidates:
+            candidate_payload.append(
+                {
+                    "chunk_id": c.chunk_id,
+                    "title": c.title,
+                    "document_kind": c.document_kind,
+                    "pages": f"{c.page_start}-{c.page_end}",
+                    "section_path": c.section_path,
+                    # Do rerankera nie trzeba wysyłać całego 3500-znakowego chunka.
+                    "text": c.text[:text_chars],
+                    "hybrid_score": c.hybrid_score,
+                }
+            )
+
+        return json.dumps(
+            {
+                "case_brief": case_brief,
+                "max_selected": self.max_selected,
+                "candidates": candidate_payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    def _fitted_user_prompt(self, case_brief: dict, candidates: list[RetrievedChunk]) -> str:
+        """Shorten candidate texts, then drop the lowest-ranked ones, until the prompt fits."""
+        budget = input_char_budget(
+            self.provider,
+            reserved_output_tokens=RERANKER_RESERVED_OUTPUT_TOKENS,
+        ) - len(self.SYSTEM_PROMPT)
+        text_chars = RERANKER_MAX_TEXT_CHARS
+        count = len(candidates)
+        user_prompt = self._user_prompt(case_brief, candidates, text_chars)
+
+        # Kandydaci są posortowani malejąco, więc odpadają najsłabsze trafienia.
+        while len(user_prompt) > budget and (text_chars > RERANKER_MIN_TEXT_CHARS or count > 1):
+            if text_chars > RERANKER_MIN_TEXT_CHARS:
+                text_chars = max(RERANKER_MIN_TEXT_CHARS, int(text_chars * 0.8))
+            else:
+                count -= 1
+            user_prompt = self._user_prompt(case_brief, candidates[:count], text_chars)
+
+        if count < len(candidates) or text_chars < RERANKER_MAX_TEXT_CHARS:
+            LOGGER.info(
+                "reranker_prompt_fitted session_id=%s candidates=%d sent_candidates=%d "
+                "text_chars=%d prompt_chars=%d",
+                self.session_id or "-",
+                len(candidates),
+                count,
+                text_chars,
+                len(user_prompt),
+                extra={"session_id": self.session_id},
+            )
+        return user_prompt
 
     def rerank(
         self,
@@ -215,30 +291,7 @@ Zasady:
         if not candidates:
             return []
 
-        candidate_payload = []
-        for c in candidates:
-            candidate_payload.append(
-                {
-                    "chunk_id": c.chunk_id,
-                    "title": c.title,
-                    "document_kind": c.document_kind,
-                    "pages": f"{c.page_start}-{c.page_end}",
-                    "section_path": c.section_path,
-                    # Do rerankera nie trzeba wysyłać całego 3500-znakowego chunka.
-                    "text": c.text[:1800],
-                    "hybrid_score": c.hybrid_score,
-                }
-            )
-
-        user_prompt = json.dumps(
-            {
-                "case_brief": case_brief,
-                "max_selected": self.max_selected,
-                "candidates": candidate_payload,
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+        user_prompt = self._fitted_user_prompt(case_brief, candidates)
 
         try:
             result = self._structured(user_prompt, RerankResult)

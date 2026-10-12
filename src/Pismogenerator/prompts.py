@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from src.Dopytywator.structures import CaseBrief
+from src.Pismogenerator.constants import EVIDENCE_MAX_CHARS
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack, evidence_pack_to_markdown
 
 PISMOGENERATOR_SYSTEM_PROMPT = """
@@ -75,12 +76,16 @@ def drafr_user_prompt(
     case_brief: CaseBrief,
     evidence_pack: EvidencePack,
     user_evidence: list[str],
+    max_chars_per_evidence: int = EVIDENCE_MAX_CHARS,
 ) -> str:
     """Build the final prompt from a brief and bounded evidence context."""
     user_sources = {f"U{index}": source for index, source in enumerate(user_evidence, start=1)}
     payload = {
         "case_brief": case_brief.model_dump(mode="json"),
-        "evidence_pack": evidence_pack_to_markdown(evidence_pack),
+        "evidence_pack": evidence_pack_to_markdown(
+            evidence_pack,
+            max_chars_per_evidence=max_chars_per_evidence,
+        ),
         "user_evidence": user_sources,
         "allowed_source_ids": [
             *(e.evidence_id for e in evidence_pack.evidence),

@@ -411,7 +411,11 @@ if st.session_state.case_brief is None:
             st.error("Wybierz dostawcę Ollama z dostępnym modelem albo OpenRouter.")
             st.stop()
         try:
-            validate_user_message(prompt)
+            validate_user_message(
+                prompt,
+                conversation_chars=sum(len(m["content"]) for m in st.session_state.messages),
+                provider=dopytywator_provider,
+            )
         except ValueError as exc:
             st.error(str(exc))
             st.stop()

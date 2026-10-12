@@ -2,12 +2,91 @@ from __future__ import annotations
 
 import pytest
 
+from src._shared.context_budget import input_char_budget
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator
-from src.Pismogenerator.constants import PISMOGENERATOR_MAX_OUTPUT_TOKENS
+from src.Pismogenerator.constants import (
+    PISMOGENERATOR_MAX_OUTPUT_TOKENS,
+    PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
+)
 from src.Pismogenerator.pismogenerator import DraftValidationError
+from src.Pismogenerator.prompts import PISMOGENERATOR_SYSTEM_PROMPT
 from src.Pismogenerator.structures import DraftLetter
-from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
+from src.Zrodlowyszukiwator.brief_to_evidence.models import Evidence, EvidencePack, ResearchPlan
+
+
+def make_pack(excerpts: list[str]) -> EvidencePack:
+    return EvidencePack(
+        query_summary="Sprawa testowa",
+        research_plan=ResearchPlan(case_summary="Sprawa testowa", intents=[]),
+        evidence=[
+            Evidence(
+                evidence_id=f"E{index}",
+                chunk_id=f"chunk-{index}",
+                document_id="document-1",
+                document_title="Dokument miejski",
+                document_kind="strategy",
+                hierarchy_rank=100,
+                legal_form="resolution",
+                page_start=index,
+                page_end=index,
+                excerpt=excerpt,
+                retrieval_score=1.0,
+                relevance_reason="Pasuje do sprawy.",
+            )
+            for index, excerpt in enumerate(excerpts, start=1)
+        ],
+    )
+
+
+def make_brief() -> CaseBrief:
+    return CaseBrief(
+        title="Sprawa",
+        problem_description="Problem",
+        desired_outcome="Rozwiązanie",
+        requested_actions=["Sprawdzenie"],
+    )
+
+
+class TestFitDraftUserPrompt:
+    def test_fit_draft_user_prompt__shortens_excerpts_until_the_prompt_fits_the_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify six full-length sources are trimmed so the letter still has room to be written."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        pack = make_pack(["Zdanie źródłowe. " * 200] * 6)
+
+        prompt = pismogenerator.fit_draft_user_prompt(make_brief(), pack, [], "ollama")
+
+        budget = input_char_budget(
+            "ollama", reserved_output_tokens=PISMOGENERATOR_RESERVED_OUTPUT_TOKENS
+        )
+        assert len(PISMOGENERATOR_SYSTEM_PROMPT) + len(prompt) <= budget
+        assert all(f"## [E{index}]" in prompt for index in range(1, 7))
+
+    def test_fit_draft_user_prompt__keeps_full_excerpt_when_it_fits(self, monkeypatch) -> None:
+        """Verify a prompt already inside the window reaches the model with the source intact."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        excerpt = "Zdanie źródłowe. " * 100
+
+        prompt = pismogenerator.fit_draft_user_prompt(
+            make_brief(), make_pack([excerpt]), [], "ollama"
+        )
+
+        assert excerpt.strip() in prompt
+
+    def test_fit_draft_user_prompt__sends_longer_excerpts_to_a_larger_remote_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify trimming follows the provider window instead of always using the local one."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        monkeypatch.delenv("PISMAK_OPENROUTER_CONTEXT_TOKENS", raising=False)
+        pack = make_pack(["Zdanie źródłowe. " * 200] * 6)
+
+        local = pismogenerator.fit_draft_user_prompt(make_brief(), pack, [], "ollama")
+        remote = pismogenerator.fit_draft_user_prompt(make_brief(), pack, [], "openrouter")
+
+        assert len(remote) > len(local)
 
 
 class TestBuildDraft:

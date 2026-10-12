@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from src._shared.context_budget import input_char_budget
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions, prompts, structures
-from src.Pismogenerator.constants import PISMOGENERATOR_MAX_OUTPUT_TOKENS
+from src.Pismogenerator.constants import (
+    EVIDENCE_MAX_CHARS,
+    EVIDENCE_MIN_CHARS,
+    PISMOGENERATOR_MAX_OUTPUT_TOKENS,
+    PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
+)
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
 
@@ -52,6 +58,30 @@ def extract_sources_from_brief(case_brief: CaseBrief) -> list[str]:
     return source_candidates
 
 
+def fit_draft_user_prompt(
+    case_brief: CaseBrief,
+    evidence_pack: EvidencePack,
+    user_evidence: list[str],
+    provider: str,
+) -> str:
+    """Build the draft prompt, shortening evidence excerpts until it fits the context window."""
+    budget = input_char_budget(
+        provider,
+        reserved_output_tokens=PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
+    ) - len(prompts.PISMOGENERATOR_SYSTEM_PROMPT)
+    excerpt_chars = EVIDENCE_MAX_CHARS
+    while True:
+        user_prompt = prompts.drafr_user_prompt(
+            case_brief=case_brief,
+            evidence_pack=evidence_pack,
+            user_evidence=user_evidence,
+            max_chars_per_evidence=excerpt_chars,
+        )
+        if len(user_prompt) <= budget or excerpt_chars <= EVIDENCE_MIN_CHARS:
+            return user_prompt
+        excerpt_chars = max(EVIDENCE_MIN_CHARS, int(excerpt_chars * 0.8))
+
+
 def build_draft(
     case_brief: CaseBrief,
     evidence_pack: EvidencePack,
@@ -62,10 +92,11 @@ def build_draft(
     user_evidence = [
         str(value).strip() for value in case_brief.available_evidence if str(value).strip()
     ]
-    user_prompt = prompts.drafr_user_prompt(
+    user_prompt = fit_draft_user_prompt(
         case_brief=case_brief,
         evidence_pack=evidence_pack,
         user_evidence=user_evidence,
+        provider=getattr(llm, "provider", "ollama"),
     )
     draft = llm.generate_structured(
         system_prompt=prompts.PISMOGENERATOR_SYSTEM_PROMPT,

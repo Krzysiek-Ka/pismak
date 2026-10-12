@@ -2,10 +2,23 @@ from __future__ import annotations
 
 import pytest
 
+from src._shared.context_budget import LLMInputLimitError
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import (
     ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
     LLMQueryPlanner,
 )
+
+
+class _CountingClient:
+    def __init__(self) -> None:
+        class Completions:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise RuntimeError("the model must not be called")
+
+        self.chat = type("Chat", (), {"completions": Completions()})()
 
 
 class TestLlmQueryPlanner:
@@ -96,3 +109,40 @@ class TestLlmQueryPlanner:
         assert client.chat.completions.kwargs["max_tokens"] == (
             ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS
         )
+
+    def test_plan__rejects_oversized_brief_without_calling_the_remote_model(
+        self, monkeypatch
+    ) -> None:
+        """Verify a brief beyond the window is reported instead of truncated by the provider."""
+        monkeypatch.setenv("PISMAK_OPENROUTER_CONTEXT_TOKENS", "4096")
+        client = _CountingClient()
+        planner = LLMQueryPlanner(
+            client=client,
+            model="openrouter/free",
+            allow_fallback=False,
+            provider="openrouter",
+        )
+
+        with pytest.raises(LLMInputLimitError):
+            planner.plan({"problem_description": "p" * 20_000, "requested_actions": []})
+
+        assert client.chat.completions.calls == 0
+
+    def test_plan__uses_deterministic_plan_for_oversized_brief_on_local_model(
+        self, monkeypatch
+    ) -> None:
+        """Verify a local brief too long for the model still yields search intents."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        client = _CountingClient()
+        planner = LLMQueryPlanner(client=client, model="local")
+
+        plan = planner.plan(
+            {
+                "problem_description": "p" * 40_000,
+                "desired_outcome": "Rozwiązanie",
+                "requested_actions": [],
+            }
+        )
+
+        assert client.chat.completions.calls == 0
+        assert [intent.semantic_query for intent in plan.intents] == ["p" * 40_000, "Rozwiązanie"]

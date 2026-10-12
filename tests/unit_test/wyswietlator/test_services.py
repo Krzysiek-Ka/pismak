@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from src._shared.context_budget import LLMInputLimitError
 from src._shared.serwer import LLMConfigurationError, LLMResponseError
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
@@ -83,6 +84,13 @@ class TestLlmErrorMessage:
         assert "InterviewTurnResult" in message
         assert "next_question: Field required (missing)" in message
 
+    def test_llm_error_message__explains_input_beyond_the_context_window(self) -> None:
+        """Verify an oversized case is explained to the user instead of the generic log hint."""
+        message = services.llm_error_message(LLMInputLimitError("12000 znaków, 8192 tokenów"))
+
+        assert "oknie kontekstu" in message
+        assert "12000" not in message
+
     def test_error_location__identifies_project_file_and_line(self) -> None:
         """Verify exception diagnostics point to the project code that raised the error."""
 
@@ -97,6 +105,57 @@ class TestLlmErrorMessage:
         assert location is not None
         assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
         assert "in raise_validation_error" in location
+
+
+class TestConversationCharLimit:
+    def test_conversation_char_limit__admits_a_full_length_first_message_by_default(
+        self, monkeypatch
+    ) -> None:
+        """Verify the default window never rejects an opening message the UI itself allows."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        assert services.conversation_char_limit("ollama") >= services.MAX_USER_MESSAGE_CHARS
+
+    def test_conversation_char_limit__grows_with_the_configured_window(self, monkeypatch) -> None:
+        """Verify raising the model window lets the interview run longer."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        default_limit = services.conversation_char_limit("ollama")
+        monkeypatch.setenv("PISMAK_CONTEXT_TOKENS", "16384")
+
+        assert services.conversation_char_limit("ollama") > default_limit
+
+
+class TestValidateUserMessage:
+    def test_validate_user_message__rejects_message_beyond_the_remaining_conversation_room(
+        self, monkeypatch
+    ) -> None:
+        """Verify a reply that would overflow the model window is refused with the room left."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        limit = services.conversation_char_limit("ollama")
+
+        with pytest.raises(ValueError, match="pozostało miejsca na 100 znaków"):
+            services.validate_user_message(
+                "a" * 101, conversation_chars=limit - 100, provider="ollama"
+            )
+
+    def test_validate_user_message__accepts_message_that_exactly_fills_the_remaining_room(
+        self, monkeypatch
+    ) -> None:
+        """Verify the conversation limit is inclusive, like the per-message limit."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        limit = services.conversation_char_limit("ollama")
+
+        services.validate_user_message("a" * 100, conversation_chars=limit - 100, provider="ollama")
+
+    def test_validate_user_message__reports_zero_room_when_conversation_already_overflows(
+        self, monkeypatch
+    ) -> None:
+        """Verify an already overlong conversation never shows a negative character count."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        limit = services.conversation_char_limit("ollama")
+
+        with pytest.raises(ValueError, match="pozostało miejsca na 0 znaków"):
+            services.validate_user_message("a", conversation_chars=limit + 500, provider="ollama")
 
 
 class TestBuildZrodlowyszukiwator:

@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from src._shared.context_budget import fit_output_tokens, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 from src._shared.serwer import (
     COMPACT_OUTPUT_INSTRUCTION,
@@ -84,6 +85,13 @@ Zasady:
         attempt = 1
         try:
             for attempt in (1, 2):
+                max_tokens = fit_output_tokens(
+                    provider=self.provider,
+                    prompt_chars=len(self.SYSTEM_PROMPT) + len(user_prompt),
+                    max_output_tokens=ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                    stage="query_planner",
+                    session_id=self.session_id,
+                )
                 with llm_generation_lock(
                     self.on_wait,
                     stage="query_planner",
@@ -96,7 +104,7 @@ Zasady:
                             {"role": "user", "content": user_prompt},
                         ],
                         temperature=0.1,
-                        max_tokens=ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                        max_tokens=max_tokens,
                         response_format={
                             "type": "json_schema",
                             "json_schema": {
@@ -189,12 +197,13 @@ Zasady:
         self.last_model = getattr(response, "model", None)
         LOGGER.info(
             "llm_request_completed stage=query_planner session_id=%s provider=%s model=%s "
-            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f",
+            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f %s",
             self.session_id or "-",
             self.provider,
             self.last_model or self.model,
-            ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+            max_tokens,
             perf_counter() - started,
+            usage_summary(response),
             extra={"session_id": self.session_id},
         )
         return plan
