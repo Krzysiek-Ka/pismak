@@ -131,7 +131,11 @@ class TestBuildLetter:
         result = pismogenerator.build_letter(draft, make_evidence_pack())
 
         assert "**Adresat:** Dyrektor Urzędu" in result
-        assert "W imieniu Towarzystwa Upiększania Miasta Wrocławia" in result
+        assert (
+            "Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o "
+            "dostęp do dokumentacji"
+        ) in result
+        assert "[imię i nazwisko]" in result
         assert "## Źródła" in result
         assert "### Informacje wymagające weryfikacji przed wysłaniem" in result
         assert "Raport miejski" in result

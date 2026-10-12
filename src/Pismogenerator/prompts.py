@@ -27,8 +27,8 @@ STAŁE PHASE 0
 4. Nie pisz "działając w trybie..." ani podobnych formuł prawnych.
 5. Typ pisma jest stały: WNIOSEK.
 6. Pole sender pozostaw jako pusty ciąg znaków.
-7. Końcowy renderer sam doda:
-   "W imieniu (...), wnioskuję o ..."
+7. Końcowy renderer sam doda formułę:
+   "Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o ..."
 8. Końcowy renderer sam doda podpis.
 
 request_summary:

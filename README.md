@@ -90,7 +90,7 @@ W Phase 0 obowiązuje stała struktura:
 ```text
 1. Adresat
 2. Nadawca
-3. Podsumowanie: „W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o ...”
+3. Podsumowanie: „Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o ...”
 4. Typ pisma: WNIOSEK
 5. Rozwinięcie i argumentacja
 6. Podpis
