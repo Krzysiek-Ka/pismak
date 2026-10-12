@@ -203,6 +203,9 @@ def error_location(error: Exception) -> str | None:
             relative_path = Path(frame.filename).resolve().relative_to(project_root)
         except ValueError:
             continue
+        # Środowisko wirtualne leży w katalogu projektu, ale to nie jest kod projektu.
+        if "site-packages" in relative_path.parts:
+            continue
         return f"{relative_path.as_posix()}:{frame.lineno} in {frame.name}"
     return None
 

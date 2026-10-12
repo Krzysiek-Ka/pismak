@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
+from types import SimpleNamespace
 
 import pytest
 
 from src._shared.context_budget import SAFETY_MARGIN_TOKENS, estimate_tokens, input_char_budget
+from src._shared.serwer import LLMResponseError
 from src.Zrodlowyszukiwator.rag_retrieval.models import RetrievedChunk
 from src.Zrodlowyszukiwator.rag_retrieval.reranker import (
     RERANKER_MAX_TEXT_CHARS,
@@ -28,6 +31,24 @@ def make_candidate(chunk_id: str, text: str) -> RetrievedChunk:
         page_end=1,
         text=text,
     )
+
+
+class _ScriptedClient:
+    """Return the given response contents one per call, each finished normally."""
+
+    def __init__(self, *contents: str | None) -> None:
+        class Completions:
+            def __init__(self) -> None:
+                self.calls: list[dict] = []
+
+            def create(self, **kwargs):
+                content = contents[len(self.calls)]
+                self.calls.append(kwargs)
+                message = SimpleNamespace(content=content)
+                choice = SimpleNamespace(finish_reason="stop", message=message)
+                return SimpleNamespace(model="vendor/model", choices=[choice])
+
+        self.chat = SimpleNamespace(completions=Completions())
 
 
 class TestFittedUserPrompt:
@@ -146,6 +167,42 @@ class TestLlmReranker:
         assert result == RerankResult(selected=[])
         assert len(client.chat.completions.calls) == 2
         assert "krótszą" in client.chat.completions.calls[1]["messages"][1]["content"]
+
+    def test_structured__retries_invalid_output_with_the_validation_errors(self) -> None:
+        """Verify a response that fails the schema is repaired by one more request."""
+        client = _ScriptedClient('{"selected":"none"}', '{"selected":[]}')
+        reranker = LLMReranker(client=client, model="openrouter/free", allow_fallback=False)
+
+        result = reranker._structured("prompt", RerankResult)
+
+        calls = client.chat.completions.calls
+        assert result == RerankResult(selected=[])
+        assert len(calls) == 2
+        assert calls[0]["messages"][1]["content"] == "prompt"
+        assert "Błędy walidacji" in calls[1]["messages"][1]["content"]
+        assert "selected" in calls[1]["messages"][1]["content"]
+
+    def test_structured__reports_the_schema_error_after_two_invalid_responses(self, caplog) -> None:
+        """Verify the raised error and the log both say what the model got wrong."""
+        client = _ScriptedClient(None, '{"selected":[{"chunk_id":"chunk-1","score":500}]}')
+        reranker = LLMReranker(client=client, model="openrouter/free", allow_fallback=False)
+        logger = logging.getLogger("pismak")
+        logger.addHandler(caplog.handler)
+
+        try:
+            with pytest.raises(LLMResponseError, match="RerankResult") as error:
+                reranker._structured("prompt", RerankResult)
+        finally:
+            logger.removeHandler(caplog.handler)
+
+        assert len(client.chat.completions.calls) == 2
+        assert "selected.0.score" in str(error.value)
+        failures = [r.getMessage() for r in caplog.records if "llm_request_failed" in r.msg]
+        assert "attempt=1 retry_scheduled=true" in failures[0]
+        assert "pustą odpowiedź" in failures[0]
+        assert "attempt=2 retry_scheduled=false" in failures[-1]
+        assert "selected.0.score" in failures[-1]
+        assert '\\"score\\":500' in caplog.text
 
     def test_rerank__does_not_use_hybrid_fallback_after_openrouter_error(self) -> None:
         """Verify remote reranking failures are surfaced instead of hiding the provider error."""

@@ -200,6 +200,30 @@ class TestLLMClient:
         assert "missing" in detail
         assert "private user content" not in detail
 
+    def test_error_log_detail__keeps_the_provider_message_on_one_line(self) -> None:
+        """Verify non-schema failures are logged with their own text instead of only a type."""
+        detail = serwer.error_log_detail(RuntimeError("Error code: 429\n  rate limit exceeded"))
+
+        assert detail == "Error code: 429 rate limit exceeded"
+
+    def test_error_log_detail__names_the_type_of_a_message_less_error(self) -> None:
+        """Verify an exception raised without text still leaves something to search for."""
+        assert serwer.error_log_detail(TimeoutError()) == "TimeoutError"
+
+    def test_error_log_detail__describes_validation_without_input_values(self) -> None:
+        """Verify schema failures keep the value-free summary used for structured output."""
+
+        class ResponseModel(serwer.BaseModel):
+            required: str
+
+        with pytest.raises(serwer.ValidationError) as error:
+            ResponseModel.model_validate({"extra": "private user content"})
+
+        detail = serwer.error_log_detail(error.value)
+
+        assert "required: Field required (missing)" in detail
+        assert "private user content" not in detail
+
     def test_llm_client__does_not_retry_transport_errors(self) -> None:
         """Verify network/provider failures are not repeated as structured-output repairs."""
 

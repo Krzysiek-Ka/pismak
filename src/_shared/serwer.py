@@ -157,6 +157,13 @@ def structured_output_error_detail(error: Exception) -> str:
     return type(error).__name__
 
 
+def error_log_detail(error: Exception) -> str:
+    """Describe any failure on one log line; schema errors still omit rejected values."""
+    if isinstance(error, (ValidationError, LLMResponseError)):
+        return structured_output_error_detail(error)
+    return " ".join(str(error).split()) or type(error).__name__
+
+
 def recover_partial_structured_response(
     content: str | None,
     response_model: type[T],
@@ -287,7 +294,7 @@ class LLMClient:
                 attempt,
                 str(retry_scheduled).lower(),
                 type(exc).__name__,
-                structured_output_error_detail(exc),
+                error_log_detail(exc),
                 perf_counter() - started,
                 extra={"session_id": self.session_id},
             )

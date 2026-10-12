@@ -5,15 +5,19 @@ import logging
 from time import perf_counter
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src._shared.context_budget import fit_output_tokens, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 from src._shared.serwer import (
     COMPACT_OUTPUT_INSTRUCTION,
+    REPAIR_PROMPT,
     LLMOutputLimitError,
+    LLMResponseError,
+    error_log_detail,
     log_model_response,
     recover_partial_structured_response,
+    structured_output_error_detail,
 )
 
 from ..rag_retrieval.models import SearchIntent
@@ -78,15 +82,56 @@ Zasady:
             return case_brief.model_dump(mode="json")
         raise TypeError("case_brief musi być dict albo Pydantic BaseModel")
 
+    def _log_request_failed(
+        self,
+        error: Exception,
+        *,
+        attempt: int,
+        retry_scheduled: bool,
+        finish_reason: str | None,
+        content: str | None,
+        started: float,
+    ) -> None:
+        """Log why a planner request failed, with the rejected response when there is one."""
+        LOGGER.error(
+            "llm_request_failed stage=query_planner session_id=%s provider=%s model=%s "
+            "response_model=ResearchPlan max_output_tokens=%d attempt=%d retry_scheduled=%s "
+            "finish_reason=%s error_type=%s error_detail=%s elapsed_seconds=%.3f",
+            self.session_id or "-",
+            self.provider,
+            self.last_model or self.model,
+            ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+            attempt,
+            str(retry_scheduled).lower(),
+            finish_reason or "-",
+            type(error).__name__,
+            error_log_detail(error),
+            perf_counter() - started,
+            extra={"session_id": self.session_id},
+        )
+        log_model_response(
+            outcome="invalid",
+            stage="query_planner",
+            session_id=self.session_id,
+            response=content,
+            provider=self.provider,
+            model=self.last_model or self.model,
+            attempt=attempt,
+        )
+
     def _llm_plan(self, brief: dict[str, Any]) -> ResearchPlan:
         """Request a structured research plan from the configured language model."""
         schema = ResearchPlan.model_json_schema()
         started = perf_counter()
         user_prompt = json.dumps(brief, ensure_ascii=False, indent=2)
         content: str | None = None
+        finish_reason: str | None = None
         attempt = 1
         try:
             for attempt in (1, 2):
+                # Log błędu tej próby nie może pokazać odpowiedzi z poprzedniej.
+                content = None
+                finish_reason = None
                 max_tokens = fit_output_tokens(
                     provider=self.provider,
                     prompt_chars=len(self.SYSTEM_PROMPT) + len(user_prompt),
@@ -120,7 +165,8 @@ Zasady:
                 self.last_model = getattr(response, "model", None)
                 choice = response.choices[0]
                 content = choice.message.content
-                if getattr(choice, "finish_reason", None) == "length":
+                finish_reason = getattr(choice, "finish_reason", None)
+                if finish_reason == "length":
                     LOGGER.warning(
                         "llm_output_truncated stage=query_planner session_id=%s provider=%s "
                         "model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s",
@@ -156,9 +202,27 @@ Zasady:
                         "Plan wyszukiwania został ucięty i nie dało się go zwalidować.",
                         partial_response=content,
                     )
-                if not content:
-                    raise RuntimeError("Planner zwrócił pustą odpowiedź")
-                plan = ResearchPlan.model_validate_json(content)
+                try:
+                    if not content:
+                        raise LLMResponseError("Planner zwrócił pustą odpowiedź")
+                    plan = ResearchPlan.model_validate_json(content)
+                except (ValidationError, LLMResponseError) as exc:
+                    detail = structured_output_error_detail(exc)
+                    if attempt == 2:
+                        raise LLMResponseError(
+                            "Model nie zwrócił poprawnego structured output dla ResearchPlan "
+                            f"mimo ponowienia. Ostatni błąd: {detail}"
+                        ) from exc
+                    self._log_request_failed(
+                        exc,
+                        attempt=attempt,
+                        retry_scheduled=True,
+                        finish_reason=finish_reason,
+                        content=content,
+                        started=started,
+                    )
+                    user_prompt += "\n\n" + REPAIR_PROMPT.format(validation_errors=detail)
+                    continue
                 break
             else:
                 raise RuntimeError("Planner nie zwrócił odpowiedzi.")
@@ -184,27 +248,24 @@ Zasady:
             )
             raise
         except Exception as exc:
-            LOGGER.error(
-                "llm_request_failed stage=query_planner session_id=%s provider=%s model=%s "
-                "max_output_tokens=%d attempt=1 retry_scheduled=false error_type=%s "
-                "elapsed_seconds=%.3f",
-                self.session_id or "-",
-                self.provider,
-                self.last_model or self.model,
-                ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
-                type(exc).__name__,
-                perf_counter() - started,
-                extra={"session_id": self.session_id},
+            self._log_request_failed(
+                exc,
+                attempt=attempt,
+                retry_scheduled=False,
+                finish_reason=finish_reason,
+                content=content,
+                started=started,
             )
             raise
         self.last_model = getattr(response, "model", None)
         LOGGER.info(
             "llm_request_completed stage=query_planner session_id=%s provider=%s model=%s "
-            "max_output_tokens=%d attempt=1 elapsed_seconds=%.3f %s",
+            "max_output_tokens=%d attempt=%d elapsed_seconds=%.3f %s",
             self.session_id or "-",
             self.provider,
             self.last_model or self.model,
             max_tokens,
+            attempt,
             perf_counter() - started,
             usage_summary(response),
             extra={"session_id": self.session_id},

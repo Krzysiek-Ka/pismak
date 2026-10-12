@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
+
 import pytest
 
 from src._shared.context_budget import LLMInputLimitError
+from src._shared.serwer import LLMResponseError
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import (
     ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
     LLMQueryPlanner,
 )
+
+VALID_PLAN = (
+    '{"case_summary":"ok","intents":[{"semantic_query":"problem",'
+    '"lexical_query":"problem","purpose":"research","priority":2}]}'
+)
+BRIEF = {
+    "problem_description": "Problem",
+    "desired_outcome": "Rozwiązanie",
+    "requested_actions": [],
+}
 
 
 class _CountingClient:
@@ -21,7 +35,92 @@ class _CountingClient:
         self.chat = type("Chat", (), {"completions": Completions()})()
 
 
+class _ScriptedClient:
+    """Return the given response contents one per call, each finished normally."""
+
+    def __init__(self, *contents: str | None) -> None:
+        class Completions:
+            def __init__(self) -> None:
+                self.calls: list[dict] = []
+
+            def create(self, **kwargs):
+                content = contents[len(self.calls)]
+                self.calls.append(kwargs)
+                message = SimpleNamespace(content=content)
+                choice = SimpleNamespace(finish_reason="stop", message=message)
+                return SimpleNamespace(model="vendor/model", choices=[choice])
+
+        self.chat = SimpleNamespace(completions=Completions())
+
+
+@pytest.fixture
+def pismak_log(caplog):
+    """Capture the application log even after another test disabled its propagation."""
+    logger = logging.getLogger("pismak")
+    logger.addHandler(caplog.handler)
+    with caplog.at_level(logging.WARNING, logger="pismak"):
+        yield caplog
+    logger.removeHandler(caplog.handler)
+
+
 class TestLlmQueryPlanner:
+    def test_plan__retries_invalid_output_with_the_validation_errors(self) -> None:
+        """Verify a response that fails the schema is repaired by one more request."""
+        client = _ScriptedClient("```json\n" + VALID_PLAN + "\n```", VALID_PLAN)
+        planner = LLMQueryPlanner(client=client, model="openrouter/free", allow_fallback=False)
+
+        plan = planner.plan(BRIEF)
+
+        calls = client.chat.completions.calls
+        assert plan.case_summary == "ok"
+        assert len(calls) == 2
+        assert "Błędy walidacji" not in calls[0]["messages"][1]["content"]
+        assert "Błędy walidacji" in calls[1]["messages"][1]["content"]
+        assert "json_invalid" in calls[1]["messages"][1]["content"]
+
+    def test_plan__retries_an_empty_response(self) -> None:
+        """Verify a model that returns no content gets a second request."""
+        client = _ScriptedClient(None, VALID_PLAN)
+        planner = LLMQueryPlanner(client=client, model="openrouter/free", allow_fallback=False)
+
+        assert planner.plan(BRIEF).case_summary == "ok"
+        assert len(client.chat.completions.calls) == 2
+
+    def test_plan__reports_the_schema_error_after_two_invalid_responses(self, pismak_log) -> None:
+        """Verify the raised error and the log both say what the model got wrong."""
+        out_of_range = VALID_PLAN.replace('"priority":2', '"priority":9')
+        client = _ScriptedClient("not json", out_of_range)
+        planner = LLMQueryPlanner(client=client, model="openrouter/free", allow_fallback=False)
+
+        with pytest.raises(LLMResponseError, match="ResearchPlan") as error:
+            planner.plan(BRIEF)
+
+        assert len(client.chat.completions.calls) == 2
+        assert "intents.0.priority" in str(error.value)
+        failures = [r.getMessage() for r in pismak_log.records if "llm_request_failed" in r.msg]
+        assert "attempt=1 retry_scheduled=true" in failures[0]
+        assert "error_type=ValidationError" in failures[0]
+        assert "json_invalid" in failures[0]
+        assert "attempt=2 retry_scheduled=false" in failures[-1]
+        assert "intents.0.priority" in failures[-1]
+        assert 'response_json="not json"' in pismak_log.text
+        assert '\\"priority\\":9' in pismak_log.text
+
+    def test_plan__logs_the_provider_error_text(self, pismak_log) -> None:
+        """Verify a failed request leaves the provider's own explanation in the log."""
+
+        class Completions:
+            def create(self, **kwargs):
+                raise RuntimeError("Rate limit exceeded:\n free-models-per-day")
+
+        client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+        planner = LLMQueryPlanner(client=client, model="openrouter/free", allow_fallback=False)
+
+        with pytest.raises(RuntimeError, match="Rate limit exceeded"):
+            planner.plan(BRIEF)
+
+        assert "error_detail=Rate limit exceeded: free-models-per-day" in pismak_log.text
+
     def test_plan__retries_truncated_output_with_a_compact_prompt(self) -> None:
         """Verify a token-truncated planner response is retried once in concise form."""
 

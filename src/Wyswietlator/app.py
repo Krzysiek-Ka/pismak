@@ -38,7 +38,12 @@ from services import (
 )
 
 from src._shared.model_context import detect_context_tokens
-from src._shared.serwer import OPENROUTER_MODEL, LLMClient, LLMOutputLimitError
+from src._shared.serwer import (
+    OPENROUTER_MODEL,
+    LLMClient,
+    LLMOutputLimitError,
+    error_log_detail,
+)
 from src.Dopytywator import prompts as dopytywator_prompts
 from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 from src.Dopytywator.dopytywator_helper_functions import validate_brief_readiness
@@ -585,12 +590,13 @@ if st.session_state.case_brief is None:
                     message += f"\n\nMiejsce błędu: {location}"
                 LOGGER.error(
                     "interview_failed session_id=%s stage=dopytywator provider=%s "
-                    "model=%s error_type=%s error_location=%s error_message=%s",
+                    "model=%s error_type=%s error_location=%s error_detail=%s error_message=%s",
                     st.session_state.session_id,
                     dopytywator_provider,
                     dopytywator_model,
                     type(exc).__name__,
                     location or "-",
+                    error_log_detail(exc),
                     " ".join(message.splitlines()),
                     extra={"session_id": st.session_state.session_id},
                 )
@@ -787,10 +793,11 @@ if st.session_state.case_brief is not None:
                         message += f"\n\nMiejsce błędu: {location}"
                     LOGGER.error(
                         "pipeline_failed session_id=%s error_type=%s error_location=%s "
-                        "error_message=%s",
+                        "error_detail=%s error_message=%s",
                         st.session_state.session_id,
                         type(exc).__name__,
                         location or "-",
+                        error_log_detail(exc),
                         " ".join(message.splitlines()),
                         extra={"session_id": st.session_state.session_id},
                     )

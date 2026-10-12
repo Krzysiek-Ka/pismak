@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from src._shared.context_budget import LLMInputLimitError
 from src._shared.serwer import LLMConfigurationError, LLMResponseError
@@ -136,6 +137,21 @@ class TestGetOpenaiClient:
         assert location is not None
         assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
         assert "in raise_validation_error" in location
+
+    def test_error_location__skips_packages_installed_inside_the_project(self) -> None:
+        """Verify an error raised by a dependency points to the project code that called it."""
+
+        def parse_invalid_json() -> None:
+            DraftLetter.model_validate_json("not json")
+
+        try:
+            parse_invalid_json()
+        except ValidationError as error:
+            location = services.error_location(error)
+
+        assert location is not None
+        assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
+        assert "in parse_invalid_json" in location
 
 
 class TestConversationCharLimit:
