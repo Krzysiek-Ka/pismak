@@ -233,6 +233,33 @@ Kod komunikuje się z modelami przez HTTP API, dzięki czemu później można za
 
 ## 3. Konfiguracja projektu (Windows)
 
+### Szybki start
+
+Kolejność kroków na czystym komputerze; szczegóły każdego są w dalszych punktach.
+
+1. Zainstaluj narzędzia z punktu 3.1.
+2. Pobierz kod i zależności (3.2–3.5):
+
+   ```cmd
+   git clone <URL_REPOZYTORIUM>
+   cd Pismak
+   uv venv
+   .venv\Scripts\activate
+   uv pip install -r requirements.txt
+   ```
+
+3. Utwórz konfigurację i uruchom bazę (5.2–5.3):
+
+   ```cmd
+   copy .env_template .env
+   docker compose up -d
+   ```
+
+4. Przygotuj modele (4.2–4.3): `ollama pull bge-m3`, a potem pobierz i zarejestruj
+   co najmniej jeden model generatywny.
+5. Wczytaj do bazy dwa dokumenty dołączone do repozytorium (6.1).
+6. Uruchom interfejs: `run_pismak.bat` i otwórz `http://localhost:8501`.
+
 ### 3.1. Wymagania
 
 Potrzebne są:
@@ -241,7 +268,8 @@ Potrzebne są:
 - Python 3.11 lub nowszy,
 - `uv`,
 - Docker Desktop,
-- Ollama.
+- Ollama,
+- klient PostgreSQL z biblioteką `libpq` (patrz 3.5).
 
 Zależności Pythona są zapisane w `requirements.txt`.
 
@@ -293,6 +321,10 @@ Po aktywacji:
 uv pip install -r requirements.txt
 ```
 
+Jeśli `uv` zgłasza błąd certyfikatu (`invalid peer certificate: UnknownIssuer`),
+co zdarza się za firmowym proxy lub przy programie antywirusowym sprawdzającym
+ruch HTTPS, dodaj do polecenia `--native-tls`.
+
 `psycopg` używa systemowej biblioteki klienta PostgreSQL `libpq` (bez wariantu
 `[binary]`). Na Windowsie zainstaluj klienta PostgreSQL i dodaj jego katalog `bin`
 (np. `C:\Program Files\PostgreSQL\17\bin`) do zmiennej `PATH`. Następnie uruchom
@@ -325,21 +357,35 @@ ollama list
 
 ### 4.2. PLLuM i Bielik
 
-Modele GGUF mogą zostać zaimportowane do Ollamy przez `Modelfile`.
+Pismak był rozwijany z dwoma modelami generatywnymi w formacie GGUF. Repozytorium
+zawiera ich pliki `Modelfile` (szablon rozmowy i okno kontekstu); same modele
+pobierz do tych samych katalogów:
 
-Przykład:
-
-```text
-FROM ./pllum-4b-chat-2512-q4_k_m.gguf
-```
-
-Następnie:
+| Model w Ollamie | Plik (rozmiar) | Repozytorium na Hugging Face |
+|---|---|---|
+| `pismak-pllum` | `modele\pllum\pllum-4b-chat-2512-q4_k_m.gguf` (2,5 GB) | `Jerzman/PLLuM-4B-chat-2512-Q4_K_M-GGUF` |
+| `pismak-bielik` | `modele\bielik\Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf` (2,9 GB) | `second-state/Bielik-4.5B-v3.0-Instruct-GGUF` |
 
 ```cmd
-ollama create pismak-pllum -f Modelfile
+curl -L -o modele\pllum\pllum-4b-chat-2512-q4_k_m.gguf https://huggingface.co/Jerzman/PLLuM-4B-chat-2512-Q4_K_M-GGUF/resolve/main/pllum-4b-chat-2512-q4_k_m.gguf
+curl -L -o modele\bielik\Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf https://huggingface.co/second-state/Bielik-4.5B-v3.0-Instruct-GGUF/resolve/main/Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf
 ```
 
-Analogicznie można dodać Bielika.
+Następnie zarejestruj modele w Ollamie:
+
+```cmd
+ollama create pismak-pllum -f modele\pllum\Modelfile
+ollama create pismak-bielik -f modele\bielik\Modelfile
+```
+
+Oba pliki to kwantyzacje przygotowane przez osoby trzecie na podstawie modeli
+`CYFRAGOVPL/PLLuM-4B-chat-2512` i `speakleash/Bielik-4.5B-v3.0-Instruct`. Przed
+użyciem sprawdź ich licencje na stronach modeli.
+
+Wystarczy jeden z nich. Nazwy też nie są wymagane: interfejs pokazuje wszystkie
+modele generatywne dostępne w Ollamie. Modeli lokalnych nie potrzebujesz wcale,
+jeśli wszystkie etapy mają korzystać z OpenRouter (punkt 8) — wtedy wystarczy
+`bge-m3` z punktu 4.3.
 
 ### 4.3. Model embeddingowy
 
@@ -371,17 +417,18 @@ wysyłane do modelu i obniża limit długości odpowiedzi, a zbyt długą rozmow
 zgłasza w interfejsie. Model z większym oknem dostaje więc więcej źródeł.
 
 O tym, jakie okno dostaje model lokalny, decyduje Ollama, nie Pismak. Jej wartość
-domyślna bywa dużo mniejsza niż maksimum modelu (np. 4096). Żeby model pracował z
-większym oknem, ustaw je w `Modelfile`:
+domyślna bywa dużo mniejsza niż maksimum modelu (np. 4096). Pliki `Modelfile` z
+repozytorium ustawiają dlatego pełne okno obu modeli:
 
 ```text
-FROM ./pllum-4b-chat-2512-q4_k_m.gguf
-PARAMETER num_ctx 16384
+PARAMETER num_ctx 8192      (modele\bielik\Modelfile)
+PARAMETER num_ctx 131072    (modele\pllum\Modelfile)
 ```
 
-albo dla wszystkich modeli zmienną środowiskową `OLLAMA_CONTEXT_LENGTH`
-(wymaga ponownego uruchomienia Ollamy). Bieżącą wartość pokazuje kolumna
-`CONTEXT`:
+Żeby zmienić okno, popraw tę linię i ponownie wykonaj `ollama create`. Dla modeli
+bez własnego ustawienia okno wyznacza zmienna środowiskowa
+`OLLAMA_CONTEXT_LENGTH` (wymaga ponownego uruchomienia Ollamy). Bieżącą wartość
+pokazuje kolumna `CONTEXT`:
 
 ```cmd
 ollama ps
@@ -429,7 +476,24 @@ oraz:
 docker compose version
 ```
 
-### 5.2. `docker-compose.yaml`
+### 5.2. `.env`
+
+Utwórz lokalny plik konfiguracyjny na podstawie szablonu:
+
+```cmd
+copy .env_template .env
+```
+
+Wartości z szablonu wystarczą do pracy lokalnej. Zrób to przed pierwszym
+uruchomieniem bazy: `POSTGRES_PASSWORD` jest zapisywane w bazie przy jej
+pierwszym starcie, a późniejsza zmiana samego pliku `.env` już go nie zmieni.
+Hasło z szablonu jest publiczne, więc zmień je, zanim udostępnisz komukolwiek
+aplikację. Nowe hasło wpisz także w `DATABASE_URL`.
+
+`OPENROUTER_KEY` uzupełnij tylko wtedy, gdy chcesz korzystać z OpenRouter.
+Pliku `.env` nie dodawaj do repozytorium.
+
+### 5.3. `docker-compose.yaml`
 
 Konfiguracja znajduje się już w repozytorium. Uruchom bazę poleceniem:
 
@@ -451,9 +515,6 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 zapisany w `docker/postgres/init/001_extensions.sql`.
 
-### 5.3. `.env`
-
-Utwórz lokalny plik konfiguracyjny na podstawie szablonu `.env_template`
 ### 5.4. Uruchom bazę
 
 Powinien działać kontener:
@@ -489,6 +550,9 @@ Wyjście:
 ```
 
 ### 5.6. Utwórz schema RAG
+
+Polecenie z punktu 6.1 tworzy tabele samo. Poniższy przykład jest potrzebny tylko
+wtedy, gdy chcesz utworzyć je osobno, np. z notebooka.
 
 Kod `rag_ingestion` zawiera:
 
@@ -526,9 +590,7 @@ rag_chunks
 
 ---
 
-## 6. Dodanie dokumentu do RAG
-
-Przy każdym nowym dokumencie:
+## 6. Dokumenty w RAG
 
 ```text
 PDF
@@ -538,17 +600,40 @@ rag_ingestion
 PostgreSQL / pgvector
 ```
 
-Najpierw należy przygotować metadata dokumentu, a następnie uruchomić ingestion.
+### 6.1. Dokumenty dołączone do repozytorium
 
-Przykładowo:
+W katalogu `src/Zrodlowyszukiwator/RAG/RAW/` są dwa dokumenty źródłowe:
+
+- `01_Polityka-rowerowa-wroclawia.pdf` — Polityka Rowerowa Wrocławia,
+- `01_Wroclawska_polityka_mobilnosci.pdf` — Wrocławska polityka mobilności.
+
+Wczytaj je do bazy. Baza musi działać, a Ollama mieć model `bge-m3`:
 
 ```cmd
-python -m src.Zrodlowyszukiwator.rag_ingestion.cli ^
-   --file "C:\sciezka\do\dokumentu.pdf" ^
-   --catalog sciezka\do\katalogu.json
+python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\01_Polityka-rowerowa-wroclawia.pdf
+python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\01_Wroclawska_polityka_mobilnosci.pdf
 ```
 
-Ten sam plik nie powinien być ponownie dodawany, jeśli jego SHA-256 się nie zmienił.
+Polecenie tworzy tabele `rag_documents` i `rag_chunks`, jeśli ich jeszcze nie ma,
+i wypisuje liczbę stron oraz fragmentów. To wystarcza do uruchomienia dema.
+
+### 6.2. Własne dokumenty
+
+Metadane dokumentów są w `src/Zrodlowyszukiwator/RAG/document_catalog.json`;
+kluczem wpisu jest nazwa pliku PDF. Katalog zawiera też wpisy czterech dokumentów,
+których plików nie ma w repozytorium — zadziałają dopiero wtedy, gdy umieścisz
+PDF o tej samej nazwie w katalogu `RAW/`.
+
+Żeby dodać dokument:
+
+1. Skopiuj PDF do `src/Zrodlowyszukiwator/RAG/RAW/` (pliki w tym katalogu poza
+   dwoma wymienionymi wyżej nie trafiają do repozytorium).
+2. Dopisz jego metadane do katalogu.
+3. Uruchom to samo polecenie z `--file`. Inny katalog metadanych wskażesz
+   parametrem `--catalog`.
+
+Plik, którego SHA-256 się nie zmienił, jest przy ponownym uruchomieniu pomijany;
+`--force` wymusza ponowne przetworzenie.
 
 ---
 
@@ -569,7 +654,10 @@ Dopytywator → CaseBrief → EvidencePack → DraftLetter → letter.md
 ```
 
 Notebooki do ingestion znajdują się w
-`src/Zrodlowyszukiwator/rag_ingestion/notebooks/`.
+`src/Zrodlowyszukiwator/rag_ingestion/notebooks/`. Mają na początku zmienną
+`PROJECT_ROOT` ze ścieżką z komputera autora — przed uruchomieniem ustaw ją na
+katalog swojego klonu. Do zwykłego wczytania dokumentów wystarczy polecenie z
+punktu 6.1.
 
 ---
 
@@ -591,7 +679,8 @@ Interfejs powinien być dostępny pod adresem `http://localhost:8501`.
 
 W UI można:
 
-- wybrać modele Ollama dla Dopytywatora, Źródłowyszukiwatora i Pismogeneratora,
+- wybrać dla każdego etapu (Dopytywator, Źródłowyszukiwator, Pismogenerator)
+  dostawcę — lokalną Ollamę albo OpenRouter — i model,
 - ustawić maksymalną liczbę pytań,
 - przeprowadzić rozmowę w chacie,
 - zobaczyć `CaseBrief` i znalezione dowody,
@@ -622,7 +711,18 @@ dane sprawy, dlatego logi należy chronić tak samo jak pozostałe dane lokalne.
 
 Wyświetlator wymaga działającej Ollamy, PostgreSQL z tabelami `rag_documents` i
 `rag_chunks` oraz zainstalowanego `bge-m3`. Przy pustej bazie RAG najpierw trzeba
-wykonać ingestion dokumentów.
+wykonać ingestion dokumentów (punkt 6.1).
+
+### OpenRouter (opcjonalnie)
+
+Każdy etap generatywny może zamiast lokalnego modelu użyć darmowego routera
+OpenRouter (`openrouter/free`). Wpisz własny klucz jako `OPENROUTER_KEY` w `.env`,
+uruchom aplikację ponownie i wybierz dostawcę w interfejsie.
+
+Treść zapytań trafia wtedy do usługi zewnętrznej, dlatego interfejs wymaga
+zaznaczenia zgody przed wysłaniem. Embeddingi (`bge-m3`) i baza dokumentów
+zostają lokalne. Szczegóły i test połączenia opisuje
+`src/Wyswietlator/README.md`.
 
 
 ### Retencja i usuwanie danych
@@ -743,21 +843,29 @@ Pismak/
 ├── pyproject.toml
 ├── .pre-commit-config.yaml
 ├── docker-compose.yaml
+├── run_pismak.bat
 ├── docker/postgres/init/001_extensions.sql
-├── src
+├── modele/
+│   ├── bielik/Modelfile
+│   └── pllum/Modelfile
+├── scripts/test_openrouter.py
+├── src/
 │   ├── main.ipynb
 │   ├── _shared/
 │   ├── Dopytywator/
 │   ├── Pismogenerator/
-│   ├── Zrodlowyszukiwator/
+│   ├── Wyswietlator/
+│   │   ├── app.py
+│   │   └── services.py
+│   └── Zrodlowyszukiwator/
+│       ├── RAG/
+│       │   ├── document_catalog.json
+│       │   └── RAW/                (dwa dokumenty PDF)
 │       ├── rag_ingestion/
 │       ├── rag_retrieval/
 │       └── brief_to_evidence/
-│   ├── Wyswietlator/
-│       ├── app.py
-│       └── services.py
 ├── tests/
-└── .venv/
+└── .venv/                          (lokalnie, poza repozytorium)
 ```
 
 ---

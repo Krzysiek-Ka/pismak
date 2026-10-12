@@ -11,6 +11,9 @@ from .embedder import OllamaEmbedder
 from .pipeline import ingest_pdf
 from .repository import PgVectorRepository
 
+# Katalog metadanych dołączony do repozytorium; działa niezależnie od katalogu roboczego.
+DEFAULT_CATALOG_PATH = Path(__file__).resolve().parents[1] / "RAG" / "document_catalog.json"
+
 
 def main() -> None:
     """Parse ingestion arguments and load one PDF into the configured RAG database."""
@@ -20,7 +23,7 @@ def main() -> None:
     parser.add_argument("--file", required=True)
     parser.add_argument(
         "--catalog",
-        default="examples/document_catalog.json",
+        default=str(DEFAULT_CATALOG_PATH),
     )
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()

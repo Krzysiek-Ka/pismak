@@ -63,25 +63,20 @@ a standardem.
 ollama pull bge-m3
 ```
 
-4. Instalacja:
-
-```bash
-uv pip install -r requirements-rag.txt
-```
-
-5. `.env` na podstawie `.env.example`.
 
 ## Dodanie dokumentu
 
-Najpierw dopisz metadata do `examples/document_catalog.json`.
+Skopiuj PDF do `src/Zrodlowyszukiwator/RAG/RAW/` i dopisz jego metadane do
+`src/Zrodlowyszukiwator/RAG/document_catalog.json` (kluczem wpisu jest nazwa pliku).
 
-Następnie:
+Następnie, z katalogu głównego repozytorium:
 
-```bash
-python -m src.Zrodlowyszukiwator.rag_ingestion.cli ^
-  --file "C:\Krzysiek\Pismak\polityki miejskie\nazwa.pdf" ^
-  --catalog examples\document_catalog.json
+```cmd
+python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\nazwa.pdf
 ```
+
+Polecenie tworzy tabele, jeśli ich jeszcze nie ma. Inny katalog metadanych
+wskażesz parametrem `--catalog`.
 
 Jeśli plik o tym samym `document_id` i tym samym SHA-256 jest już w bazie,
 ingestion zostanie pominięty. `--force` wymusza ponowne przetworzenie.

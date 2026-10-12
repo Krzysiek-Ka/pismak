@@ -9,9 +9,7 @@
 - `rag_ingestion/` — przetwarzanie PDF-ów, dzielenie na fragmenty, tworzenie embeddingów i zapis do PostgreSQL/pgvector. Instrukcje znajdują się w `rag_ingestion/README.md`.
 - `rag_retrieval/` — wyszukiwanie wektorowe i pełnotekstowe, łączenie rankingów oraz opcjonalne ponowne uszeregowanie wyników.
 - `brief_to_evidence/` — planowanie zapytań na podstawie `CaseBrief`, uruchamianie retrieval i budowanie `EvidencePack`.
-- `RAG/` — katalog dokumentów źródłowych i ich metadanych.
-- `02_brief_to_evidence.ipynb` — notatnik dotyczący przepływu od briefu do dowodów.
-- `README_PART2.md` — szczegółowy opis architektury retrieval, konfiguracji i użycia.
+- `RAG/` — metadane dokumentów (`document_catalog.json`) oraz katalog `RAW/` z plikami PDF. Do repozytorium dołączone są dwa dokumenty; pozostałe pliki z `RAW/` zostają lokalnie.
 
 ## Przepływ danych
 

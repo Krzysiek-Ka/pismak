@@ -1,0 +1,8 @@
+# PLLuM 4B chat 2512 (Q4_K_M) dla Pismaka.
+# Plik GGUF pobierz do tego katalogu, potem: ollama create pismak-pllum -f modele\pllum\Modelfile
+# Szczegóły: README, sekcja 4.2.
+FROM ./pllum-4b-chat-2512-q4_k_m.gguf
+TEMPLATE {{ .Prompt }}
+# Pełne okno kontekstu tego modelu. Większe okno zużywa więcej pamięci; na słabszym
+# komputerze zmniejsz tę wartość (np. do 16384) i ponownie wykonaj `ollama create`.
+PARAMETER num_ctx 131072

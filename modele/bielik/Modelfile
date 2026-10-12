@@ -1,0 +1,13 @@
+# Bielik 4.5B v3.0 Instruct (Q4_K_M) dla Pismaka.
+# Plik GGUF pobierz do tego katalogu, potem: ollama create pismak-bielik -f modele\bielik\Modelfile
+# Szczegóły: README, sekcja 4.2.
+FROM ./Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf
+TEMPLATE "{{- range .Messages }}<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}<|im_start|>assistant
+"
+PARAMETER stop <|im_start|>
+PARAMETER stop <|im_end|>
+# Pełne okno kontekstu tego modelu. Bez tej linii Ollama użyje własnej, zwykle mniejszej
+# wartości domyślnej, a Pismak dopasowuje prompty do okna, które faktycznie dostanie.
+PARAMETER num_ctx 8192

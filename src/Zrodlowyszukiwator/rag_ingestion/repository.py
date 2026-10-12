@@ -21,7 +21,8 @@ class PgVectorRepository:
         except ImportError as exc:
             raise RuntimeError(
                 "Nie można załadować sterownika PostgreSQL. "
-                "Sprawdź instalację psycopg[binary] i dostęp do jego bibliotek DLL."
+                "Sprawdź, czy psycopg jest zainstalowany i czy biblioteka libpq.dll "
+                "jest dostępna w PATH."
             ) from exc
 
         conn = psycopg.connect(self.database_url)

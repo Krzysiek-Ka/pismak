@@ -1,9 +1,31 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
+from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
+from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PUBLISHED_RAG_DOCUMENTS = (
+    "01_Polityka-rowerowa-wroclawia.pdf",
+    "01_Wroclawska_polityka_mobilnosci.pdf",
+)
+# Odwołania w README sprawdzane jako ścieżki plików repozytorium.
+REPOSITORY_FILE_SUFFIXES = (
+    ".py",
+    ".md",
+    ".json",
+    ".txt",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".bat",
+    ".sql",
+    ".ipynb",
+    ".pdf",
+)
 
 
 class TestMainNotebookConfiguration:
@@ -38,3 +60,44 @@ class TestReleaseFiles:
         assert "requirements-ui.txt" not in readme
         assert "Zrodlowyszukiwacz" not in readme
         assert "src\\Wyswietlator\\app.py" in readme
+
+    def test_rag_documents__published_files_exist_and_have_catalog_metadata(self) -> None:
+        """Verify a clean clone can ingest the two documents that the README tells it to load."""
+        catalog = load_catalog(DEFAULT_CATALOG_PATH)
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+        for name in PUBLISHED_RAG_DOCUMENTS:
+            assert (PROJECT_ROOT / "src" / "Zrodlowyszukiwator" / "RAG" / "RAW" / name).is_file()
+            assert name in catalog
+            assert f"--file src\\Zrodlowyszukiwator\\RAG\\RAW\\{name}" in readme
+
+    def test_modelfiles__register_both_local_models_with_an_explicit_context_window(self) -> None:
+        """Verify the model setup from the README does not depend on Ollama's small default window."""
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+        for model in ("bielik", "pllum"):
+            modelfile = (PROJECT_ROOT / "modele" / model / "Modelfile").read_text(encoding="utf-8")
+            gguf = re.search(r"^FROM \./(\S+\.gguf)$", modelfile, flags=re.M)
+
+            assert gguf is not None
+            assert re.search(r"^PARAMETER num_ctx \d+$", modelfile, flags=re.M)
+            assert f"modele\\{model}\\{gguf.group(1)}" in readme
+            assert f"ollama create pismak-{model} -f modele\\{model}\\Modelfile" in readme
+
+    def test_readmes__reference_only_files_that_exist_in_the_repository(self) -> None:
+        """Verify setup instructions never point a new user at a file the repository lacks."""
+        readmes = [PROJECT_ROOT / "README.md", *sorted((PROJECT_ROOT / "src").rglob("README.md"))]
+        missing = []
+
+        for readme in readmes:
+            text = readme.read_text(encoding="utf-8")
+            for reference in re.findall(r"`([^`\n]+)`", text):
+                path = reference.replace("\\", "/")
+                if "/" not in path or not path.endswith(REPOSITORY_FILE_SUFFIXES):
+                    continue
+                if any(marker in path for marker in ("<", "*", " ", ":", "%", "...")):
+                    continue
+                if not ((PROJECT_ROOT / path).exists() or (readme.parent / path).exists()):
+                    missing.append(f"{readme.relative_to(PROJECT_ROOT).as_posix()}: {reference}")
+
+        assert missing == []

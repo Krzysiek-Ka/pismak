@@ -34,7 +34,14 @@ build/
 # ==========================================
 
 models/
-modele/
+# Only the Modelfiles are tracked; downloaded model files stay local.
+modele/*
+!modele/bielik/
+!modele/pllum/
+modele/bielik/*
+modele/pllum/*
+!modele/bielik/Modelfile
+!modele/pllum/Modelfile
 
 *.gguf
 *.ggml
@@ -63,7 +70,10 @@ outputs/*
 # RAG
 # ==========================================
 
-src/Zrodlowyszukiwator/RAG/RAW/
+# Source PDFs are local data; only the two documents needed to run the demo are published.
+src/Zrodlowyszukiwator/RAG/RAW/*
+!src/Zrodlowyszukiwator/RAG/RAW/01_Polityka-rowerowa-wroclawia.pdf
+!src/Zrodlowyszukiwator/RAG/RAW/01_Wroclawska_polityka_mobilnosci.pdf
 chroma/
 chroma_db/
 vector_db/
