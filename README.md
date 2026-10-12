@@ -633,43 +633,50 @@ katalogu `outputs/`.
 
 #### Stały Cloudflare Tunnel
 
-Wymagana jest domena zarządzana przez Cloudflare. Na komputerze właściciela:
+Pismak korzysta z tunelu zarządzanego zdalnie: `cloudflared` działa jako usługa
+Windows i uwierzytelnia się tokenem, a trasy i zasady dostępu ustawia się w panelu
+Cloudflare Zero Trust, nie w pliku na dysku. Wymagana jest domena zarządzana przez
+Cloudflare. W przykładach `<NAZWA_HOSTA>` oznacza adres w tej domenie, np.
+`pismak.example.com`.
+
+Kolejność ma znaczenie: trasa dodana bez aplikacji Access jest od razu publiczna.
+
+1. Utwórz tunel w panelu Zero Trust i zainstaluj usługę poleceniem, które panel
+   wyświetli:
+
+   ```cmd
+   cloudflared service install <TOKEN>
+   ```
+
+2. Dodaj aplikację Access typu Self-hosted dla `<NAZWA_HOSTA>` z polityką
+   dopuszczającą wyłącznie wskazane adresy e-mail.
+3. Dopiero teraz dodaj w konfiguracji tunelu trasę publiczną `<NAZWA_HOSTA>` →
+   `http://127.0.0.1:8501`.
+
+Sprawdź trasy, które usługa faktycznie otrzymała. `cloudflared` udostępnia je
+lokalnie na porcie metryk (domyślnie `20241`):
 
 ```cmd
-cloudflared tunnel login
-cloudflared tunnel create pismak
+curl http://127.0.0.1:20241/config
 ```
 
-Zapisz konfigurację poza repozytorium, w `%USERPROFILE%\.cloudflared\config.yml`
-(UUID i ścieżkę credentials podstaw wartościami wyświetlonymi przez `cloudflared`):
+Lista `ingress` ma zawierać tylko `<NAZWA_HOSTA>` z usługą `http://127.0.0.1:8501`
+oraz regułę domyślną. Sama reguła `http_status:503` oznacza, że tunel nie publikuje
+żadnej usługi.
 
-```yaml
-tunnel: <TUNNEL_UUID>
-credentials-file: C:\Users\<USER>\.cloudflared\<TUNNEL_UUID>.json
-
-ingress:
-   - hostname: app.pismak.pl
-      service: http://127.0.0.1:8501
-   - service: http_status:404
-```
-
-Utwórz trasę DNS:
+Sprawdź ochronę z zewnątrz, bez logowania:
 
 ```cmd
-cloudflared tunnel route dns pismak app.pismak.pl
+curl -I https://<NAZWA_HOSTA>
 ```
 
-W Cloudflare Zero Trust dodaj aplikację Access typu Self-hosted dla
-`app.pismak.pl` i politykę dopuszczającą wyłącznie wskazane adresy e-mail. Sprawdź
-logowanie w zwykłym oknie i odmowę dostępu dla niedopuszczonego konta, zanim
-przekażesz adres testerom. Uruchom aplikację i tunel w osobnych terminalach:
+Poprawna odpowiedź to przekierowanie `302` na adres w domenie `cloudflareaccess.com`.
+Każda inna odpowiedź oznacza, że Access nie chroni aplikacji — usuń trasę i popraw
+konfigurację. Sprawdź też logowanie kontem z listy i odmowę dla konta spoza listy,
+zanim przekażesz adres testerom.
 
-```cmd
-run_pismak.bat
-cloudflared tunnel run pismak
-```
-
-Nie umieszczaj pliku credentials, tokenów ani `.env` w repozytorium.
+Usługa `cloudflared` startuje razem z systemem; aplikację uruchamiasz osobno
+poleceniem `run_pismak.bat`. Nie umieszczaj tokenu tunelu ani `.env` w repozytorium.
 
 Quick Tunnel (`cloudflared tunnel --url http://127.0.0.1:8501`) nie zapewnia tu
 warstwy Cloudflare Access. Traktuj go jako krótką próbę techniczną bez danych
@@ -681,7 +688,7 @@ Access na własnej domenie.
 - Uruchom `docker compose config` i sprawdź, że PostgreSQL nasłuchuje wyłącznie na `127.0.0.1`.
 - Sprawdź lokalnie UI, Ollamę oraz działanie dwóch niezależnych sesji.
 - Sprawdź kolejkę równoczesnych generacji i komunikaty przy niedostępności Ollamy lub bazy.
-- Przed udostępnieniem zdalnym sprawdź politykę Cloudflare Access, w tym odmowę dostępu dla nieuprawnionego konta.
+- Przed udostępnieniem zdalnym sprawdź trasy tunelu (`curl http://127.0.0.1:20241/config`) i ochronę Access (`curl -I https://<NAZWA_HOSTA>` zwraca przekierowanie do logowania), w tym odmowę dostępu dla nieuprawnionego konta.
 - Automatyczne `pytest` i Ruff są uruchamiane w GitHub Actions przy pushu i pull requeście.
 
 ---
