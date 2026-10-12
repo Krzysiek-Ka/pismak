@@ -37,6 +37,7 @@ from services import (
     validate_user_message,
 )
 
+from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import OPENROUTER_MODEL, LLMClient, LLMOutputLimitError
 from src.Dopytywator import prompts as dopytywator_prompts
 from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
@@ -410,11 +411,20 @@ if st.session_state.case_brief is None:
         if dopytywator_model is None:
             st.error("Wybierz dostawcę Ollama z dostępnym modelem albo OpenRouter.")
             st.stop()
+        # Okno kontekstu zależy od wybranego modelu; pierwsze sprawdzenie ładuje model lokalny.
+        with st.spinner("Sprawdzam okno kontekstu modelu..."):
+            dopytywator_context = detect_context_tokens(
+                dopytywator_provider,
+                dopytywator_model,
+                on_wait=notify_model_wait,
+                session_id=st.session_state.session_id,
+            )
         try:
             validate_user_message(
                 prompt,
                 conversation_chars=sum(len(m["content"]) for m in st.session_state.messages),
                 provider=dopytywator_provider,
+                context_tokens=dopytywator_context,
             )
         except ValueError as exc:
             st.error(str(exc))
@@ -443,6 +453,7 @@ if st.session_state.case_brief is None:
                 stage="dopytywator",
                 session_id=st.session_state.session_id,
                 provider=dopytywator_provider,
+                context_tokens=dopytywator_context,
             )
 
             # Po osiągnięciu limitu pytań pomijamy kolejne pytanie i budujemy brief.
@@ -694,6 +705,12 @@ if st.session_state.case_brief is not None:
                         stage="pismogenerator",
                         session_id=st.session_state.session_id,
                         provider=pismo_provider,
+                        context_tokens=detect_context_tokens(
+                            pismo_provider,
+                            pismo_model,
+                            on_wait=notify_model_wait,
+                            session_id=st.session_state.session_id,
+                        ),
                     )
                     draft = pismogenerator.build_draft(
                         case_brief=st.session_state.case_brief,

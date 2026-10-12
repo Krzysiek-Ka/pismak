@@ -61,6 +61,19 @@ class TestFittedUserPrompt:
         sent = json.loads(prompt)["candidates"]
         assert [len(c["text"]) for c in sent] == [RERANKER_MAX_TEXT_CHARS, 100]
 
+    def test_fitted_user_prompt__sends_every_candidate_in_full_to_a_large_model_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify a model with a large window gets the complete candidate list, untrimmed."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        reranker = LLMReranker(client=object(), model="pismak-pllum", context_tokens=131072)
+        candidates = [make_candidate(f"chunk-{i}", "ź" * 3000) for i in range(20)]
+
+        prompt = reranker._fitted_user_prompt({"problem_description": "p" * 6000}, candidates)
+
+        sent = json.loads(prompt)["candidates"]
+        assert [len(c["text"]) for c in sent] == [RERANKER_MAX_TEXT_CHARS] * 20
+
 
 class TestLlmReranker:
     def test_rerank__sends_prompt_and_output_limit_that_fit_the_context_window(

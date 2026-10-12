@@ -16,7 +16,7 @@ class _CountingClient:
 
             def create(self, **kwargs):
                 self.calls += 1
-                raise RuntimeError("the model must not be called")
+                raise RuntimeError("stop after counting the call")
 
         self.chat = type("Chat", (), {"completions": Completions()})()
 
@@ -146,3 +146,21 @@ class TestLlmQueryPlanner:
 
         assert client.chat.completions.calls == 0
         assert [intent.semantic_query for intent in plan.intents] == ["p" * 40_000, "Rozwiązanie"]
+
+    def test_plan__asks_the_model_about_a_long_brief_when_its_window_is_large(
+        self, monkeypatch
+    ) -> None:
+        """Verify the same long brief reaches a model whose own window can hold it."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        client = _CountingClient()
+        planner = LLMQueryPlanner(
+            client=client,
+            model="pismak-pllum",
+            allow_fallback=False,
+            context_tokens=131072,
+        )
+
+        with pytest.raises(RuntimeError, match="stop after counting the call"):
+            planner.plan({"problem_description": "p" * 40_000, "requested_actions": []})
+
+        assert client.chat.completions.calls == 1

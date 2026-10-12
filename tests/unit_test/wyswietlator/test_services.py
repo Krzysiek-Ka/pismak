@@ -91,6 +91,37 @@ class TestLlmErrorMessage:
         assert "oknie kontekstu" in message
         assert "12000" not in message
 
+    def test_llm_error_message__names_the_model_window_when_it_is_known(self) -> None:
+        """Verify the user learns which window applied, since it now differs between models."""
+        message = services.llm_error_message(LLMInputLimitError("details", context_tokens=4096))
+
+        assert "4096 tokenów" in message
+        assert "details" not in message
+
+
+class TestGetOpenaiClient:
+    def test_get_openai_client__gives_local_model_fifteen_minutes_without_sdk_retries(
+        self, monkeypatch
+    ) -> None:
+        """Verify the UI client waits for a slow CPU generation once instead of re-sending it."""
+        calls: dict[str, object] = {}
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs) -> None:
+                calls.update(kwargs)
+
+        monkeypatch.setenv("OLLAMA_URL", "http://ollama.test/")
+        monkeypatch.setattr(services, "OpenAI", FakeOpenAI)
+
+        services.get_openai_client()
+
+        assert calls == {
+            "base_url": "http://ollama.test/v1/",
+            "api_key": "ollama",
+            "timeout": 900.0,
+            "max_retries": 0,
+        }
+
     def test_error_location__identifies_project_file_and_line(self) -> None:
         """Verify exception diagnostics point to the project code that raised the error."""
 
@@ -124,6 +155,16 @@ class TestConversationCharLimit:
 
         assert services.conversation_char_limit("ollama") > default_limit
 
+    def test_conversation_char_limit__follows_the_window_of_the_selected_model(
+        self, monkeypatch
+    ) -> None:
+        """Verify a model with a large window allows a much longer interview."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        assert services.conversation_char_limit("ollama", 131072) > (
+            10 * services.conversation_char_limit("ollama")
+        )
+
 
 class TestValidateUserMessage:
     def test_validate_user_message__rejects_message_beyond_the_remaining_conversation_room(
@@ -156,6 +197,19 @@ class TestValidateUserMessage:
 
         with pytest.raises(ValueError, match="pozostało miejsca na 0 znaków"):
             services.validate_user_message("a", conversation_chars=limit + 500, provider="ollama")
+
+    def test_validate_user_message__accepts_long_conversation_for_a_model_with_a_large_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify a conversation too long for the fallback window passes for a larger model."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        with pytest.raises(ValueError, match="Rozmowa jest zbyt długa"):
+            services.validate_user_message("a" * 100, conversation_chars=50_000, provider="ollama")
+
+        services.validate_user_message(
+            "a" * 100, conversation_chars=50_000, provider="ollama", context_tokens=131072
+        )
 
 
 class TestBuildZrodlowyszukiwator:
@@ -201,6 +255,13 @@ class TestBuildZrodlowyszukiwator:
         monkeypatch.setattr(services, "LLMReranker", FakeReranker)
         monkeypatch.setattr(services, "HybridRetriever", FakeRetriever)
         monkeypatch.setattr(services, "BriefToEvidencePipeline", FakePipeline)
+        monkeypatch.setattr(
+            services,
+            "detect_context_tokens",
+            lambda provider, model, **kwargs: {("openrouter", "openrouter/free"): 65536}[
+                (provider, model)
+            ],
+        )
 
         pipeline, documents, chunks = services.build_zrodlowyszukiwator(
             client=object(),
@@ -210,6 +271,8 @@ class TestBuildZrodlowyszukiwator:
 
         assert isinstance(pipeline, FakePipeline)
         assert (documents, chunks) == (2, 4)
+        assert captures["planner"]["context_tokens"] == 65536
+        assert captures["reranker"]["context_tokens"] == 65536
         assert captures["planner"]["model"] == "openrouter/free"
         assert captures["planner"]["allow_fallback"] is False
         assert captures["reranker"]["allow_fallback"] is False

@@ -49,6 +49,23 @@ class TestSetUpClient:
         with pytest.raises(ValueError, match="Nieznany dostawca"):
             serwer.set_up_client("unsupported")
 
+    def test_set_up_client__gives_local_model_fifteen_minutes_without_sdk_retries(
+        self, monkeypatch
+    ) -> None:
+        """Verify a slow local generation gets one long attempt instead of three repeated ones."""
+        calls: dict[str, object] = {}
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs) -> None:
+                calls.update(kwargs)
+
+        monkeypatch.setattr(serwer, "OpenAI", FakeOpenAI)
+
+        serwer.set_up_client("local")
+
+        assert calls["timeout"] == 900.0
+        assert calls["max_retries"] == 0
+
 
 class _Answer(serwer.BaseModel):
     value: str
@@ -130,3 +147,47 @@ class TestCallStructured:
         )
 
         assert completions.calls[0]["max_tokens"] == 8192
+
+    def test_call_structured__sends_long_prompt_to_a_model_with_a_large_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify the selected model's own window replaces the small fallback budget."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        completions = _Completions()
+        llm = serwer.LLMClient(
+            SimpleNamespace(chat=SimpleNamespace(completions=completions)),
+            "pismak-pllum",
+            context_tokens=131072,
+        )
+
+        llm._call_structured(
+            system_prompt="system",
+            user_prompt="a" * 40_000,
+            response_model=_Answer,
+            temperature=0.0,
+            max_output_tokens=8192,
+            attempt=1,
+        )
+
+        assert completions.calls[0]["max_tokens"] == 8192
+
+    def test_call_structured__rejects_prompt_beyond_a_small_model_window(self, monkeypatch) -> None:
+        """Verify a model served with a small window is not sent a prompt it would truncate."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        completions = _Completions()
+        llm = serwer.LLMClient(
+            SimpleNamespace(chat=SimpleNamespace(completions=completions)),
+            "small-model",
+            context_tokens=4096,
+        )
+
+        with pytest.raises(LLMInputLimitError) as error:
+            llm.generate_structured(
+                system_prompt="system",
+                user_prompt="a" * 8_000,
+                response_model=_Answer,
+                max_output_tokens=4096,
+            )
+
+        assert error.value.context_tokens == 4096
+        assert completions.calls == []

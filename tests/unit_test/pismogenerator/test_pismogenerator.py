@@ -10,7 +10,7 @@ from src.Pismogenerator.constants import (
     PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
 )
 from src.Pismogenerator.pismogenerator import DraftValidationError
-from src.Pismogenerator.prompts import PISMOGENERATOR_SYSTEM_PROMPT
+from src.Pismogenerator.prompts import PISMOGENERATOR_SYSTEM_PROMPT, drafr_user_prompt
 from src.Pismogenerator.structures import DraftLetter
 from src.Zrodlowyszukiwator.brief_to_evidence.models import Evidence, EvidencePack, ResearchPlan
 
@@ -88,6 +88,17 @@ class TestFitDraftUserPrompt:
 
         assert len(remote) > len(local)
 
+    def test_fit_draft_user_prompt__keeps_full_excerpts_for_a_large_model_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify a local model with a large window gets the same prompt as an unlimited one."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        pack = make_pack(["Zdanie źródłowe. " * 200] * 6)
+
+        prompt = pismogenerator.fit_draft_user_prompt(make_brief(), pack, [], "ollama", 131072)
+
+        assert prompt == drafr_user_prompt(make_brief(), pack, [])
+
 
 class TestBuildDraft:
     def test_build_draft__passes_stage_output_token_limit(self, monkeypatch) -> None:
@@ -123,6 +134,37 @@ class TestBuildDraft:
         pismogenerator.build_draft(brief, evidence, FakeLLM())
 
         assert captured["max_output_tokens"] == PISMOGENERATOR_MAX_OUTPUT_TOKENS
+
+    def test_build_draft__budgets_the_prompt_for_the_window_of_its_llm_client(
+        self, monkeypatch
+    ) -> None:
+        """Verify the draft prompt follows the model window carried by the client that sends it."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        captured: dict[str, object] = {}
+
+        class FakeLLM:
+            provider = "ollama"
+            context_tokens = 131072
+
+            def generate_structured(self, **kwargs):
+                captured.update(kwargs)
+                return DraftLetter(
+                    recipient="Urząd",
+                    request_summary="Wniosek",
+                    argumentation_markdown="A" * 200,
+                    sources=[],
+                )
+
+        monkeypatch.setattr(
+            pismogenerator.pismogenerator_helper_functions,
+            "validate_draft",
+            lambda **kwargs: [],
+        )
+        pack = make_pack(["Zdanie źródłowe. " * 200] * 6)
+
+        pismogenerator.build_draft(make_brief(), pack, FakeLLM())
+
+        assert captured["user_prompt"] == drafr_user_prompt(make_brief(), pack, [])
 
     def test_build_draft__includes_validation_details_in_exception(self, monkeypatch) -> None:
         """Verify rejected model sources are preserved for the UI and diagnostic log."""

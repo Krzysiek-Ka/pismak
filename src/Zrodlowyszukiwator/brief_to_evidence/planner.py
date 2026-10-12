@@ -57,6 +57,7 @@ Zasady:
         session_id: str | None = None,
         allow_fallback: bool = True,
         provider: str = "ollama",
+        context_tokens: int | None = None,
     ) -> None:
         """Initialize the query planner with an LLM client and model identifier."""
         self.client = client
@@ -65,6 +66,7 @@ Zasady:
         self.session_id = session_id
         self.allow_fallback = allow_fallback
         self.provider = provider
+        self.context_tokens = context_tokens
         self.last_model: str | None = None
 
     @staticmethod
@@ -91,6 +93,7 @@ Zasady:
                     max_output_tokens=ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
                     stage="query_planner",
                     session_id=self.session_id,
+                    context_tokens=self.context_tokens,
                 )
                 with llm_generation_lock(
                     self.on_wait,

@@ -75,6 +75,7 @@ Zasady:
         session_id: str | None = None,
         allow_fallback: bool = True,
         provider: str = "ollama",
+        context_tokens: int | None = None,
     ) -> None:
         """Initialize the optional LLM reranker and its selection limit."""
         self.client = client
@@ -84,6 +85,7 @@ Zasady:
         self.session_id = session_id
         self.allow_fallback = allow_fallback
         self.provider = provider
+        self.context_tokens = context_tokens
         self.last_model: str | None = None
 
     def _structured(self, user_prompt: str, response_model: type[T]) -> T:
@@ -101,6 +103,7 @@ Zasady:
                     max_output_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
                     stage="reranking",
                     session_id=self.session_id,
+                    context_tokens=self.context_tokens,
                 )
                 with llm_generation_lock(
                     self.on_wait,
@@ -255,6 +258,7 @@ Zasady:
         budget = input_char_budget(
             self.provider,
             reserved_output_tokens=RERANKER_RESERVED_OUTPUT_TOKENS,
+            context_tokens=self.context_tokens,
         ) - len(self.SYSTEM_PROMPT)
         text_chars = RERANKER_MAX_TEXT_CHARS
         count = len(candidates)

@@ -13,6 +13,9 @@ from src._shared.context_budget import fit_output_tokens, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 
 OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1/"
+# Lokalny model na CPU przetwarza pełny prompt nawet kilkanaście minut. Ponowienia SDK
+# są wyłączone, bo każde wysłałoby to samo wielominutowe żądanie od początku.
+OLLAMA_REQUEST_TIMEOUT_SECONDS = 900.0
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MODEL = "openrouter/free"
 OPENROUTER_KEY_PLACEHOLDER = "sk-or-v1-WSTAW_TUTAJ_SWÓJ_KLUCZ"
@@ -106,7 +109,8 @@ def set_up_client(type: Literal["local"] | ProviderName = "local") -> OpenAI:
         return OpenAI(
             base_url=OLLAMA_BASE_URL,
             api_key="ollama",
-            timeout=180.0,
+            timeout=OLLAMA_REQUEST_TIMEOUT_SECONDS,
+            max_retries=0,
         )
     if type == "openrouter":
         import os
@@ -178,6 +182,7 @@ class LLMClient:
         stage: str = "llm_generation",
         session_id: str | None = None,
         provider: ProviderName = "ollama",
+        context_tokens: int | None = None,
     ) -> None:
         """Initialize the client wrapper with an OpenAI-compatible client and model name."""
         self.client = client
@@ -186,6 +191,7 @@ class LLMClient:
         self.stage = stage
         self.session_id = session_id
         self.provider = provider
+        self.context_tokens = context_tokens
         self.last_model: str | None = None
 
     def _call_structured(
@@ -209,6 +215,7 @@ class LLMClient:
                 max_output_tokens=max_output_tokens,
                 stage=self.stage,
                 session_id=self.session_id,
+                context_tokens=self.context_tokens,
             )
             with llm_generation_lock(
                 self.on_wait,

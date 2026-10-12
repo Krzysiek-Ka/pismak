@@ -357,34 +357,43 @@ ollama list
 
 ### 4.4. Okno kontekstu
 
-Pismak mieści prompt i odpowiedź modelu w jednym oknie kontekstu. Jego rozmiar
-ustawia `PISMAK_CONTEXT_TOKENS` w `.env` (domyślnie 8192 tokeny). Gdy danych jest
-więcej, aplikacja skraca fragmenty źródeł wysyłane do modelu i obniża limit
-długości odpowiedzi, a zbyt długą rozmowę zgłasza w interfejsie.
+Pismak mieści prompt i odpowiedź modelu w oknie kontekstu tego modelu, który
+wybrano w interfejsie. Rozmiar okna ustala sam, osobno dla każdego etapu:
 
-Ollama musi mieć ustawione co najmniej takie samo okno. Jej wartość domyślna bywa
-mniejsza (np. 4096), a prompt dłuższy niż okno Ollama obcina bez żadnego błędu.
-Ustaw okno w `Modelfile`:
+- **Ollama:** pyta serwer, z jakim oknem faktycznie załadował model. Przy
+  pierwszym użyciu modelu najpierw go ładuje, więc pierwsze zapytanie zaczyna się
+  z kilkusekundowym opóźnieniem.
+- **OpenRouter:** pobiera publiczną listę modeli. Dla routera `openrouter/free`
+  przyjmuje najmniejsze okno wśród darmowych modeli, bo router sam wybiera model.
+
+Gdy danych jest więcej, niż mieści okno, aplikacja skraca fragmenty źródeł
+wysyłane do modelu i obniża limit długości odpowiedzi, a zbyt długą rozmowę
+zgłasza w interfejsie. Model z większym oknem dostaje więc więcej źródeł.
+
+O tym, jakie okno dostaje model lokalny, decyduje Ollama, nie Pismak. Jej wartość
+domyślna bywa dużo mniejsza niż maksimum modelu (np. 4096). Żeby model pracował z
+większym oknem, ustaw je w `Modelfile`:
 
 ```text
 FROM ./pllum-4b-chat-2512-q4_k_m.gguf
-PARAMETER num_ctx 8192
+PARAMETER num_ctx 16384
 ```
 
-albo dla wszystkich modeli zmienną środowiskową `OLLAMA_CONTEXT_LENGTH=8192`
-(wymaga ponownego uruchomienia Ollamy). Po pierwszym zapytaniu sprawdź kolumnę
+albo dla wszystkich modeli zmienną środowiskową `OLLAMA_CONTEXT_LENGTH`
+(wymaga ponownego uruchomienia Ollamy). Bieżącą wartość pokazuje kolumna
 `CONTEXT`:
 
 ```cmd
 ollama ps
 ```
 
-`PISMAK_CONTEXT_TOKENS` nie może być większe niż ta wartość ani niż okno
-najmniejszego modelu, który da się wybrać w interfejsie (Bielik 4.5B v3 ma okno
-8192). Większe okno w Ollamie zwiększa zużycie pamięci.
+Większe okno zwiększa zużycie pamięci i wydłuża odpowiedź. Na komputerze bez GPU
+pełny prompt potrafi być przetwarzany kilkanaście minut, dlatego żądanie do
+modelu lokalnego ma limit 15 minut.
 
-Dla modeli OpenRouter okno ustawia osobno `PISMAK_OPENROUTER_CONTEXT_TOKENS`
-(domyślnie 32768).
+Jeśli chcesz ograniczyć okno mimo większych możliwości modelu, ustaw w `.env`
+górny limit: `PISMAK_CONTEXT_TOKENS` dla Ollamy albo
+`PISMAK_OPENROUTER_CONTEXT_TOKENS` dla OpenRouter. Domyślnie limitu nie ma.
 
 ---
 

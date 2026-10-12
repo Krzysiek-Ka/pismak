@@ -50,6 +50,24 @@ class TestContextWindowTokens:
         with pytest.raises(ValueError, match="PISMAK_CONTEXT_TOKENS"):
             context_budget.context_window_tokens("ollama")
 
+    def test_context_window_tokens__uses_full_model_window_when_no_limit_is_set(
+        self, monkeypatch
+    ) -> None:
+        """Verify the selected model's own window is used whole, above and below the fallback."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        assert context_budget.context_window_tokens("ollama", 131072) == 131072
+        assert context_budget.context_window_tokens("ollama", 4096) == 4096
+
+    def test_context_window_tokens__caps_model_window_with_the_optional_limit(
+        self, monkeypatch
+    ) -> None:
+        """Verify the setting only ever lowers the window and never raises a smaller model."""
+        monkeypatch.setenv("PISMAK_CONTEXT_TOKENS", "32768")
+
+        assert context_budget.context_window_tokens("ollama", 131072) == 32768
+        assert context_budget.context_window_tokens("ollama", 8192) == 8192
+
 
 class TestFitOutputTokens:
     def test_fit_output_tokens__keeps_stage_limit_for_short_prompt(self, monkeypatch) -> None:
@@ -104,6 +122,37 @@ class TestFitOutputTokens:
 
         assert result == 256
 
+    def test_fit_output_tokens__keeps_stage_limit_for_long_prompt_in_a_large_model_window(
+        self, monkeypatch
+    ) -> None:
+        """Verify a prompt too big for the fallback window is fine for a model that can hold it."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        result = context_budget.fit_output_tokens(
+            provider="ollama",
+            prompt_chars=40_000,
+            max_output_tokens=4096,
+            stage="test",
+            context_tokens=131072,
+        )
+
+        assert result == 4096
+
+    def test_fit_output_tokens__reports_the_model_window_on_rejection(self, monkeypatch) -> None:
+        """Verify the error carries the window so the UI can tell the user which limit applied."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        with pytest.raises(context_budget.LLMInputLimitError) as error:
+            context_budget.fit_output_tokens(
+                provider="ollama",
+                prompt_chars=12_000,
+                max_output_tokens=4096,
+                stage="test",
+                context_tokens=4096,
+            )
+
+        assert error.value.context_tokens == 4096
+
 
 class TestInputCharBudget:
     def test_input_char_budget__prompt_at_the_budget_keeps_the_reserved_output(
@@ -126,6 +175,17 @@ class TestInputCharBudget:
         monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
 
         assert context_budget.input_char_budget("ollama", reserved_output_tokens=20_000) == 0
+
+    def test_input_char_budget__grows_with_the_model_window(self, monkeypatch) -> None:
+        """Verify a model with a larger window is given proportionally more prompt room."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        fallback = context_budget.input_char_budget("ollama", reserved_output_tokens=2048)
+
+        result = context_budget.input_char_budget(
+            "ollama", reserved_output_tokens=2048, context_tokens=131072
+        )
+
+        assert result > 10 * fallback
 
 
 class TestUsageSummary:

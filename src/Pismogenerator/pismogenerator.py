@@ -63,11 +63,13 @@ def fit_draft_user_prompt(
     evidence_pack: EvidencePack,
     user_evidence: list[str],
     provider: str,
+    context_tokens: int | None = None,
 ) -> str:
     """Build the draft prompt, shortening evidence excerpts until it fits the context window."""
     budget = input_char_budget(
         provider,
         reserved_output_tokens=PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
+        context_tokens=context_tokens,
     ) - len(prompts.PISMOGENERATOR_SYSTEM_PROMPT)
     excerpt_chars = EVIDENCE_MAX_CHARS
     while True:
@@ -97,6 +99,7 @@ def build_draft(
         evidence_pack=evidence_pack,
         user_evidence=user_evidence,
         provider=getattr(llm, "provider", "ollama"),
+        context_tokens=getattr(llm, "context_tokens", None),
     )
     draft = llm.generate_structured(
         system_prompt=prompts.PISMOGENERATOR_SYSTEM_PROMPT,

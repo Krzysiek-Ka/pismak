@@ -22,7 +22,9 @@ from openai import (
 )
 
 from src._shared.context_budget import LLMInputLimitError, input_char_budget
+from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import (
+    OLLAMA_REQUEST_TIMEOUT_SECONDS,
     LLMConfigurationError,
     LLMOutputLimitError,
     LLMResponseError,
@@ -94,7 +96,7 @@ def close_case_logging(session_id: str) -> None:
             handler.close()
 
 
-def conversation_char_limit(provider: str) -> int:
+def conversation_char_limit(provider: str, context_tokens: int | None = None) -> int:
     """Return how many conversation characters fit in the interview and brief prompts."""
     interview_chars = len(dopytywator_prompts.DOPYTYWATOR_INTERVIEW_SYSTEM_PROMPT) + len(
         dopytywator_prompts.interviewer_user_prompt(
@@ -106,7 +108,11 @@ def conversation_char_limit(provider: str) -> int:
     brief_chars = len(dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT) + len(
         dopytywator_prompts.brief_user_prompt([])
     )
-    budget = input_char_budget(provider, reserved_output_tokens=DOPYTYWATOR_RESERVED_OUTPUT_TOKENS)
+    budget = input_char_budget(
+        provider,
+        reserved_output_tokens=DOPYTYWATOR_RESERVED_OUTPUT_TOKENS,
+        context_tokens=context_tokens,
+    )
     return budget - max(interview_chars, brief_chars)
 
 
@@ -115,6 +121,7 @@ def validate_user_message(
     *,
     conversation_chars: int = 0,
     provider: str | None = None,
+    context_tokens: int | None = None,
 ) -> None:
     """Reject oversized user input before adding it to the conversation state."""
     if len(message) > MAX_USER_MESSAGE_CHARS:
@@ -122,7 +129,8 @@ def validate_user_message(
     if provider is None:
         return
     # Cała rozmowa trafia do promptu, więc limit zależy od okna kontekstu modelu.
-    remaining = max(0, conversation_char_limit(provider) - conversation_chars)
+    limit = conversation_char_limit(provider, context_tokens)
+    remaining = max(0, limit - conversation_chars)
     if len(message) > remaining:
         raise ValueError(
             "Rozmowa jest zbyt długa dla wybranego modelu "
@@ -137,7 +145,8 @@ def get_openai_client(ollama_url: str | None = None) -> OpenAI:
     return OpenAI(
         base_url=base + "/v1/",
         api_key="ollama",
-        timeout=300.0,
+        timeout=OLLAMA_REQUEST_TIMEOUT_SECONDS,
+        max_retries=0,
     )
 
 
@@ -171,9 +180,10 @@ def llm_error_message(error: Exception) -> str:
     if isinstance(error, APIStatusError) and error.status_code >= 500:
         return "Usługa modelu jest chwilowo niedostępna. Spróbuj później."
     if isinstance(error, LLMInputLimitError):
+        window = f" ({error.context_tokens} tokenów)" if error.context_tokens else ""
         return (
-            "Dane sprawy nie mieszczą się w oknie kontekstu wybranego modelu. "
-            "Rozpocznij nową sprawę i opisz ją krócej."
+            f"Dane sprawy nie mieszczą się w oknie kontekstu wybranego modelu{window}. "
+            "Opisz sprawę krócej albo wybierz model z większym oknem."
         )
     if isinstance(error, LLMOutputLimitError):
         return (
@@ -236,6 +246,13 @@ def build_zrodlowyszukiwator(
         ),
     )
 
+    # Po sprawdzeniu bazy, bo ustalenie okna może wymagać załadowania modelu.
+    context_tokens = detect_context_tokens(
+        provider,
+        model,
+        on_wait=on_wait,
+        session_id=session_id,
+    )
     planner = LLMQueryPlanner(
         client=client,
         model=model,
@@ -243,6 +260,7 @@ def build_zrodlowyszukiwator(
         session_id=session_id,
         allow_fallback=allow_fallback,
         provider=provider,
+        context_tokens=context_tokens,
     )
     retriever = HybridRetriever(
         repository=repo,
@@ -259,6 +277,7 @@ def build_zrodlowyszukiwator(
         session_id=session_id,
         allow_fallback=allow_fallback,
         provider=provider,
+        context_tokens=context_tokens,
     )
 
     pipeline = BriefToEvidencePipeline(
