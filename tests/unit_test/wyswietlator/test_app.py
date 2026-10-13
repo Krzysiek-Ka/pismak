@@ -50,19 +50,17 @@ def app(monkeypatch, tmp_path):
     app_test.session_state["cfg_server_storage_consent"] = True
     yield app_test
 
-    if "session_id" in app_test.session_state:
-        services.close_case_logging(app_test.session_state["session_id"])
-    close_uncaught_error_log(tmp_path)
+    detach_log_handler(tmp_path)
     st.cache_data.clear()
     st.cache_resource.clear()
 
 
-def close_uncaught_error_log(project_root: Path) -> None:
-    """Release the shared error-log file that configure_logging opened for a test directory."""
-    handler = services._UNCAUGHT_ERROR_LOG_HANDLERS.pop((project_root / "logs").resolve(), None)
+def detach_log_handler(project_root: Path) -> None:
+    """Remove the handler that configure_logging attached for a temporary project directory."""
+    handler = services._LOG_HANDLERS.pop((project_root / "logs").resolve(), None)
     if handler is not None:
+        services.LOGGER.removeHandler(handler)
         logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).removeHandler(handler)
-        handler.close()
 
 
 def shown_text(app_test: AppTest) -> str:
@@ -109,8 +107,7 @@ class TestUnhandledErrors:
         finally:
             for name, value in originals.items():
                 config.set_option(name, value)
-            services.close_case_logging("case-x")
-            close_uncaught_error_log(tmp_path)
+            detach_log_handler(tmp_path)
 
 
 class TestErrorReporting:

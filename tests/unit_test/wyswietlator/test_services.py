@@ -3,8 +3,10 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
+from threading import Thread
 
 import pytest
 from pydantic import ValidationError
@@ -23,12 +25,23 @@ if str(WYSWIETLATOR_DIR) not in sys.path:
 services = importlib.import_module("services")
 
 
-def close_uncaught_error_log(project_root: Path) -> None:
-    """Release the shared error-log file that configure_logging opened for a test directory."""
-    handler = services._UNCAUGHT_ERROR_LOG_HANDLERS.pop((project_root / "logs").resolve(), None)
+def detach_log_handler(project_root: Path) -> None:
+    """Remove the handler that configure_logging attached for a temporary project directory."""
+    handler = services._LOG_HANDLERS.pop((project_root / "logs").resolve(), None)
     if handler is not None:
+        services.LOGGER.removeHandler(handler)
         logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).removeHandler(handler)
-        handler.close()
+
+
+@pytest.fixture
+def logs(tmp_path: Path):
+    """Yield the log directory of a temporary project and detach its handler afterwards."""
+    yield tmp_path / "logs"
+    detach_log_handler(tmp_path)
+
+
+def log_as(session_id: str, message: str) -> None:
+    services.LOGGER.info(message, extra={"session_id": session_id})
 
 
 class TestGetLlmClient:
@@ -395,45 +408,155 @@ class TestConfigureLogging:
         finally:
             services.close_case_logging("case-a")
             services.close_case_logging("case-b")
-            close_uncaught_error_log(tmp_path)
+            detach_log_handler(tmp_path)
 
     def test_configure_logging__records_unhandled_errors_with_their_traceback(
-        self, tmp_path: Path
+        self, tmp_path: Path, logs: Path
     ) -> None:
         """Verify an exception the UI hides is still written down, in full, for the operator."""
         services.configure_logging(tmp_path, "case-a")
+        log_as("case-a", "message for case A")
 
         try:
-            try:
-                raise RuntimeError("szczegóły tylko dla operatora")
-            except RuntimeError as error:
-                logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).error(
-                    "Uncaught app execution", exc_info=error
-                )
-
-            content = (tmp_path / "logs" / services.UNCAUGHT_ERROR_LOG_NAME).read_text(
-                encoding="utf-8"
+            raise RuntimeError("szczegóły tylko dla operatora")
+        except RuntimeError as error:
+            logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).error(
+                "Uncaught app execution", exc_info=error
             )
-            assert "RuntimeError: szczegóły tylko dla operatora" in content
-            assert "Traceback (most recent call last)" in content
-            assert list((tmp_path / "logs").glob("pismak_*.log")) != []
-        finally:
-            services.close_case_logging("case-a")
-            close_uncaught_error_log(tmp_path)
 
-    def test_configure_logging__opens_the_unhandled_error_file_once_for_all_cases(
-        self, tmp_path: Path
+        content = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+        assert "RuntimeError: szczegóły tylko dla operatora" in content
+        assert "Traceback (most recent call last)" in content
+        (case_log,) = logs.glob("pismak_*.log")
+        assert "szczegóły tylko dla operatora" not in case_log.read_text(encoding="utf-8")
+
+    def test_configure_logging__uses_one_handler_and_no_open_file_for_fifty_cases(
+        self, tmp_path: Path, logs: Path
     ) -> None:
-        """Verify many sessions share one handler, so one error is not written once per session."""
-        target = logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME)
-        before = len(target.handlers)
+        """Verify opening many sessions adds neither handlers nor file handles to the process."""
+        streamlit_logger = logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME)
+        before = (len(services.LOGGER.handlers), len(streamlit_logger.handlers))
 
-        try:
-            for session_id in ("case-a", "case-b", "case-c"):
-                services.configure_logging(tmp_path, session_id)
+        for index in range(50):
+            services.configure_logging(tmp_path, f"case-{index}")
+            log_as(f"case-{index}", f"message for case {index};")
 
-            assert len(target.handlers) == before + 1
-        finally:
-            for session_id in ("case-a", "case-b", "case-c"):
-                services.close_case_logging(session_id)
-            close_uncaught_error_log(tmp_path)
+        assert len(services.LOGGER.handlers) == before[0] + 1
+        assert len(streamlit_logger.handlers) == before[1] + 1
+        case_logs = sorted(logs.glob("pismak_*.log"))
+        assert len(case_logs) == 50
+        assert all(
+            path.read_text(encoding="utf-8").count("message for case") == 1 for path in case_logs
+        )
+        # Windows odmawia usunięcia pliku, który jakikolwiek proces trzyma otwarty.
+        for path in case_logs:
+            path.unlink()
+
+    def test_configure_logging__keeps_one_file_for_a_case_across_reruns(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify Streamlit reruns, which configure logging again, do not split a case's log."""
+        for turn in range(3):
+            services.configure_logging(tmp_path, "case-a")
+            log_as("case-a", f"turn {turn}")
+
+        (case_log,) = logs.glob("pismak_*.log")
+        assert [line.split()[-1] for line in case_log.read_text(encoding="utf-8").splitlines()] == [
+            "0",
+            "1",
+            "2",
+        ]
+
+    def test_configure_logging__keeps_cases_apart_when_sessions_log_at_the_same_time(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify writes from parallel session threads never land in, or tear, another case's file."""
+        sessions = [f"case-{index}" for index in range(8)]
+        for session_id in sessions:
+            services.configure_logging(tmp_path, session_id)
+
+        def write_many(session_id: str) -> None:
+            for number in range(100):
+                log_as(session_id, f"{session_id} line {number} end")
+
+        threads = [Thread(target=write_many, args=(session_id,)) for session_id in sessions]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+        case_logs = list(logs.glob("pismak_*.log"))
+        assert len(case_logs) == 8
+        for path in case_logs:
+            lines = path.read_text(encoding="utf-8").splitlines()
+            owners = {line.split()[3] for line in lines}
+            assert len(lines) == 100
+            assert len(owners) == 1
+            assert all(line.endswith(" end") for line in lines)
+
+    def test_configure_logging__writes_records_without_a_known_case_to_the_shared_file(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify a record that carries no session, or an unknown one, is never silently lost."""
+        services.configure_logging(tmp_path, "case-a")
+
+        services.LOGGER.info("record without a session")
+        log_as("never-configured", "record of an unknown session")
+
+        shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+        assert "record without a session" in shared
+        assert "record of an unknown session" in shared
+        assert list(logs.glob("pismak_*.log")) == []
+
+    def test_configure_logging__forgets_only_the_least_recently_used_cases_beyond_the_limit(
+        self, tmp_path: Path, logs: Path, monkeypatch
+    ) -> None:
+        """Verify abandoned sessions cannot grow the registry, while active ones keep their file."""
+        monkeypatch.setattr(services, "MAX_TRACKED_CASES", 3)
+        for session_id in ("case-a", "case-b", "case-c"):
+            services.configure_logging(tmp_path, session_id)
+        services.configure_logging(tmp_path, "case-a")
+        services.configure_logging(tmp_path, "case-d")
+
+        for session_id in ("case-a", "case-b", "case-c", "case-d"):
+            log_as(session_id, f"message of {session_id};")
+
+        assert len(services._LOG_HANDLERS[logs.resolve()].case_paths) == 3
+        case_text = "".join(path.read_text(encoding="utf-8") for path in logs.glob("pismak_*.log"))
+        assert [name for name in "abcd" if f"message of case-{name};" in case_text] == [
+            "a",
+            "c",
+            "d",
+        ]
+        shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+        assert "message of case-b;" in shared
+
+    def test_configure_logging__recreates_the_log_directory_removed_while_running(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify an operator can delete the logs of a running app without breaking logging."""
+        services.configure_logging(tmp_path, "case-a")
+        log_as("case-a", "before cleanup")
+        shutil.rmtree(logs)
+
+        log_as("case-a", "after cleanup")
+
+        (case_log,) = logs.glob("pismak_*.log")
+        assert case_log.read_text(encoding="utf-8").count("after cleanup") == 1
+
+
+class TestCloseCaseLogging:
+    def test_close_case_logging__sends_a_late_record_of_a_finished_case_to_the_shared_file(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify "Nowa sprawa" ends the case file without dropping what still arrives for it."""
+        services.configure_logging(tmp_path, "case-a")
+        log_as("case-a", "during the case")
+
+        services.close_case_logging("case-a")
+        log_as("case-a", "after the case was closed")
+
+        (case_log,) = logs.glob("pismak_*.log")
+        assert "after the case was closed" not in case_log.read_text(encoding="utf-8")
+        shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+        assert "after the case was closed" in shared

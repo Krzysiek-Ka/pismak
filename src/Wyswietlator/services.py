@@ -6,6 +6,7 @@ import os
 import threading
 import traceback
 import uuid
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -53,58 +54,88 @@ MAX_USER_MESSAGE_CHARS = 5000
 MAX_INTERVIEW_QUESTIONS = 12
 LOGGER = logging.getLogger("pismak")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
-# Błędy, których kod aplikacji nie obsłużył. Streamlit zgłasza je tym loggerem wyłącznie
-# na konsolę, a interfejs ich nie pokazuje, więc bez własnego pliku nie zostałby po nich ślad.
+# Wspólny plik na to, czego nie da się przypisać do sprawy: wpisy bez identyfikatora sesji
+# oraz błędy, których kod aplikacji nie obsłużył. Te drugie Streamlit zgłasza poniższym
+# loggerem wyłącznie na konsolę, a interfejs ich nie pokazuje.
 UNCAUGHT_ERROR_LOG_NAME = "app_errors.log"
 UNCAUGHT_ERROR_LOGGER_NAME = "streamlit.error_util"
-_CASE_LOG_HANDLERS: dict[str, logging.FileHandler] = {}
-_UNCAUGHT_ERROR_LOG_HANDLERS: dict[Path, logging.FileHandler] = {}
-_CASE_LOG_HANDLERS_LOCK = threading.Lock()
+# Streamlit nie zgłasza końca sesji, więc porzuconych spraw nie da się wyrejestrować.
+# Zamiast tego pamiętane są tylko ostatnio używane; każde otwarcie strony to nowa sprawa.
+MAX_TRACKED_CASES = 50
 
 
-class _SessionLogFilter(logging.Filter):
-    def __init__(self, session_id: str) -> None:
+class _CaseLogHandler(logging.Handler):
+    """Write each record to the log file of its case, opening the file only for that write."""
+
+    def __init__(self, log_dir: Path) -> None:
         super().__init__()
-        self.session_id = session_id
+        self.log_dir = log_dir
+        self.shared_path = log_dir / UNCAUGHT_ERROR_LOG_NAME
+        self.case_paths: OrderedDict[str, Path] = OrderedDict()
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        return getattr(record, "session_id", None) == self.session_id
+    def _new_case_path(self) -> Path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        return self.log_dir / f"pismak_{timestamp}.log"
+
+    def track(self, session_id: str) -> None:
+        """Give a new case its own file and mark a known case as recently used."""
+        with self.lock:
+            if session_id in self.case_paths:
+                self.case_paths.move_to_end(session_id)
+                return
+            path = self._new_case_path()
+            while path in self.case_paths.values():
+                path = self._new_case_path()
+            self.case_paths[session_id] = path
+            while len(self.case_paths) > MAX_TRACKED_CASES:
+                self.case_paths.popitem(last=False)
+
+    def forget(self, session_id: str) -> None:
+        """Stop routing a case to its file."""
+        with self.lock:
+            self.case_paths.pop(session_id, None)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Append the record to its case file, or to the shared file when it has no case."""
+        path = self.case_paths.get(getattr(record, "session_id", None))
+        try:
+            # Plik nie zostaje otwarty między wpisami, więc liczba spraw nie zużywa uchwytów,
+            # a operator może usuwać logi w trakcie pracy aplikacji.
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            with open(path or self.shared_path, "a", encoding="utf-8") as log:
+                log.write(self.format(record) + "\n")
+        except Exception:
+            self.handleError(record)
+
+
+_LOG_HANDLERS: dict[Path, _CaseLogHandler] = {}
+_LOG_HANDLERS_LOCK = threading.Lock()
 
 
 def configure_logging(project_root: Path, session_id: str) -> logging.Logger:
-    """Create one private log file per case and one shared file for unhandled errors."""
+    """Route a case's records to its own log file and everything else to the shared one."""
     LOGGER.setLevel(logging.INFO)
     LOGGER.propagate = False
     log_dir = (project_root / "logs").resolve()
-    with _CASE_LOG_HANDLERS_LOCK:
-        if log_dir not in _UNCAUGHT_ERROR_LOG_HANDLERS:
-            log_dir.mkdir(parents=True, exist_ok=True)
-            handler = logging.FileHandler(log_dir / UNCAUGHT_ERROR_LOG_NAME, encoding="utf-8")
-            handler.setFormatter(logging.Formatter(LOG_FORMAT))
-            logging.getLogger(UNCAUGHT_ERROR_LOGGER_NAME).addHandler(handler)
-            _UNCAUGHT_ERROR_LOG_HANDLERS[log_dir] = handler
-        if session_id not in _CASE_LOG_HANDLERS:
-            log_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            handler = logging.FileHandler(
-                log_dir / f"pismak_{timestamp}.log",
-                encoding="utf-8",
-            )
-            handler.addFilter(_SessionLogFilter(session_id))
+    with _LOG_HANDLERS_LOCK:
+        handler = _LOG_HANDLERS.get(log_dir)
+        if handler is None:
+            handler = _CaseLogHandler(log_dir)
             handler.setFormatter(logging.Formatter(LOG_FORMAT))
             LOGGER.addHandler(handler)
-            _CASE_LOG_HANDLERS[session_id] = handler
+            logging.getLogger(UNCAUGHT_ERROR_LOGGER_NAME).addHandler(handler)
+            _LOG_HANDLERS[log_dir] = handler
+    handler.track(session_id)
 
     return LOGGER
 
 
 def close_case_logging(session_id: str) -> None:
-    """Close and remove a case's file handler after that case has ended."""
-    with _CASE_LOG_HANDLERS_LOCK:
-        handler = _CASE_LOG_HANDLERS.pop(session_id, None)
-        if handler is not None:
-            LOGGER.removeHandler(handler)
-            handler.close()
+    """Stop routing a finished case to its file; a late record for it goes to the shared log."""
+    with _LOG_HANDLERS_LOCK:
+        handlers = list(_LOG_HANDLERS.values())
+    for handler in handlers:
+        handler.forget(session_id)
 
 
 def conversation_char_limit(provider: str, context_tokens: int | None = None) -> int:

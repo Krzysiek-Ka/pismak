@@ -719,6 +719,10 @@ ogólny komunikat Streamlita. Odpowiada za to `.streamlit/config.toml`, wczytywa
 z katalogu, z którego startuje aplikacja — uruchamiaj ją więc z katalogu głównego
 repozytorium.
 
+Do `logs/app_errors.log` trafiają też wpisy, których nie da się przypisać do
+żadnej sprawy. Aplikacja nie trzyma plików logów otwartych, więc można je usuwać
+lub przenosić także w trakcie jej działania.
+
 Wyświetlator wymaga działającej Ollamy, PostgreSQL z tabelami `rag_documents` i
 `rag_chunks` oraz zainstalowanego `bge-m3`. Przy pustej bazie RAG najpierw trzeba
 wykonać ingestion dokumentów (punkt 6.1).
