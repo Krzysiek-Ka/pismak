@@ -1,0 +1,20 @@
+# Konfiguracja Streamlita dla Pismaka. Plik jest wczytywany z katalogu, z którego
+# uruchamiana jest aplikacja (run_pismak.bat przechodzi do katalogu repozytorium).
+
+[client]
+# Nieobsłużony wyjątek pokazuje w przeglądarce tylko ogólny komunikat, bez typu błędu,
+# treści i śladu stosu. Szczegóły trafiają do logs/app_errors.log.
+showErrorDetails = "none"
+
+[logger]
+# Gdy zainstalowana jest biblioteka rich, Streamlit domyślnie wypisuje nieobsłużone wyjątki
+# przez nią prosto na konsolę, z pominięciem loggera. Wtedy logs/app_errors.log zostaje pusty.
+enableRich = false
+
+[browser]
+# Bez wysyłania statystyk użycia do Streamlita.
+gatherUsageStats = false
+
+[server]
+# Aplikacja działa jako usługa: nie otwiera przeglądarki i nie pyta o e-mail przy starcie.
+headless = true

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -20,6 +21,14 @@ if str(WYSWIETLATOR_DIR) not in sys.path:
     sys.path.insert(0, str(WYSWIETLATOR_DIR))
 
 services = importlib.import_module("services")
+
+
+def close_uncaught_error_log(project_root: Path) -> None:
+    """Release the shared error-log file that configure_logging opened for a test directory."""
+    handler = services._UNCAUGHT_ERROR_LOG_HANDLERS.pop((project_root / "logs").resolve(), None)
+    if handler is not None:
+        logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).removeHandler(handler)
+        handler.close()
 
 
 class TestGetLlmClient:
@@ -50,40 +59,62 @@ class TestGetLlmClient:
         assert services.get_llm_client("openrouter") is sentinel
         assert calls == ["openrouter"]
 
-    def test_llm_error_message__explains_missing_openrouter_key(self) -> None:
-        """Verify missing credentials are shown as setup guidance, not a traceback."""
-        message = services.llm_error_message(LLMConfigurationError("Brak OPENROUTER_KEY."))
-
-        assert "OPENROUTER_KEY" in message
-
 
 class TestLlmErrorMessage:
-    def test_llm_error_message__explains_local_postgres_docker_failure(self) -> None:
-        """Verify the UI preserves actionable Docker guidance for local database failures."""
-        expected = "Uruchom Docker Desktop i kontener PostgreSQL."
-
-        assert services.llm_error_message(DatabaseConnectionError(expected)) == expected
-
-    def test_llm_error_message__preserves_draft_validation_details(self) -> None:
-        """Verify draft validation failures show their rejected-source explanation."""
-        error = DraftValidationError(["Model dodał niedozwolone źródła: U1; U2"])
-
+    @pytest.mark.parametrize(
+        ("error", "internal_details"),
+        [
+            (
+                DatabaseConnectionError(
+                    "Nie można połączyć się z lokalną bazą PostgreSQL (127.0.0.1:5432). "
+                    "Uruchom Docker Desktop i `docker compose up -d postgres`."
+                ),
+                ("127.0.0.1", "5432", "Docker", "PostgreSQL"),
+            ),
+            (
+                DraftValidationError(["Model dodał niedozwolone źródła: U1; U2"]),
+                ("DraftLetter", "niedozwolone źródła", "U1"),
+            ),
+            (
+                LLMConfigurationError("Brak OPENROUTER_KEY. Dodaj klucz do pliku .env."),
+                ("OPENROUTER_KEY", ".env"),
+            ),
+            (
+                LLMResponseError(
+                    "Model dwukrotnie zwrócił niepoprawny structured output dla "
+                    "InterviewTurnResult. Ostatni błąd: next_question: Field required (missing)"
+                ),
+                ("InterviewTurnResult", "next_question", "Field required"),
+            ),
+            (RuntimeError("Brak DATABASE_URL w .env."), ("DATABASE_URL", ".env")),
+            (
+                OSError("C:\\Krzysiek\\Pismak\\src\\modul.py: brak dostępu"),
+                ("C:\\", "modul.py", "brak dostępu"),
+            ),
+        ],
+    )
+    def test_llm_error_message__keeps_the_content_of_the_error_out_of_the_ui(
+        self, error: Exception, internal_details: tuple[str, ...]
+    ) -> None:
+        """Verify no host, path, setting name or schema detail of a failure reaches the user."""
         message = services.llm_error_message(error)
 
-        assert "DraftLetter nie przeszedł walidacji" in message
-        assert "Model dodał niedozwolone źródła: U1; U2" in message
+        assert message
+        assert [detail for detail in internal_details if detail in message] == []
 
-    def test_llm_error_message__preserves_structured_output_failure_reason(self) -> None:
-        """Verify structured-output failures expose the specific schema rejection."""
-        error = LLMResponseError(
-            "Model dwukrotnie zwrócił niepoprawny structured output dla InterviewTurnResult. "
-            "Ostatni błąd: next_question: Field required (missing)"
-        )
+    def test_llm_error_message__still_tells_the_user_which_part_failed(self) -> None:
+        """Verify hiding details does not collapse every failure into one indistinct message."""
+        messages = {
+            services.llm_error_message(DatabaseConnectionError("x")),
+            services.llm_error_message(DraftValidationError(["x"])),
+            services.llm_error_message(LLMConfigurationError("x")),
+            services.llm_error_message(LLMResponseError("x")),
+            services.llm_error_message(RuntimeError("x")),
+        }
 
-        message = services.llm_error_message(error)
-
-        assert "InterviewTurnResult" in message
-        assert "next_question: Field required (missing)" in message
+        assert len(messages) == 5
+        assert "Źródłowyszukiwacz" in services.llm_error_message(DatabaseConnectionError("x"))
+        assert "projekt pisma" in services.llm_error_message(DraftValidationError(["x"]))
 
     def test_llm_error_message__explains_input_beyond_the_context_window(self) -> None:
         """Verify an oversized case is explained to the user instead of the generic log hint."""
@@ -364,3 +395,45 @@ class TestConfigureLogging:
         finally:
             services.close_case_logging("case-a")
             services.close_case_logging("case-b")
+            close_uncaught_error_log(tmp_path)
+
+    def test_configure_logging__records_unhandled_errors_with_their_traceback(
+        self, tmp_path: Path
+    ) -> None:
+        """Verify an exception the UI hides is still written down, in full, for the operator."""
+        services.configure_logging(tmp_path, "case-a")
+
+        try:
+            try:
+                raise RuntimeError("szczegóły tylko dla operatora")
+            except RuntimeError as error:
+                logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME).error(
+                    "Uncaught app execution", exc_info=error
+                )
+
+            content = (tmp_path / "logs" / services.UNCAUGHT_ERROR_LOG_NAME).read_text(
+                encoding="utf-8"
+            )
+            assert "RuntimeError: szczegóły tylko dla operatora" in content
+            assert "Traceback (most recent call last)" in content
+            assert list((tmp_path / "logs").glob("pismak_*.log")) != []
+        finally:
+            services.close_case_logging("case-a")
+            close_uncaught_error_log(tmp_path)
+
+    def test_configure_logging__opens_the_unhandled_error_file_once_for_all_cases(
+        self, tmp_path: Path
+    ) -> None:
+        """Verify many sessions share one handler, so one error is not written once per session."""
+        target = logging.getLogger(services.UNCAUGHT_ERROR_LOGGER_NAME)
+        before = len(target.handlers)
+
+        try:
+            for session_id in ("case-a", "case-b", "case-c"):
+                services.configure_logging(tmp_path, session_id)
+
+            assert len(target.handlers) == before + 1
+        finally:
+            for session_id in ("case-a", "case-b", "case-c"):
+                services.close_case_logging(session_id)
+            close_uncaught_error_log(tmp_path)

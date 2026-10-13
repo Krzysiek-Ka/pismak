@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 
 from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
@@ -83,6 +84,17 @@ class TestReleaseFiles:
             assert re.search(r"^PARAMETER num_ctx \d+$", modelfile, flags=re.M)
             assert f"modele\\{model}\\{gguf.group(1)}" in readme
             assert f"ollama create pismak-{model} -f modele\\{model}\\Modelfile" in readme
+
+    def test_streamlit_config__hides_error_details_and_routes_unhandled_errors_to_the_logger(
+        self,
+    ) -> None:
+        """Verify the published configuration cannot show a traceback to a demo user or lose it."""
+        settings = tomllib.loads(
+            (PROJECT_ROOT / ".streamlit" / "config.toml").read_text(encoding="utf-8")
+        )
+
+        assert settings["client"]["showErrorDetails"] == "none"
+        assert settings["logger"]["enableRich"] is False
 
     def test_readmes__reference_only_files_that_exist_in_the_repository(self) -> None:
         """Verify setup instructions never point a new user at a file the repository lacks."""

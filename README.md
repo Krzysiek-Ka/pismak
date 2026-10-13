@@ -675,7 +675,9 @@ Z katalogu głównego repozytorium:
 streamlit run src\Wyswietlator\app.py
 ```
 
-Interfejs powinien być dostępny pod adresem `http://localhost:8501`.
+Interfejs powinien być dostępny pod adresem `http://localhost:8501`. Przeglądarka
+nie otwiera się sama (`server.headless` w `.streamlit/config.toml`) — wpisz adres
+ręcznie.
 
 W UI można:
 
@@ -708,6 +710,14 @@ nowy plik, a logi równoległych sesji nie są mieszane.
 Jeśli odpowiedź modelu jest niepoprawna albo ucięta, log zawiera jej treść
 (maksymalnie 20 000 znaków, zapisaną jako JSON-escaped tekst). Może ona zawierać
 dane sprawy, dlatego logi należy chronić tak samo jak pozostałe dane lokalne.
+
+W razie błędu interfejs pokazuje tylko ogólny komunikat. Typ błędu, miejsce w
+kodzie, treść i ślad stosu zapisuje log sprawy (zdarzenia `interview_failed`,
+`pipeline_failed`, `model_list_failed`). Błędy, których aplikacja nie obsłużyła,
+trafiają do wspólnego pliku `logs/app_errors.log`, a przeglądarka pokazuje wtedy
+ogólny komunikat Streamlita. Odpowiada za to `.streamlit/config.toml`, wczytywany
+z katalogu, z którego startuje aplikacja — uruchamiaj ją więc z katalogu głównego
+repozytorium.
 
 Wyświetlator wymaga działającej Ollamy, PostgreSQL z tabelami `rag_documents` i
 `rag_chunks` oraz zainstalowanego `bge-m3`. Przy pustej bazie RAG najpierw trzeba
@@ -848,6 +858,7 @@ Pismak/
 ├── .pre-commit-config.yaml
 ├── docker-compose.yaml
 ├── run_pismak.bat
+├── .streamlit/config.toml
 ├── docker/postgres/init/001_extensions.sql
 ├── modele/
 │   ├── bielik/Modelfile

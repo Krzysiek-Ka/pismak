@@ -29,7 +29,6 @@ from src._shared.serwer import (
     LLMOutputLimitError,
     LLMResponseError,
     set_up_client,
-    structured_output_error_detail,
 )
 from src.Dopytywator import prompts as dopytywator_prompts
 from src.Dopytywator.constants import DOPYTYWATOR_RESERVED_OUTPUT_TOKENS
@@ -53,7 +52,13 @@ from src.Zrodlowyszukiwator.rag_retrieval.repository import DatabaseConnectionEr
 MAX_USER_MESSAGE_CHARS = 5000
 MAX_INTERVIEW_QUESTIONS = 12
 LOGGER = logging.getLogger("pismak")
+LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
+# Błędy, których kod aplikacji nie obsłużył. Streamlit zgłasza je tym loggerem wyłącznie
+# na konsolę, a interfejs ich nie pokazuje, więc bez własnego pliku nie zostałby po nich ślad.
+UNCAUGHT_ERROR_LOG_NAME = "app_errors.log"
+UNCAUGHT_ERROR_LOGGER_NAME = "streamlit.error_util"
 _CASE_LOG_HANDLERS: dict[str, logging.FileHandler] = {}
+_UNCAUGHT_ERROR_LOG_HANDLERS: dict[Path, logging.FileHandler] = {}
 _CASE_LOG_HANDLERS_LOCK = threading.Lock()
 
 
@@ -67,12 +72,18 @@ class _SessionLogFilter(logging.Filter):
 
 
 def configure_logging(project_root: Path, session_id: str) -> logging.Logger:
-    """Create one private log file per case and route only that case's records to it."""
+    """Create one private log file per case and one shared file for unhandled errors."""
     LOGGER.setLevel(logging.INFO)
     LOGGER.propagate = False
+    log_dir = (project_root / "logs").resolve()
     with _CASE_LOG_HANDLERS_LOCK:
+        if log_dir not in _UNCAUGHT_ERROR_LOG_HANDLERS:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            handler = logging.FileHandler(log_dir / UNCAUGHT_ERROR_LOG_NAME, encoding="utf-8")
+            handler.setFormatter(logging.Formatter(LOG_FORMAT))
+            logging.getLogger(UNCAUGHT_ERROR_LOGGER_NAME).addHandler(handler)
+            _UNCAUGHT_ERROR_LOG_HANDLERS[log_dir] = handler
         if session_id not in _CASE_LOG_HANDLERS:
-            log_dir = (project_root / "logs").resolve()
             log_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             handler = logging.FileHandler(
@@ -80,7 +91,7 @@ def configure_logging(project_root: Path, session_id: str) -> logging.Logger:
                 encoding="utf-8",
             )
             handler.addFilter(_SessionLogFilter(session_id))
-            handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+            handler.setFormatter(logging.Formatter(LOG_FORMAT))
             LOGGER.addHandler(handler)
             _CASE_LOG_HANDLERS[session_id] = handler
 
@@ -160,21 +171,26 @@ def get_llm_client(provider: str) -> OpenAI:
 
 
 def llm_error_message(error: Exception) -> str:
-    """Return a safe, actionable message without exposing request details."""
+    """Return the message shown in the UI: what happened in general terms, never the details."""
+    # Treść wyjątku nie trafia do interfejsu. Typ błędu, miejsce w kodzie, szczegóły
+    # i ślad stosu zapisuje w logu sprawy kod, który ten wyjątek obsługuje.
     if isinstance(error, DraftValidationError):
-        return str(error)
+        return (
+            "Model przygotował projekt pisma, który nie przeszedł kontroli aplikacji. "
+            "Spróbuj wygenerować pismo ponownie albo wybierz inny model."
+        )
     if isinstance(error, DatabaseConnectionError):
-        return str(error)
+        return "Źródłowyszukiwacz jest obecnie niedostępny. Spróbuj ponownie później."
     if isinstance(error, LLMConfigurationError):
-        return str(error)
+        return "Wybrany dostawca modeli nie jest skonfigurowany. Wybierz innego dostawcę."
     if isinstance(error, (AuthenticationError, PermissionDeniedError)):
-        return "OpenRouter odrzucił klucz API. Sprawdź OPENROUTER_KEY w pliku .env."
+        return "OpenRouter odrzucił dostęp aplikacji. Wybierz model lokalny albo spróbuj później."
     if isinstance(error, RateLimitError):
         return "OpenRouter odrzucił zapytanie z powodu limitu. Spróbuj później."
     if isinstance(error, APITimeoutError):
         return "Przekroczono czas oczekiwania na odpowiedź modelu. Spróbuj ponownie."
     if isinstance(error, APIConnectionError):
-        return "Nie udało się połączyć z usługą modelu. Sprawdź połączenie internetowe."
+        return "Nie udało się połączyć z usługą modelu. Spróbuj ponownie za chwilę."
     if isinstance(error, BadRequestError):
         return "Wybrany model nie obsłużył wymaganej odpowiedzi strukturalnej."
     if isinstance(error, APIStatusError) and error.status_code >= 500:
@@ -191,8 +207,8 @@ def llm_error_message(error: Exception) -> str:
             "krótszy wynik, ale nie udało się odzyskać kompletnej struktury."
         )
     if isinstance(error, LLMResponseError):
-        return f"Model nie zwrócił poprawnych danych. {structured_output_error_detail(error)}"
-    return "Wystąpił błąd podczas generowania odpowiedzi. Sprawdź log aplikacji."
+        return "Model nie zwrócił poprawnych danych. Spróbuj ponownie albo wybierz inny model."
+    return "Wystąpił błąd podczas przetwarzania sprawy. Spróbuj ponownie za chwilę."
 
 
 def error_location(error: Exception) -> str | None:

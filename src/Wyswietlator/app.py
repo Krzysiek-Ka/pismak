@@ -333,7 +333,11 @@ with st.container(border=True):
             models = load_models()
         except Exception as exc:
             model_list_error = exc
-            LOGGER.exception("model_list_failed")
+            LOGGER.exception(
+                "model_list_failed session_id=%s",
+                st.session_state.session_id,
+                extra={"session_id": st.session_state.session_id},
+            )
 
     model_columns = st.columns([2, 2, 2, 1])
 
@@ -600,15 +604,11 @@ if st.session_state.case_brief is None:
                     st.session_state.session_id,
                     extra={"session_id": st.session_state.session_id},
                 )
-                message = llm_error_message(exc)
-                if exc.partial_response:
-                    message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
-                st.warning(message)
+                # Uciętą odpowiedź modelu zapisał już w logu klient LLM.
+                st.warning(llm_error_message(exc))
             else:
+                # Interfejs dostaje ogólny komunikat; szczegóły i ślad stosu zostają w logu.
                 message = llm_error_message(exc)
-                location = error_location(exc)
-                if location:
-                    message += f"\n\nMiejsce błędu: {location}"
                 LOGGER.error(
                     "interview_failed session_id=%s stage=dopytywator provider=%s "
                     "model=%s error_type=%s error_location=%s error_detail=%s error_message=%s",
@@ -616,9 +616,10 @@ if st.session_state.case_brief is None:
                     dopytywator_provider,
                     dopytywator_model,
                     type(exc).__name__,
-                    location or "-",
+                    error_location(exc) or "-",
                     error_log_detail(exc),
-                    " ".join(message.splitlines()),
+                    message,
+                    exc_info=exc,
                     extra={"session_id": st.session_state.session_id},
                 )
                 st.error(message)
@@ -793,10 +794,8 @@ if st.session_state.case_brief is not None:
                         st.session_state.session_id,
                         extra={"session_id": st.session_state.session_id},
                     )
-                    message = llm_error_message(exc)
-                    if exc.partial_response:
-                        message += f"\n\nCzęściowa odpowiedź:\n\n{exc.partial_response[:1000]}"
-                    st.warning(message)
+                    # Uciętą odpowiedź modelu zapisał już w logu klient LLM.
+                    st.warning(llm_error_message(exc))
                 else:
                     if isinstance(exc, DraftValidationError) and exc.draft is not None:
                         st.session_state.run_dir = save_run(
@@ -809,18 +808,17 @@ if st.session_state.case_brief is not None:
                             model_usage=st.session_state.model_usage,
                             run_dir=st.session_state.run_dir,
                         )
+                    # Interfejs dostaje ogólny komunikat; szczegóły i ślad stosu zostają w logu.
                     message = llm_error_message(exc)
-                    location = error_location(exc)
-                    if location:
-                        message += f"\n\nMiejsce błędu: {location}"
                     LOGGER.error(
                         "pipeline_failed session_id=%s error_type=%s error_location=%s "
                         "error_detail=%s error_message=%s",
                         st.session_state.session_id,
                         type(exc).__name__,
-                        location or "-",
+                        error_location(exc) or "-",
                         error_log_detail(exc),
-                        " ".join(message.splitlines()),
+                        message,
+                        exc_info=exc,
                         extra={"session_id": st.session_state.session_id},
                     )
                     st.error(message)
