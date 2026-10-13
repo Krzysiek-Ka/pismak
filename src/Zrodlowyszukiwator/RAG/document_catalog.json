@@ -14,15 +14,37 @@
       "valid_from": "2025-10-20",
       "valid_to": null,
       "is_active": true,
-      "source_url": null,
+      "lifecycle_status": "current",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "metadata_url": "https://bip.um.wroc.pl/artykul/330/5367/strategia-rozwoju-wroclawia",
       "language": "pl",
       "tags": [
         "strategia",
         "rozwój miasta",
-        "Wrocław 2050"
+        "Wrocław 2050",
+        "polityka przestrzenna",
+        "polityka społeczna",
+        "polityka gospodarcza"
       ],
-      "relations": [],
-      "notes": "Dokument nadrzędny dla polityk, programów i planów działań w hierarchii merytorycznej RAG."
+      "relations": [
+        {
+          "target_document_id": "wroclaw-strategy-2030",
+          "relation": "supersedes",
+          "note": "Uchwała nr XXIV/463/25 uchyliła uchwałę nr LI/1193/18 przyjmującą Strategię Wrocław 2030."
+        },
+        {
+          "target_document_id": "wroclaw-bicycle-policy-2010",
+          "relation": "identifies_as_implementation_document",
+          "note": "Polityka Rowerowa Wrocławia jest wymieniona w wykazie dokumentów wykonawczych strategii."
+        },
+        {
+          "target_document_id": "wroclaw-mobility-policy-2013",
+          "relation": "identifies_as_implementation_document",
+          "note": "Wrocławska polityka mobilności jest wymieniona w wykazie dokumentów wykonawczych strategii."
+        }
+      ],
+      "notes": "Aktualna strategia rozwoju miasta. Źródłem tekstu strategii jest dokument udostępniony w BIP; uchwała określa datę przyjęcia i uchylenia poprzedniej strategii."
     },
     {
       "filename": "00_Strategia_2030.pdf",
@@ -33,20 +55,30 @@
       "issuer": "Gmina Wrocław",
       "adopting_body": "Rada Miejska Wrocławia",
       "legal_form": "resolution",
-      "adoption_act_number": "XXIV/463/25",
-      "adoption_date": "2025-10-20",
-      "valid_from": "2017-01-01",
+      "adoption_act_number": "LI/1193/18",
+      "adoption_date": "2018-02-15",
+      "valid_from": "2018-02-15",
       "valid_to": "2025-10-20",
       "is_active": false,
-      "source_url": null,
+      "lifecycle_status": "superseded",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/beta2/files/news/61260/Strategia_2030-2.pdf",
+      "metadata_url": "https://baw.um.wroc.pl/api/file/GetFileInline/4/181094/true/preview",
       "language": "pl",
       "tags": [
         "strategia",
         "rozwój miasta",
-        "Wrocław 2030"
+        "Strategia Wrocław 2030",
+        "dokument historyczny"
       ],
-      "relations": [],
-      "notes": "Dokument nadrzędny dla polityk, programów i planów działań w hierarchii merytorycznej RAG."
+      "relations": [
+        {
+          "target_document_id": "wroclaw-strategy-2050-2025",
+          "relation": "superseded_by",
+          "note": "Uchwała nr XXIV/463/25 z 20 października 2025 r. uchyliła uchwałę przyjmującą tę strategię."
+        }
+      ],
+      "notes": "Strategia historyczna. Nie powinna być traktowana jako aktualny dokument nadrzędny. Zachować ją w RAG do zapytań historycznych i analizy zmian polityki miejskiej."
     },
     {
       "filename": "01_Polityka-rowerowa-wroclawia.pdf",
@@ -56,22 +88,34 @@
       "city": "Wrocław",
       "issuer": "Gmina Wrocław",
       "adopting_body": "Rada Miejska Wrocławia",
-      "legal_form": "annex",
+      "legal_form": "resolution",
       "adoption_act_number": "LV/1688/10",
       "adoption_date": "2010-10-14",
       "valid_from": "2010-10-14",
       "valid_to": null,
-      "is_active": null,
-      "source_url": null,
+      "is_active": true,
+      "lifecycle_status": "current_reference",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/files/komunikacja/rowery/polityka-rowerowa-wroclawia.pdf",
+      "metadata_url": "https://www.wroclaw.pl/files/komunikacja/rowery/polityka-rowerowa-wroclawia.pdf",
       "language": "pl",
+      "is_annex": true,
       "tags": [
         "rowery",
         "mobilność",
         "transport rowerowy",
-        "polityka"
+        "polityka",
+        "infrastruktura rowerowa",
+        "bezpieczeństwo ruchu"
       ],
-      "relations": [],
-      "notes": "Polityka przyjęta jako załącznik do uchwały; wskazuje również na standardy techniczne przyjęte odrębnym zarządzeniem."
+      "relations": [
+        {
+          "target_document_id": "wroclaw-strategy-2050-2025",
+          "relation": "listed_as_implementation_document",
+          "note": "Polityka jest wskazana w wykazie dokumentów wykonawczych Strategii Wrocław 2050."
+        }
+      ],
+      "notes": "Załącznik do uchwały nr LV/1688/10. Strategia Wrocław 2050 nadal wymienia tę politykę jako dokument wykonawczy. Przed oznaczeniem jej formalnego statusu jako bezspornie obowiązującego warto dodatkowo sprawdzić historię zmian i ewentualnych uchyleń."
     },
     {
       "filename": "01_Wroclawska_polityka_mobilnosci.pdf",
@@ -84,21 +128,38 @@
       "legal_form": "annex",
       "adoption_act_number": "XLVIII/1169/13",
       "adoption_date": "2013-09-19",
-      "valid_from": null,
+      "valid_from": "2013-09-19",
       "valid_to": null,
-      "is_active": null,
-      "source_url": null,
+      "is_active": true,
+      "lifecycle_status": "current_reference",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
+      "metadata_url": "https://bip.um.wroc.pl/artykul/631/8629/wroclawska-polityka-mobilnosci-2013-rok",
       "language": "pl",
+      "is_annex": true,
       "tags": [
         "mobilność",
         "transport",
         "piesi",
         "rowery",
         "komunikacja miejska",
-        "transport zbiorowy"
+        "transport zbiorowy",
+        "bezpieczeństwo ruchu",
+        "polityka parkingowa"
       ],
-      "relations": [],
-      "notes": "Załącznik do uchwały Rady Miejskiej; dokument kierunkowy w obszarze mobilności."
+      "relations": [
+        {
+          "target_document_id": "wroclaw-strategy-2050-2025",
+          "relation": "listed_as_implementation_document",
+          "note": "Wrocławska polityka mobilności znajduje się w wykazie dokumentów wykonawczych Strategii Wrocław 2050."
+        },
+        {
+          "target_document_id": "wroclaw-tram-program-2-0",
+          "relation": "referenced_by",
+          "note": "Dokument jest punktem odniesienia dla miejskich analiz i działań w obszarze transportu zbiorowego."
+        }
+      ],
+      "notes": "Załącznik do uchwały nr XLVIII/1169/13. Oficjalna strona BIP poświęcona publikacji z 2013 r. ma status archiwalny; nie oznacza to samo w sobie uchylenia uchwały. Dokument pozostaje wymieniony w Strategii Wrocław 2050. Formalny status obowiązywania wymaga osobnej weryfikacji."
     },
     {
       "filename": "02_Wrocławski_program_tramwajowy_2.0.pdf",
@@ -111,26 +172,30 @@
       "legal_form": "report",
       "adoption_act_number": null,
       "adoption_date": null,
-      "valid_from": null,
+      "valid_from": "2022-05-30",
       "valid_to": null,
-      "is_active": null,
-      "source_url": null,
+      "is_active": true,
+      "lifecycle_status": "reference",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/127675/RAPORT-PROGRAM-TRAMWAJOWY-2.0-fin.pdf",
+      "metadata_url": "https://bip.um.wroc.pl/artykul/1060/79093/wroclawski-program-tramwajowy-2-0",
       "language": "pl",
       "tags": [
         "tramwaje",
         "transport zbiorowy",
         "komunikacja miejska",
         "inwestycje",
-        "program"
+        "program",
+        "analiza transportowa"
       ],
       "relations": [
         {
           "target_document_id": "wroclaw-mobility-policy-2013",
-          "relation": "references",
-          "note": "Program wprost nawiązuje do celów Wrocławskiej Polityki Mobilności."
+          "relation": "related_to",
+          "note": "Raport dotyczy realizacji miejskiej polityki transportowej. Konkretne odwołania należy potwierdzić w treści raportu."
         }
       ],
-      "notes": "Materiał analityczny wspomagający decyzje inwestycyjne; umieszczony między polityką a standardami w hierarchii merytorycznej."
+      "notes": "Materiał analityczny udostępniony przez miasto, a nie uchwała przyjmująca politykę. BIP podaje datę wytworzenia raportu: 30 maja 2022 r. Nie wpisywać tej daty jako daty wejścia w życie. Zachować jako źródło rekomendacji inwestycyjnych."
     },
     {
       "filename": "03_Wroclawskie_standardy_dostepnosci_przestrzeni_miejskich.pdf",
@@ -142,17 +207,24 @@
       "adopting_body": null,
       "legal_form": "standalone",
       "adoption_act_number": null,
-      "adoption_date": null,
+      "adoption_date": "2019-02-28",
       "valid_from": null,
       "valid_to": null,
-      "is_active": null,
-      "source_url": null,
+      "is_active": true,
+      "lifecycle_status": "reference",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/204115/standardy_dostepnosci_wroclaw_przestrzenie_miejskie.pdf",
+      "metadata_url": "https://baw.um.wroc.pl/UrzadMiastaWroclawia/document/37575/",
       "language": "pl",
+      "is_annex": true,
       "tags": [
         "dostępność",
         "projektowanie uniwersalne",
         "przestrzeń publiczna",
-        "standardy"
+        "standardy",
+        "architektura",
+        "piesi",
+        "osoby z niepełnosprawnościami"
       ],
       "relations": [],
       "notes": "Dokument wytycznych; tekst wskazuje obowiązek stosowania przez jednostki organizacyjne miasta."
