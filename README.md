@@ -729,12 +729,16 @@ zostają lokalne. Szczegóły i test połączenia opisuje
 
 Pismak zapisuje na komputerze, na którym działa Streamlit, pełną rozmowę oraz
 brief, znalezione dowody, draft i wyrenderowane pismo. Dane pozostają w katalogu
-danego uruchomienia pod `outputs/` bez automatycznego terminu usunięcia. UI nie
-ma funkcji kasowania spraw; operator usuwa cały katalog uruchomienia ręcznie po
-zakończeniu pracy lub testów. Dostęp do plików ma każda osoba mająca dostęp do
-systemu plików hosta. Przy zdalnym udostępnieniu aplikacji dane nadal są
-przechowywane na hoście właściciela. Nie umieszczaj w sprawach danych osobowych,
-które nie są konieczne, i nie publikuj zawartości `outputs/`.
+danego uruchomienia pod `outputs/` jako niezaszyfrowane pliki, bez
+automatycznego terminu usunięcia. Logi w `logs/` również nie są szyfrowane;
+niepoprawne lub ucięte odpowiedzi modelu mogą być w nich zapisane do 20 000
+znaków. Osoby z dostępem do systemu plików serwera, w tym jego administrator,
+mogą odczytać te dane. UI wymaga potwierdzenia zapoznania się z tą informacją
+przed przetwarzaniem sprawy. Nie ma funkcji kasowania spraw; operator usuwa
+katalog uruchomienia i odpowiadający mu log ręcznie po zakończeniu pracy lub
+testów. Przy zdalnym udostępnieniu aplikacji dane nadal są przechowywane na
+hoście właściciela. Nie umieszczaj w sprawach danych osobowych, które nie są
+konieczne, i nie publikuj zawartości `outputs/` ani `logs/`.
 
 ### Struktura UI
 

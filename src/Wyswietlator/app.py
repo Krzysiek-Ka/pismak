@@ -208,6 +208,14 @@ def require_external_processing_consent(providers: tuple[str, ...]) -> bool:
     return True
 
 
+def require_server_storage_consent() -> bool:
+    """Prevent case data from being processed before server-storage consent is given."""
+    if not st.session_state.get("cfg_server_storage_consent", False):
+        st.error("Potwierdź zapoznanie się z informacją o zapisie danych na serwerze.")
+        return False
+    return True
+
+
 def show_brief(brief: CaseBrief) -> None:
     """Render the current CaseBrief summary and its missing-information warnings."""
     with st.container(border=True):
@@ -378,6 +386,17 @@ with st.container(border=True):
             key="cfg_external_processing_consent",
         )
 
+    st.warning(
+        "Dane sprawy (w tym rozmowa, podsumowanie, znalezione źródła i pismo) są zapisywane "
+        "na serwerze, na którym działa aplikacja. Pliki wynikowe i logi nie są szyfrowane, "
+        "a administrator serwera może uzyskać do nich dostęp. Nie ma automatycznego terminu "
+        "usunięcia. Logi mogą obejmować dane sprawy."
+    )
+    st.checkbox(
+        "Rozumiem i akceptuję zapis danych sprawy oraz logów na serwerze w opisanej formie.",
+        key="cfg_server_storage_consent",
+    )
+
     model_usage = st.session_state.model_usage
     if model_usage:
         with st.expander("Modele użyte w tej sprawie", expanded=False):
@@ -411,6 +430,8 @@ if st.session_state.case_brief is None:
     prompt = st.chat_input(placeholder)
 
     if prompt:
+        if not require_server_storage_consent():
+            st.stop()
         if not require_external_processing_consent((dopytywator_provider,)):
             st.stop()
         if dopytywator_model is None:
@@ -625,6 +646,7 @@ if st.session_state.case_brief is not None:
                 type="primary",
                 use_container_width=True,
             )
+            and require_server_storage_consent()
             and require_external_processing_consent((zrodla_provider, pismo_provider))
             and zrodla_model is not None
             and pismo_model is not None

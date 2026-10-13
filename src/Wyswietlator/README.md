@@ -23,6 +23,11 @@ nazwa jest pokazywana po odpowiedzi i zapisywana w `models.json` danego
 uruchomienia. Klient nie wykonuje automatycznego fallbacku ani retry
 żądań OpenRouter.
 
+Przed przetwarzaniem sprawy UI wymaga również potwierdzenia informacji o
+zapisie danych. Rozmowa i artefakty sprawy są przechowywane na serwerze
+aplikacji jako niezaszyfrowane pliki, dostępne dla administratora serwera,
+bez automatycznego terminu usunięcia. Logi mogą zawierać odpowiedzi modelu
+
 Ręczny test po skonfigurowaniu `.env`:
 
 ```powershell
