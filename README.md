@@ -1011,3 +1011,26 @@ wysyłka               ⬜
 ```
 
 Projekt jest obecnie w fazie prototypowania architektury i pipeline'u RAG.
+
+---
+
+## Licencja
+
+Copyright (C) 2026 Pismak contributors
+
+Pismak jest wolnym oprogramowaniem: możesz go rozpowszechniać i modyfikować na
+warunkach GNU Affero General Public License opublikowanej przez Free Software
+Foundation, w wersji 3 albo (według uznania) dowolnej późniejszej
+(`AGPL-3.0-or-later`). Program jest rozpowszechniany bez jakiejkolwiek gwarancji.
+Pełny tekst licencji jest w pliku [`LICENSE`](LICENSE).
+
+Projekt używa PyMuPDF do odczytu plików PDF w `rag_ingestion`. PyMuPDF jest
+dostępny na licencji AGPL-3.0 albo na płatnej licencji komercyjnej Artifex.
+
+Jeśli udostępniasz zmodyfikowaną wersję Pismaka przez sieć (np. interfejs
+Streamlit przez tunel), sekcja 13 licencji wymaga, by jej użytkownicy mogli pobrać
+kod źródłowy tej wersji, np. przez link do repozytorium widoczny w interfejsie.
+
+Licencja obejmuje kod Pismaka. Nie obejmuje modeli językowych (PLLuM i Bielik mają
+własne licencje) ani dokumentów źródłowych w `src/Zrodlowyszukiwator/RAG/RAW/`,
+które pozostają na warunkach ich wydawców.

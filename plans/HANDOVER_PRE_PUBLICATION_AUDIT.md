@@ -9,7 +9,7 @@
 | Zakres audytu | wyłącznie odczyt; **żaden plik projektu nie został zmieniony** |
 | Odbiorca | model AI wdrażający poprawki oraz właściciel projektu |
 | Werdykt | projekt **nie jest gotowy** do upublicznienia repo ani do publicznego dema |
-| Zmiany po audycie | 2026-10-11: **K1 naprawione** (T-01 wykonane) — zmiana tylko na hoście i w lokalnym `.env`, bez zmian w plikach śledzonych. 2026-10-12: **W1 i W2 naprawione** przez właściciela (commit `483321d`); `print` z `DATABASE_URL` usunięty z notebooka (commit `27ee2f1`); **W3 częściowo** — tunel zweryfikowany lokalnie, README poprawione, Access do ustawienia w panelu; **W4 naprawione** (T-15); naprawiony skutek uboczny K1 — `DATABASE_URL` wskazuje `127.0.0.1` (patrz T-01); okno kontekstu wykrywane dla wybranego modelu i limit czasu 15 minut dla modeli lokalnych (T-15, T-10; commit `656ec68`); **W6 naprawione** — dwa dokumenty PDF i pliki Modelfile dołączone do repozytorium, README uzupełnione (T-19; commit `9c602f9`). 2026-10-13: **S1 naprawione** — interfejs pokazuje tylko ogólne komunikaty, szczegóły i ślad stosu są w logach (T-09; commit `464334c`); **S2 naprawione** — jeden handler logów bez otwartych plików, wpisy bez sprawy trafiają do pliku wspólnego (T-11; commit `7ea21fe`); **S4 uznane za działanie zamierzone** — użytkownik ma móc wybierać dostawcę i model, T-13 nie będzie realizowane; **S5 naprawione** — obsługa nowych pól katalogu, dokumenty nieobowiązujące nie trafiają do pism, baza zsynchronizowana z katalogiem (T-16; commit `d8f8df9`). 2026-10-14: **S6 naprawione** — wyszukiwanie pełnotekstowe łączy znaczące słowa przez OR i dopasowuje odmienione formy prefiksem; zapytania, które dawały 0 trafień, dają pełne 20 (T-18, niezacommitowane); **S9 częściowo** — zależności przypięte do najnowszych wersji, `requirements.txt` jest pełną blokadą generowaną z `requirements.in` (T-20, niezacommitowane) |
+| Zmiany po audycie | 2026-10-11: **K1 naprawione** (T-01 wykonane) — zmiana tylko na hoście i w lokalnym `.env`, bez zmian w plikach śledzonych. 2026-10-12: **W1 i W2 naprawione** przez właściciela (commit `483321d`); `print` z `DATABASE_URL` usunięty z notebooka (commit `27ee2f1`); **W3 częściowo** — tunel zweryfikowany lokalnie, README poprawione, Access do ustawienia w panelu; **W4 naprawione** (T-15); naprawiony skutek uboczny K1 — `DATABASE_URL` wskazuje `127.0.0.1` (patrz T-01); okno kontekstu wykrywane dla wybranego modelu i limit czasu 15 minut dla modeli lokalnych (T-15, T-10; commit `656ec68`); **W6 naprawione** — dwa dokumenty PDF i pliki Modelfile dołączone do repozytorium, README uzupełnione (T-19; commit `9c602f9`). 2026-10-13: **S1 naprawione** — interfejs pokazuje tylko ogólne komunikaty, szczegóły i ślad stosu są w logach (T-09; commit `464334c`); **S2 naprawione** — jeden handler logów bez otwartych plików, wpisy bez sprawy trafiają do pliku wspólnego (T-11; commit `7ea21fe`); **S4 uznane za działanie zamierzone** — użytkownik ma móc wybierać dostawcę i model, T-13 nie będzie realizowane; **S5 naprawione** — obsługa nowych pól katalogu, dokumenty nieobowiązujące nie trafiają do pism, baza zsynchronizowana z katalogiem (T-16; commit `d8f8df9`). 2026-10-14: **S6 naprawione** — wyszukiwanie pełnotekstowe łączy znaczące słowa przez OR i dopasowuje odmienione formy prefiksem; zapytania, które dawały 0 trafień, dają pełne 20 (T-18, niezacommitowane); **S9 częściowo** — zależności przypięte do najnowszych wersji, `requirements.txt` jest pełną blokadą generowaną z `requirements.in` (T-20; commit `29b40d3`); **D4 rozstrzygnięte** — licencja projektu zmieniona z MIT na AGPL-3.0-or-later, zgodną z PyMuPDF (T-20, niezacommitowane) |
 
 ## Jak czytać ten dokument
 
@@ -252,7 +252,7 @@ Zmienne środowiskowe faktycznie czytane przez kod: `OPENROUTER_KEY`, `OLLAMA_UR
 - [FAKT] Wszystkie trzy śledzone notebooki mają zapisane wyniki komórek i ścieżki `C:\Krzysiek\…`; `src/main.ipynb` zawiera zapisany błąd `ValueError`.
 
 **S9 — Zależności.**
-> **Status: CZĘŚCIOWO NAPRAWIONE 2026-10-14** (niezacommitowane) — wersje przypięte, plik blokady dodany, granica `openai` rozstrzygnięta. Otwarte: PyMuPDF przy imporcie `services` i licencja (D4), podział zależności. `psycopg` zostaje bez `[binary]` (decyzja właściciela). Opis w T-20. Poniższe punkty opisują stan z dnia audytu.
+> **Status: CZĘŚCIOWO NAPRAWIONE 2026-10-14** (wersje i blokada: commit `29b40d3`; licencja: niezacommitowane) — wersje przypięte, plik blokady dodany, granica `openai` rozstrzygnięta. Licencja projektu zmieniona na AGPL-3.0-or-later (D4), więc PyMuPDF nie stwarza już konfliktu licencji. Otwarte: podział zależności. `psycopg` zostaje bez `[binary]` (decyzja właściciela). Opis w T-20. Poniższe punkty opisują stan z dnia audytu.
 - [FAKT] Brak pliku blokady; `requirements.txt` ma same zakresy. Jeden plik łączy zależności uruchomieniowe z notebookami, testami i linterem.
 - [FAKT] `serwer.py:8` importuje prywatne `openai.lib._parsing.type_to_response_format_param`, a `llm_runtime.py:9` importuje `LengthFinishReasonError`. Dolna granica to `openai>=1.0`.
 - [HIPOTEZA] Oba symbole pojawiły się dopiero w okolicach openai 1.40. Sprawdź przed ustawieniem nowej granicy.
@@ -314,7 +314,7 @@ Zmienne środowiskowe faktycznie czytane przez kod: `OPENROUTER_KEY`, `OLLAMA_UR
 | D1 | Która formuła otwierająca jest docelowa: „W imieniu …” czy „Jako wieloletni mieszkaniec …”? | T-05 |
 | D2 | Czy podpis ma zawierać nazwę organizacji? Jeśli tak — czy jest zgoda; jeśli nie — jaki tekst domyślny? | T-06 |
 | D3 | Przykład w `outputs/`: zgoda autora maila, anonimizacja czy przykład syntetyczny? Historia: `git filter-repo` z force-push czy nowe repozytorium z jednym commitem? | T-04 |
-| D4 | PyMuPDF (AGPL albo licencja komercyjna) w projekcie MIT: zostaje z opisem w README, czy wymiana biblioteki? | T-20 |
+| D4 | ~~PyMuPDF (AGPL albo licencja komercyjna) w projekcie MIT: zostaje z opisem w README, czy wymiana biblioteki?~~ Rozstrzygnięte 2026-10-14: licencja projektu zmieniona na AGPL-3.0-or-later; PyMuPDF zostaje. | — |
 | D5 | ~~Czy publiczne demo pozwala wybrać OpenRouter i dowolny model?~~ Rozstrzygnięte 2026-10-13: tak, wybór dostawcy i modelu jest zamierzony (S4). | — |
 | D6 | Które modele są oficjalnie wspierane? Bielik z oknem 8192 wymaga dużo mniejszych promptów. | T-15 |
 | D7 | ~~Poprawny numer i data aktu dla Strategii 2030 oraz adresy URL wszystkich dokumentów źródłowych.~~ Dostarczone przez właściciela w katalogu (commit `e96e4d3`). | — |
@@ -645,13 +645,13 @@ Czego nie zweryfikowano i co zostaje:
 - Otwarte z pierwotnego zakresu T-19: limit pytań (N1), nieużywane zmienne w `.env_template` (N2).
 - `test_release_configuration.py` wymaga, by README zawierało `src\Wyswietlator\app.py` i nie zawierało `requirements-ui.txt` ani `Zrodlowyszukiwacz`.
 
-**T-20 Zależności i licencje (S9). — CZĘŚCIOWO 2026-10-14** Zależy od D4.
+**T-20 Zależności i licencje (S9). — CZĘŚCIOWO 2026-10-14** D4 rozstrzygnięte.
 - Ustal i ustaw faktyczną dolną granicę `openai` albo zastąp import prywatnego API własnym kodem. Dodaj plik blokady.
-- Spraw, by import `services` nie ładował PyMuPDF. Zachowaj publiczne nazwy z `rag_ingestion/__init__.py`.
-- Opisz licencję PyMuPDF w README. `psycopg` zostaje bez `[binary]` — patrz niżej.
+- ~~Spraw, by import `services` nie ładował PyMuPDF.~~ Po zmianie licencji na AGPL (D4) nie jest to potrzebne ze względu na licencję. Leniwy import może jeszcze skrócić start aplikacji, ale nie blokuje publikacji.
+- Opisz licencję PyMuPDF w README (zrobione — sekcja „Licencja”). `psycopg` zostaje bez `[binary]` — patrz niżej.
 - Akceptacja: po `import services` w `sys.modules` nie ma `pymupdf` ani `fitz`; świeże środowisko instaluje się i przechodzi testy.
 
-Co zrobiono 2026-10-14 (część „wersje i blokada”, niezacommitowane):
+Co zrobiono 2026-10-14 (część „wersje i blokada”, commit `29b40d3`):
 - Nowy `requirements.in`: 14 zależności bezpośrednich przypiętych `==` do najnowszych wersji z PyPI z 2026-10-14. Skoki wersji głównych względem `.venv`: openai 1.109.1 → 3.31.0, pandas 2.3.3 → 3.0.6, pytest 8.4.2 → 9.1.1, ipykernel 6.31.0 → 7.4.0. numpy 2.5 wymaga Pythona 3.12+, więc numpy ma dwa piny z markerem: 2.5.4 dla 3.12+, 2.4.6 dla 3.11.
 - `requirements.txt` jest teraz plikiem blokady: `uv pip compile --universal --python-version 3.11`, 145 pakietów z dokładnymi wersjami i markerami platform. README 3.2–3.5 i CI instalują z niego bez zmian poleceń.
 - Granica `openai` (HIPOTEZA o 1.40) nie jest już potrzebna: wersja jest przypięta, a w 3.31.0 istnieją oba importowane symbole (`openai.lib._parsing.type_to_response_format_param`, `LengthFinishReasonError`) i wszystkie klasy błędów z `services.py`. Import prywatnego API zostaje — przy każdym podniesieniu `openai` sprawdź, czy nadal istnieje.
@@ -666,11 +666,23 @@ Weryfikacja:
 - [FAKT] `AppTest` na prawdziwym `app.py` ze Streamlit 1.66.0: pierwszy render bez wyjątków.
 
 Otwarte z T-20:
-- PyMuPDF ładowany przy imporcie `services` i opis licencji w README — czeka na D4.
+- Licencja (D4): zrobione 2026-10-14, opis niżej.
 - Zależności uruchomieniowe nadal w jednym pliku z notebookami, testami i linterem. `test_release_configuration.py` wymaga `pandas` (zależność notebooków) w `requirements.txt`, więc podział wymaga też zmiany tego testu.
 - `psycopg` bez `[binary]` — **rozstrzygnięte 2026-10-14**: decyzja właściciela, bo wariant `[binary]` sprawiał mu problemy (szczegóły nieznane). Nie zmieniaj. Uzasadnienie jest w komentarzu w `requirements.in`; README 3.5 opisuje instalację `libpq`.
 - PyMuPDF 1.28.2 ostrzega, że API `fitz` zostanie usunięte; `pdf_extractor.py` i `tests/rag_eval` nadal używają `fitz`. Przypięta wersja działa.
 - openai 3.31.0 i streamlit 1.66.0 wydano w dniu przypięcia. Nie było przebiegu pełnej sprawy przez UI (wywiad → RAG → pismo) na nowych wersjach.
+
+Co zrobiono 2026-10-14 (licencja, D4, niezacommitowane):
+- Decyzja właściciela: licencja projektu AGPL zamiast MIT. Wybrano `AGPL-3.0-or-later` (standardowe brzmienie zalecane przez FSF). Jeśli właściciel woli `AGPL-3.0-only`, wystarczy zmienić zdanie o wersji w sekcji „Licencja” README.
+- [FAKT] Właściciel jest jedynym autorem wszystkich commitów (`git log`), więc zmiana licencji nie wymaga zgody innych osób.
+- `LICENSE`: oficjalny tekst z `https://www.gnu.org/licenses/agpl-3.0.txt`, bez zmian (661 linii, SHA-256 `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`).
+- `README.md`: nowa sekcja „Licencja” na końcu — informacja o prawach autorskich, wariant licencji, PyMuPDF, obowiązek z sekcji 13 przy udostępnianiu przez sieć, wyłączenie modeli i dokumentów z `RAW/`.
+- Nie dodano nagłówków licencyjnych do plików źródłowych (AGPL ich nie wymaga; FSF je zaleca).
+- To nie jest porada prawna.
+
+Otwarte po zmianie licencji:
+- Sekcja 13 AGPL: przy publicznym demie interfejs powinien pokazywać link do kodu źródłowego. Adres repozytorium nie jest jeszcze znany (README używa `<URL_REPOZYTORIUM>`). Dodaj link w `app.py` przed upublicznieniem dema.
+- Licencje dwóch dołączonych dokumentów miejskich w `RAW/` nie są sprawdzone (pytanie 9 w sekcji 4).
 
 **T-21 Testy (S10).** Zależy od D8.
 - Ustal drzewo docelowe już na etapie T-03 i tam umieszczaj wszystkie nowe testy; przeniesienie starych zrób tutaj.
