@@ -249,13 +249,26 @@ def show_brief(brief: CaseBrief) -> None:
 def show_evidence(evidence_pack: EvidencePack) -> None:
     """Render retrieved evidence excerpts and their source metadata."""
     evidence = getattr(evidence_pack, "evidence", [])
+    status = getattr(evidence_pack, "evidence_status", "unverified")
     with st.expander(
         f"Źródła znalezione przez Źródłowyszukiwator ({len(evidence)})",
         expanded=False,
     ):
         if not evidence:
-            st.info("Nie znaleziono źródeł.")
+            if status == "unsupported":
+                st.info(
+                    "Nie znaleziono źródeł, które odpowiadają na sprawę. Dokumenty o podobnej "
+                    "tematyce zostały odrzucone przy ocenie trafności."
+                )
+            else:
+                st.info("Nie znaleziono źródeł.")
             return
+
+        if status == "unverified":
+            st.caption(
+                "Trafność fragmentów nie została oceniona (reranker niedostępny), "
+                "to najbardziej podobne fragmenty z wyszukiwania."
+            )
 
         for idx, item in enumerate(evidence, start=1):
             pages = (

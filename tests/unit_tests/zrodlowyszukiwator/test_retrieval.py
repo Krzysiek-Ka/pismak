@@ -16,7 +16,7 @@ from src.Zrodlowyszukiwator.rag_retrieval.models import (
     SearchIntent,
 )
 from src.Zrodlowyszukiwator.rag_retrieval.repository import RetrievalRepository
-from src.Zrodlowyszukiwator.rag_retrieval.reranker import LLMReranker
+from src.Zrodlowyszukiwator.rag_retrieval.reranker import LLMReranker, RerankOutcome
 
 
 def make_chunk(chunk_id: str, document_id: str = "doc-1") -> RetrievedChunk:
@@ -158,8 +158,9 @@ class TestLLMReranker:
 
         result = reranker.rerank(case_brief={}, candidates=candidates)
 
-        assert [item[0].chunk_id for item in result] == ["E1"]
-        assert result[0][2] == 0
+        assert [item[0].chunk_id for item in result.selected] == ["E1"]
+        assert result.selected[0][2] == 0
+        assert result.assessed is False
 
     def test_rerank__ignores_unknown_and_duplicate_ids(self) -> None:
         """Verify model output cannot introduce unknown chunks or duplicate selections."""
@@ -194,7 +195,8 @@ class TestLLMReranker:
         reranker = LLMReranker(client=Client(), model="test")
         result = reranker.rerank(case_brief={}, candidates=[make_chunk("E1")])
 
-        assert [(item[0].chunk_id, item[2]) for item in result] == [("E1", 90)]
+        assert [(item[0].chunk_id, item[2]) for item in result.selected] == [("E1", 90)]
+        assert result.assessed is True
 
 
 class FakePlanner:
@@ -234,3 +236,77 @@ class TestBriefToEvidencePipeline:
         assert [e.chunk_id for e in result.evidence] == ["E1", "E3"]
         assert result.evidence[0].evidence_id == "E1"
         assert result.unsupported_topics == ["problem"]
+
+
+class ListRetriever:
+    """Return the given candidates in order, like hybrid retrieval would rank them."""
+
+    def __init__(self, chunks: list[RetrievedChunk]) -> None:
+        self.chunks = chunks
+
+    def retrieve(self, intents, *, filters, top_k):
+        return self.chunks[:top_k]
+
+
+class FixedReranker:
+    """Return a fixed outcome: the first `count` candidates, assessed or as a fallback."""
+
+    def __init__(self, count: int, *, assessed: bool) -> None:
+        self.count = count
+        self.assessed = assessed
+
+    def rerank(self, *, case_brief, candidates):
+        selected = [(c, "Popiera postulat.", 80) for c in candidates[: self.count]]
+        return RerankOutcome(selected=selected, assessed=self.assessed)
+
+
+def leading_document_candidates() -> list[RetrievedChunk]:
+    """Eight candidates from one document ranked above three from another."""
+    return [make_chunk(f"A{i}", "doc-a") for i in range(8)] + [
+        make_chunk(f"B{i}", "doc-b") for i in range(3)
+    ]
+
+
+class TestEvidencePackFill:
+    def test_run__fills_the_pack_from_later_candidates_when_one_document_leads(self) -> None:
+        """Verify the per-document cap leaves room for later candidates instead of shrinking the pack."""
+        pipeline = BriefToEvidencePipeline(
+            planner=FakePlanner(),
+            retriever=ListRetriever(leading_document_candidates()),
+            evidence_k=6,
+            max_per_document=3,
+        )
+
+        result = pipeline.run({"problem_description": "Problem"})
+
+        assert [e.chunk_id for e in result.evidence] == ["A0", "A1", "A2", "B0", "B1", "B2"]
+
+    def test_run__fills_the_pack_from_all_candidates_after_a_reranker_fallback(self) -> None:
+        """Verify an unassessed fallback is filled like plain retrieval, not cut to the model's limit."""
+        pipeline = BriefToEvidencePipeline(
+            planner=FakePlanner(),
+            retriever=ListRetriever(leading_document_candidates()),
+            reranker=FixedReranker(6, assessed=False),
+            evidence_k=6,
+            max_per_document=3,
+        )
+
+        result = pipeline.run({"problem_description": "Problem"})
+
+        assert [e.chunk_id for e in result.evidence] == ["A0", "A1", "A2", "B0", "B1", "B2"]
+        assert result.evidence_status == "unverified"
+
+    def test_run__does_not_add_unassessed_candidates_to_the_rerankers_selection(self) -> None:
+        """Verify a supported pack holds only fragments the reranker judged, even if it is small."""
+        pipeline = BriefToEvidencePipeline(
+            planner=FakePlanner(),
+            retriever=ListRetriever(leading_document_candidates()),
+            reranker=FixedReranker(5, assessed=True),
+            evidence_k=6,
+            max_per_document=3,
+        )
+
+        result = pipeline.run({"problem_description": "Problem"})
+
+        assert [e.chunk_id for e in result.evidence] == ["A0", "A1", "A2"]
+        assert result.evidence_status == "supported"

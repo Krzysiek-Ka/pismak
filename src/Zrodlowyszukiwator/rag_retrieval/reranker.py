@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, TypeVar
 
@@ -27,6 +28,10 @@ ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS = 4096
 RERANKER_RESERVED_OUTPUT_TOKENS = 1024
 RERANKER_MAX_TEXT_CHARS = 1800
 RERANKER_MIN_TEXT_CHARS = 500
+# Dolna granica przedziału „fragment pomaga pośrednio” ze skali opisanej w SYSTEM_PROMPT.
+# Niżej są fragmenty tylko tematycznie podobne, które niczego nie popierają.
+RERANKER_MIN_SUPPORT_SCORE = 40
+FALLBACK_REASON = "Wybrano przez fallback hybrid ranking."
 LOGGER = logging.getLogger("pismak")
 
 
@@ -38,6 +43,16 @@ class RerankedItem(BaseModel):
 
 class RerankResult(BaseModel):
     selected: list[RerankedItem] = Field(default_factory=list)
+
+
+@dataclass
+class RerankOutcome:
+    """Fragmenty wybrane przez reranker i informacja, czy model faktycznie ocenił ich trafność."""
+
+    selected: list[tuple[RetrievedChunk, str, int]]
+    # False: wybór pochodzi z fallbacku po rankingu hybrydowym, bo model nie odpowiedział
+    # poprawnie. Pusta lista przy assessed=True to ocena modelu, że nic nie wspiera sprawy.
+    assessed: bool
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -67,6 +82,12 @@ Zasady:
    dlatego, że ma wyższą hierarchię. Standard/program może być bardziej konkretny.
 5. Unikaj wielu niemal identycznych fragmentów, jeśli nie dodają nowej wartości.
 6. reason ma być krótki i opisywać, co fragment wnosi do argumentacji.
+7. score (0-100) oceniaj według skali:
+   70-100 - fragment bezpośrednio odpowiada na problem, cel albo postulat,
+   40-69 - fragment pomaga pośrednio, np. wyznacza ogólny kierunek polityki miasta,
+   0-39 - fragment jest tylko tematycznie podobny i niczego w sprawie nie popiera.
+8. Nie wybieraj fragmentów, które są tylko tematycznie podobne. Jeśli żaden fragment
+   nie wspiera sprawy, zwróć pustą listę selected - to poprawna odpowiedź.
 """.strip()
 
     def __init__(
@@ -80,11 +101,13 @@ Zasady:
         allow_fallback: bool = True,
         provider: str = "ollama",
         context_tokens: int | None = None,
+        min_score: int = RERANKER_MIN_SUPPORT_SCORE,
     ) -> None:
-        """Initialize the optional LLM reranker and its selection limit."""
+        """Initialize the optional LLM reranker, its selection limit and support threshold."""
         self.client = client
         self.model = model
         self.max_selected = max_selected
+        self.min_score = min_score
         self.on_wait = on_wait
         self.session_id = session_id
         self.allow_fallback = allow_fallback
@@ -350,15 +373,22 @@ Zasady:
             )
         return user_prompt
 
+    def _fallback(self, candidates: list[RetrievedChunk]) -> RerankOutcome:
+        """Keep the hybrid order when the model gave no usable judgement."""
+        return RerankOutcome(
+            selected=[(c, FALLBACK_REASON, 0) for c in candidates[: self.max_selected]],
+            assessed=False,
+        )
+
     def rerank(
         self,
         *,
         case_brief: dict,
         candidates: list[RetrievedChunk],
-    ) -> list[tuple[RetrievedChunk, str, int]]:
-        """Select and score candidate chunks while rejecting unknown or duplicate IDs."""
+    ) -> RerankOutcome:
+        """Select candidates the model scores as support, rejecting unknown or duplicate IDs."""
         if not candidates:
-            return []
+            return RerankOutcome(selected=[], assessed=True)
 
         user_prompt = self._fitted_user_prompt(case_brief, candidates)
 
@@ -369,29 +399,28 @@ Zasady:
                 raise
             # Retrieval ma działać nawet, jeśli mały lokalny LLM nie zwróci
             # poprawnego structured output.
-            return [
-                (c, "Wybrano przez fallback hybrid ranking.", 0)
-                for c in candidates[: self.max_selected]
-            ]
+            return self._fallback(candidates)
 
         candidate_map = {c.chunk_id: c for c in candidates}
+        known = [item for item in result.selected if item.chunk_id in candidate_map]
+        if result.selected and not known:
+            # Same nieistniejące chunk_id to błąd odpowiedzi modelu, a nie ocena,
+            # że żaden fragment nie wspiera sprawy.
+            if not self.allow_fallback:
+                raise RuntimeError("Reranker wskazał wyłącznie nieznane chunk_id.")
+            return self._fallback(candidates)
+
         seen: set[str] = set()
         selected: list[tuple[RetrievedChunk, str, int]] = []
 
-        for item in sorted(result.selected, key=lambda x: x.score, reverse=True):
-            if item.chunk_id in seen or item.chunk_id not in candidate_map:
+        for item in sorted(known, key=lambda x: x.score, reverse=True):
+            if item.chunk_id in seen or item.score < self.min_score:
                 continue
             selected.append((candidate_map[item.chunk_id], item.reason, item.score))
             seen.add(item.chunk_id)
             if len(selected) >= self.max_selected:
                 break
 
-        if not selected:
-            if not self.allow_fallback:
-                raise RuntimeError("Reranker nie wybrał żadnych źródeł.")
-            return [
-                (c, "Wybrano przez fallback hybrid ranking.", 0)
-                for c in candidates[: self.max_selected]
-            ]
-
-        return selected
+        # Pusta lista po poprawnej odpowiedzi to ocena modelu: żaden kandydat nie wspiera
+        # sprawy. Wcześniej trafiał wtedy do pisma ranking hybrydowy jako rzekome dowody.
+        return RerankOutcome(selected=selected, assessed=True)

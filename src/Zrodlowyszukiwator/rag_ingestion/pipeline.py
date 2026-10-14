@@ -9,7 +9,11 @@ from .models import DocumentMetadata
 from .pdf_extractor import extract_pdf_pages
 from .repository import PgVectorRepository
 
-INGESTION_VERSION = "0.1"
+# Zmiana sposobu ekstrakcji lub dzielenia tekstu wymaga podniesienia wersji: dokumenty
+# zapisane starszą wersją są wtedy przetwarzane od nowa mimo identycznego pliku.
+# 0.2: nagłówki zostają w treści, sklejone przeniesienia, naprawa „Ŝ” → „ż”.
+# 0.3: bez znaków sterujących i bez powtórzeń nagłówków/stopek stron.
+INGESTION_VERSION = "0.3"
 
 
 def file_sha256(path: str | Path) -> str:
@@ -43,6 +47,7 @@ def ingest_pdf(
     if (
         existing_hash == digest
         and repository.embedding_metadata(metadata.document_id) == embedding_metadata
+        and repository.ingestion_version(metadata.document_id) == INGESTION_VERSION
         and not force
     ):
         # Treść bez zmian: bez ponownego dzielenia i embeddingów. Metadane z katalogu są
@@ -94,6 +99,8 @@ def ingest_pdf(
     )
 
     low_text_pages = [p.page_number for p in pages if p.low_text_quality]
+    repaired_glyph_pages = [p.page_number for p in pages if p.legacy_glyphs_repaired]
+    removed_running_lines = sorted({line for p in pages for line in p.removed_running_lines})
 
     return {
         "status": "ingested",
@@ -102,6 +109,8 @@ def ingest_pdf(
         "pages": len(pages),
         "chunks": len(chunks),
         "low_text_pages": low_text_pages,
+        "repaired_glyph_pages": repaired_glyph_pages,
+        "removed_running_lines": removed_running_lines,
         "sha256": digest,
         "embedding_dim": len(embeddings[0]),
     }

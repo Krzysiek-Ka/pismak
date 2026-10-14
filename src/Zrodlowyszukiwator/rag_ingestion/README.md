@@ -81,7 +81,28 @@ wskażesz parametrem `--catalog`.
 Jeśli plik o tym samym `document_id` i tym samym SHA-256 jest już w bazie,
 treść nie jest przetwarzana ponownie, ale metadane z katalogu są zapisywane od
 nowa. Zmiana tytułu, typu dokumentu albo miasta powoduje pełne przetworzenie,
-bo te pola wchodzą w skład embeddingów. `--force` wymusza je zawsze.
+bo te pola wchodzą w skład embeddingów. Pełne przetworzenie następuje też wtedy,
+gdy dokument zapisano starszą wersją przetwarzania (`INGESTION_VERSION` w
+`pipeline.py`, podnoszona przy każdej zmianie ekstrakcji lub dzielenia tekstu).
+`--force` wymusza je zawsze.
+
+## Reguły przygotowania tekstu
+
+- Linie rozpoznane jako nagłówki trafiają do `section_path`, ale zostają też w
+  treści fragmentu. Heurystyka nagłówków myli się na liniach łamanych w PDF, a
+  usunięcie takiej linii oznaczałoby utratę treści źródła.
+- Linie spisu treści (z kropkami prowadzącymi) są pomijane, bo powtarzają tytuły.
+- Nagłówki i stopki stron są usuwane od drugiego wystąpienia. Rozpoznajemy je jako linie
+  z literami, które w dokumencie mającym co najmniej 4 strony występują wyłącznie wśród
+  3 pierwszych lub 3 ostatnich linii strony i to na co najmniej 25% stron. Wynik ingestion
+  wypisuje usunięte linie w `removed_running_lines`.
+- Znaki sterujące (np. punktory z fontu symbolicznego zapisane jako U+0001) są usuwane.
+- Wyraz przeniesiony do następnej linii (`trans-` / `portu`) jest sklejany.
+  Łącznik zawieszony przed spójnikiem („jedno- i dwukierunkowe”) zostaje.
+- Polskich znaków nie poprawiamy, z jednym wyjątkiem: zepsute mapowanie fontu,
+  w którym „ż” trafia do tekstu jako „Ŝ”, a „Ż” jako „ś”. „Ŝ” nie występuje w
+  polszczyźnie, więc naprawa jest stosowana tylko w dokumencie, który go zawiera.
+  Wynik ingestion podaje strony z naprawą w `repaired_glyph_pages`.
 
 Pola `is_active`, `lifecycle_status` i `retrieval_enabled` oraz ich wpływ na
 wyszukiwanie opisuje główne README, punkt 6.2.

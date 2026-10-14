@@ -25,14 +25,24 @@ def make_metadata(**overrides: object) -> DocumentMetadata:
 class FakeRepository:
     """Stand in for the database: report what is stored and record what gets written."""
 
-    def __init__(self, *, stored_hash: str | None, stored_title: str | None) -> None:
+    def __init__(
+        self,
+        *,
+        stored_hash: str | None,
+        stored_title: str | None,
+        stored_version: str | None = pipeline.INGESTION_VERSION,
+    ) -> None:
         self.stored_hash = stored_hash
         self.stored_title = stored_title
+        self.stored_version = stored_version
         self.calls: list[str] = []
         self.chunk_metadata: dict[str, object] = {}
 
     def document_hash(self, document_id: str) -> str | None:
         return self.stored_hash
+
+    def ingestion_version(self, document_id: str) -> str | None:
+        return self.stored_version if self.stored_hash else None
 
     def embedding_metadata(self, document_id: str) -> tuple[str, str, str] | None:
         return (self.stored_title, "policy", "Wrocław") if self.stored_title else None
@@ -131,3 +141,18 @@ class TestIngestPdf:
 
         assert result["status"] == "ingested"
         assert repository.calls == ["upsert_document", "replace_chunks"]
+
+    def test_ingest_pdf__reprocesses_an_unchanged_file_stored_by_an_older_version(
+        self, pdf: Path
+    ) -> None:
+        """Verify a fix in text extraction or chunking reaches documents already in the database."""
+        repository = FakeRepository(
+            stored_hash=pipeline.file_sha256(pdf), stored_title="Polityka", stored_version="0.1"
+        )
+        embedder = FakeEmbedder()
+
+        result = pipeline.ingest_pdf(pdf, make_metadata(), repository=repository, embedder=embedder)
+
+        assert result["status"] == "ingested"
+        assert repository.calls == ["upsert_document", "replace_chunks"]
+        assert len(embedder.embedded) == result["chunks"] > 0

@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from ..rag_retrieval.hybrid import HybridRetriever
 from ..rag_retrieval.models import RetrievalFilters
-from ..rag_retrieval.reranker import LLMReranker
-from .models import Evidence, EvidencePack
+from ..rag_retrieval.reranker import FALLBACK_REASON, LLMReranker
+from .models import Evidence, EvidencePack, EvidenceStatus
 from .planner import LLMQueryPlanner
 
 
@@ -62,16 +62,30 @@ class BriefToEvidencePipeline:
             top_k=self.candidate_k,
         )
 
-        if self.reranker is not None:
-            ranked = self.reranker.rerank(
+        status: EvidenceStatus
+        if not candidates:
+            ranked, status = [], "unsupported"
+        elif self.reranker is not None:
+            outcome = self.reranker.rerank(
                 case_brief=brief,
                 candidates=candidates,
             )
+            if outcome.assessed:
+                # Tylko fragmenty ocenione przez model; nieocenionych nie dopisujemy.
+                ranked = outcome.selected
+                status = "supported" if ranked else "unsupported"
+            else:
+                ranked = [(c, FALLBACK_REASON, 0) for c in candidates]
+                status = "unverified"
         else:
-            ranked = [
-                (c, "Wysoka pozycja w hybrid retrieval.", 0) for c in candidates[: self.evidence_k]
-            ]
+            # Bez rerankera nikt nie ocenia, czy fragmenty odpowiadają na sprawę: wyszukiwanie
+            # zawsze zwraca najbardziej podobne fragmenty, także dla pytań spoza korpusu.
+            ranked = [(c, "Wysoka pozycja w hybrid retrieval.", 0) for c in candidates]
+            status = "unverified"
 
+        # Limit na dokument działa podczas wybierania ze wszystkich kandydatów. Obcięcie listy
+        # do evidence_k przed limitem zmniejszało pakiet (np. 3 z 6 miejsc), gdy czołówkę
+        # zajmował jeden dokument, choć dalsi kandydaci z innych dokumentów byli dostępni.
         selected: list[tuple[Any, str, int]] = []
         per_doc: Counter[str] = Counter()
         for chunk, reason, rerank_score in ranked:
@@ -124,6 +138,7 @@ class BriefToEvidencePipeline:
             f"Liczba zapytań: {len(plan.intents)}",
             f"Kandydaci po hybrid retrieval: {len(candidates)}",
             f"Źródła w EvidencePack: {len(evidence)}",
+            f"Ocena wsparcia źródeł: {status}",
             "hierarchy_rank jest metadanym/tie-breakerem, a nie oceną mocy prawnej.",
         ]
 
@@ -131,6 +146,7 @@ class BriefToEvidencePipeline:
             query_summary=plan.case_summary,
             research_plan=plan,
             evidence=evidence,
+            evidence_status=status,
             unsupported_topics=unsupported,
             search_notes=notes,
         )

@@ -32,8 +32,21 @@ def evidence_pack_to_markdown(
     parts = [f"# EvidencePack\n\nSprawa: {pack.query_summary}"]
 
     if not pack.evidence:
-        parts.append("\nBrak znalezionych źródeł.")
+        if pack.evidence_status == "unsupported":
+            parts.append(
+                "\nBrak znalezionych źródeł. Żaden znaleziony fragment nie odpowiada na "
+                "sprawę; dokumenty o podobnej tematyce nie są jej poparciem."
+            )
+        else:
+            parts.append("\nBrak znalezionych źródeł.")
         return "\n".join(parts)
+
+    if pack.evidence_status == "unverified":
+        parts.append(
+            "Uwaga: trafność fragmentów nie została oceniona. Są to najbardziej podobne "
+            "fragmenty z wyszukiwania; cytuj fragment tylko wtedy, gdy jego treść rzeczywiście "
+            "dotyczy sprawy."
+        )
 
     for e in pack.evidence:
         section = " > ".join(e.section_path) if e.section_path else "brak"

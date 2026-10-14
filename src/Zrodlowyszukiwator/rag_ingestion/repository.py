@@ -224,6 +224,15 @@ class PgVectorRepository:
             )
             conn.commit()
 
+    def ingestion_version(self, document_id: str) -> str | None:
+        """Return the processing version a document was stored with, or None when it is absent."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT ingestion_version FROM rag_documents WHERE document_id = %s",
+                (document_id,),
+            ).fetchone()
+        return row[0] if row else None
+
     def embedding_metadata(self, document_id: str) -> tuple[str, str, str] | None:
         """Return the stored title, kind and city, which are part of every chunk's embedding."""
         with self.connect() as conn:

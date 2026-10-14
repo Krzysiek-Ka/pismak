@@ -636,7 +636,9 @@ Gdy SHA-256 pliku się nie zmienił, ponowne uruchomienie nie dzieli go i nie li
 embeddingów od nowa, ale zapisuje w bazie bieżące metadane z katalogu. Poprawkę
 statusu, numeru aktu czy adresu wystarczy więc wprowadzić w katalogu i uruchomić
 polecenie jeszcze raz. Zmiana tytułu, typu dokumentu albo miasta powoduje pełne
-przetworzenie, bo te pola są częścią embeddingów; `--force` wymusza je zawsze.
+przetworzenie, bo te pola są częścią embeddingów. Dokument zapisany starszą wersją
+przetwarzania tekstu jest przetwarzany od nowa automatycznie; `--force` wymusza
+pełne przetworzenie zawsze.
 
 O tym, czy dokument trafia do pism, decydują dwa pola katalogu:
 

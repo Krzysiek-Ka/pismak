@@ -116,6 +116,10 @@ class ExtractedPage(BaseModel):
     text: str
     char_count: int
     low_text_quality: bool = False
+    # True, gdy na stronie przywrócono „ż/Ż” zepsute przez mapowanie fontu (pdf_extractor).
+    legacy_glyphs_repaired: bool = False
+    # Powtórzenia nagłówków i stopek stron usunięte z tekstu (pdf_extractor).
+    removed_running_lines: list[str] = Field(default_factory=list)
 
 
 class TextUnit(BaseModel):

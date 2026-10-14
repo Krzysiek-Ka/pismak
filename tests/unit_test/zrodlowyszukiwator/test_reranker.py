@@ -241,3 +241,49 @@ class TestLlmReranker:
         assert client.chat.completions.kwargs["max_tokens"] == (
             ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS
         )
+
+
+class TestRerankSupportAssessment:
+    def test_rerank__treats_a_valid_empty_selection_as_no_support(self) -> None:
+        """Verify an empty answer means 'nothing supports the case', not a reason for fallback."""
+        client = _ScriptedClient('{"selected": []}')
+        reranker = LLMReranker(client=client, model="local", allow_fallback=True)
+
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("chunk-1", "Treść")])
+
+        assert result.selected == []
+        assert result.assessed is True
+
+    def test_rerank__drops_candidates_scored_below_the_support_threshold(self) -> None:
+        """Verify fragments the model rates as merely similar are not presented as evidence."""
+        payload = {
+            "selected": [
+                {"chunk_id": "chunk-1", "score": 85, "reason": "popiera postulat"},
+                {"chunk_id": "chunk-2", "score": 20, "reason": "podobny temat"},
+            ]
+        }
+        client = _ScriptedClient(json.dumps(payload))
+        reranker = LLMReranker(client=client, model="local")
+        candidates = [make_candidate("chunk-1", "A"), make_candidate("chunk-2", "B")]
+
+        result = reranker.rerank(case_brief={}, candidates=candidates)
+
+        assert [(chunk.chunk_id, score) for chunk, _, score in result.selected] == [("chunk-1", 85)]
+        assert result.assessed is True
+
+    def test_rerank__falls_back_when_the_model_names_only_unknown_chunks(self) -> None:
+        """Verify invented chunk IDs count as a failed answer, not as a judgement of no support."""
+        payload = {"selected": [{"chunk_id": "invented", "score": 90, "reason": "x"}]}
+        candidates = [make_candidate("chunk-1", "A"), make_candidate("chunk-2", "B")]
+
+        lenient = LLMReranker(client=_ScriptedClient(json.dumps(payload)), model="local")
+        result = lenient.rerank(case_brief={}, candidates=candidates)
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["chunk-1", "chunk-2"]
+        assert result.assessed is False
+
+        strict = LLMReranker(
+            client=_ScriptedClient(json.dumps(payload)), model="remote", allow_fallback=False
+        )
+        with pytest.raises(RuntimeError, match="nieznane chunk_id"):
+            strict.rerank(case_brief={}, candidates=candidates)

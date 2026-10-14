@@ -5,8 +5,14 @@ import re
 
 from .models import ChunkRecord, DocumentMetadata, ExtractedPage, TextUnit
 
-_NUMBERED_HEADING = re.compile(r"^\s*((?:\d+\.)*\d+)\.?\s+(.{2,160})$")
+# Numer rozdziału ma 1–2 cyfry na poziom: „2015 co najmniej…” czy „8 marca 1990 r.…”
+# to zdania przełamane w PDF, a nie nagłówki.
+_NUMBERED_HEADING = re.compile(r"^\s*((?:\d{1,2}\.)*\d{1,2})\.?\s+(.{2,160})$")
 _ROMAN_HEADING = re.compile(r"^\s*([IVXLCDM]+)\.\s+(.{2,160})$", re.I)
+# Linia spisu treści: tytuł zakończony kropkami prowadzącymi i ewentualnie numerem strony.
+_TOC_LINE = re.compile(r"\.{4,}\s*\d*\s*$")
+# Po łączniku zawieszonym („jedno- i dwukierunkowe”) następny wyraz jest spójnikiem.
+_SUSPENDED_HYPHEN_NEXT_WORDS = frozenset({"i", "lub", "albo", "oraz", "czy", "a"})
 
 
 def _looks_like_heading(line: str) -> tuple[bool, int]:
@@ -19,7 +25,7 @@ def _looks_like_heading(line: str) -> tuple[bool, int]:
         return False, 0
 
     m = _NUMBERED_HEADING.match(s)
-    if m:
+    if m and m.group(2)[:1].isupper():
         prefix = m.group(1)
         return True, prefix.count(".") + 1
 
@@ -32,14 +38,36 @@ def _looks_like_heading(line: str) -> tuple[bool, int]:
         if upper_ratio >= 0.85 and len(s.split()) <= 14:
             return True, 1
 
-    # Typowe krótkie nagłówki mieszane, np. "Wstęp", "Spis treści"
-    if len(s.split()) <= 8 and s[:1].isupper() and not s.endswith((".", ";", ",")):
+    # Typowe krótkie nagłówki mieszane, np. "Wstęp", "Spis treści". Linia z dwukropkiem
+    # na końcu wprowadza listę, a z łącznikiem na końcu jest przeniesieniem wyrazu.
+    if len(s.split()) <= 8 and s[:1].isupper() and not s.endswith((".", ";", ",", ":", "-")):
         if len(s) <= 70:
             # tylko jeśli linia nie wygląda jak normalne zdanie
             if not re.search(r"\b(jest|są|oraz|który|która|które|dla|przez)\b", s, re.I):
                 return True, 2
 
     return False, 0
+
+
+def _join_lines(lines: list[str]) -> str:
+    """Join paragraph lines, gluing back words that the PDF hyphenated at a line break."""
+    text = lines[0]
+    for line in lines[1:]:
+        next_word = line.split(maxsplit=1)[0]
+        # „trans-” + „portowych” to jeden wyraz. Złożenie przełamane dokładnie na łączniku
+        # („pielęgnacyjno-” + „opiekuńczych”) też zostanie sklejone; to rzadki przypadek,
+        # a rozcięty wyraz psuł wyszukiwanie pełnotekstowe w całych dokumentach.
+        if (
+            len(text) >= 2
+            and text.endswith("-")
+            and text[-2].isalpha()
+            and line[:1].islower()
+            and next_word not in _SUSPENDED_HYPHEN_NEXT_WORDS
+        ):
+            text = text[:-1] + line
+        else:
+            text = f"{text} {line}"
+    return text
 
 
 def _split_page_to_units(page: ExtractedPage) -> list[tuple[str, int | None]]:
@@ -54,7 +82,7 @@ def _split_page_to_units(page: ExtractedPage) -> list[tuple[str, int | None]]:
         """Append the current paragraph to the page units when it contains text."""
         nonlocal paragraph
         if paragraph:
-            text = " ".join(paragraph).strip()
+            text = _join_lines(paragraph).strip()
             if text:
                 out.append((text, None))
             paragraph = []
@@ -62,6 +90,11 @@ def _split_page_to_units(page: ExtractedPage) -> list[tuple[str, int | None]]:
     for line in page.text.splitlines():
         line = line.strip()
         if not line:
+            flush()
+            continue
+
+        # Spis treści powtarza tytuły z treści dokumentu i nie wnosi nic do wyszukiwania.
+        if _TOC_LINE.search(line):
             flush()
             continue
 
@@ -77,7 +110,7 @@ def _split_page_to_units(page: ExtractedPage) -> list[tuple[str, int | None]]:
 
 
 def build_text_units(pages: list[ExtractedPage]) -> list[TextUnit]:
-    """Convert extracted pages into text units with inherited section paths."""
+    """Convert extracted pages into text units; headings are kept as text and as section context."""
     section_stack: list[str] = []
     units: list[TextUnit] = []
 
@@ -87,8 +120,9 @@ def build_text_units(pages: list[ExtractedPage]) -> list[TextUnit]:
                 level = max(1, heading_level)
                 section_stack = section_stack[: level - 1]
                 section_stack.append(text)
-                continue
 
+            # Nagłówek zostaje także w treści. Heurystyka myli się na liniach łamanych
+            # w PDF, a wycięta linia znikała z indeksu razem z zawartą w niej treścią.
             if text:
                 units.append(
                     TextUnit(
