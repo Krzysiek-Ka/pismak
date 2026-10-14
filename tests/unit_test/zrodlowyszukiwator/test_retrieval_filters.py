@@ -122,5 +122,5 @@ class TestLexicalSearch:
             "WHERE c.search_vector @@ q.query AND d.retrieval_enabled"
             " AND d.is_active IS NOT FALSE" in connection.sql
         )
-        assert connection.params == ["transport", 7]
+        assert connection.params == ["transp:*", 7]
         assert (chunk.lifecycle_status, chunk.lexical_score) == ("superseded", 0.5)

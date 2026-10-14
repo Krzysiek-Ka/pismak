@@ -1,10 +1,38 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import numpy as np
 
 from .models import RetrievalFilters, RetrievedChunk
+
+# Najczęstsze polskie słowa funkcyjne. Konfiguracja 'simple' nie ma listy stop-słów,
+# a przy łączeniu terminów przez OR takie słowo dopasowałoby niemal każdy fragment.
+STOPWORDS = frozenset(
+    """
+    aby ale albo bez być czy dla gdy gdzie ich jak jako jego jej jest już jeśli jeżeli
+    kiedy który która które którzy którego której którym lub mają może nad nie niż oraz
+    pod przed przez przy się sobie swoje swój tak tam także tego tej ten też tylko tym
+    więc został została zostało zostały jednak ponieważ dlatego wraz nas będzie było były
+    mogą
+    """.split()
+)
+MAX_LEXICAL_TERMS = 16
+
+
+def lexical_tsquery(text: str) -> str:
+    """Turn free text into an OR query of its significant words, tolerant to Polish inflection."""
+    terms: list[str] = []
+    for word in re.findall(r"[^\W_]+", text.lower()):
+        if word.isdigit():
+            terms.append(word)
+        elif len(word) >= 3 and word not in STOPWORDS:
+            # 'simple' nie odmienia słów, więc dłuższe słowo traci typową końcówkę
+            # i jest dopasowywane prefiksem: „rowerowe” znajdzie też „rowerowych”.
+            terms.append(word if len(word) <= 5 else f"{word[: max(5, len(word) - 3)]}:*")
+    # Różne formy tego samego słowa dają ten sam prefiks, więc duplikaty usuwamy na końcu.
+    return " | ".join(list(dict.fromkeys(terms))[:MAX_LEXICAL_TERMS])
 
 
 class DatabaseConnectionError(RuntimeError):
@@ -158,12 +186,18 @@ class RetrievalRepository:
         """Search chunks by PostgreSQL full-text ranking with optional metadata filters."""
         filters = filters or RetrievalFilters()
         filter_sql, filter_params = self._filter_sql(filters)
+        # Wcześniej słowa były łączone przez AND, więc wielowyrazowe zapytanie prawie
+        # nigdy nic nie znajdowało. OR plus ranking ts_rank_cd premiuje fragmenty
+        # zawierające więcej terminów.
+        tsquery = lexical_tsquery(query)
+        if not tsquery:
+            return []
 
         # Konfiguracja 'simple' odpowiada search_vector z rag_ingestion i dobrze
         # zachowuje nazwy własne, numery uchwał i terminy techniczne.
         sql = f"""
             WITH q AS (
-                SELECT websearch_to_tsquery('simple', %s) AS query
+                SELECT to_tsquery('simple', %s) AS query
             )
             SELECT
                 c.chunk_id,
@@ -191,7 +225,7 @@ class RetrievalRepository:
             LIMIT %s
         """
 
-        params = [query, *filter_params, limit]
+        params = [tsquery, *filter_params, limit]
 
         with self.connect() as conn:
             rows = conn.execute(sql, params).fetchall()
