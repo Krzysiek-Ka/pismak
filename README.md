@@ -271,7 +271,8 @@ Potrzebne są:
 - Ollama,
 - klient PostgreSQL z biblioteką `libpq` (patrz 3.5).
 
-Zależności Pythona są zapisane w `requirements.txt`.
+Zależności Pythona są przypięte do konkretnych wersji: bezpośrednie w
+`requirements.in`, a pełna blokada (także zależności pośrednie) w `requirements.txt`.
 
 ### 3.2. Sklonuj repozytorium
 
@@ -324,6 +325,17 @@ uv pip install -r requirements.txt
 Jeśli `uv` zgłasza błąd certyfikatu (`invalid peer certificate: UnknownIssuer`),
 co zdarza się za firmowym proxy lub przy programie antywirusowym sprawdzającym
 ruch HTTPS, dodaj do polecenia `--native-tls`.
+
+`requirements.txt` to plik blokady wygenerowany z `requirements.in`; nie edytuj go
+ręcznie. Blokada jest wspólna dla Pythona 3.11 i nowszych oraz dla wszystkich
+systemów; pakiety zależne od wersji Pythona lub systemu mają w niej markery. Aby zmienić lub podnieść wersję zależności, zmień `requirements.in` i odtwórz
+blokadę:
+
+```cmd
+uv pip compile --universal --python-version 3.11 requirements.in -o requirements.txt
+```
+
+Wersję ruff w `.pre-commit-config.yaml` trzymaj równą wersji z `requirements.in`.
 
 `psycopg` używa systemowej biblioteki klienta PostgreSQL `libpq` (bez wariantu
 `[binary]`). Na Windowsie zainstaluj klienta PostgreSQL i dodaj jego katalog `bin`
@@ -774,7 +786,8 @@ konieczne, i nie publikuj zawartości `outputs/` ani `logs/`.
 - `src/Wyswietlator/app.py` — komponenty Streamlit, stan sesji, chat i widoki;
 - `src/Wyswietlator/services.py` — cienkie adaptery infrastruktury, konfiguracja
    RAG, renderer i zapis wyników;
-- zależności interfejsu są zapisane w głównym `requirements.txt`.
+- zależności interfejsu są zapisane w głównym `requirements.in` i zablokowane
+   w `requirements.txt`.
 
 ### Lokalny serwer i publikacja POC
 
@@ -872,6 +885,7 @@ Access na własnej domenie.
 Pismak/
 ├── .env_template
 ├── README.md
+├── requirements.in
 ├── requirements.txt
 ├── pyproject.toml
 ├── .pre-commit-config.yaml
