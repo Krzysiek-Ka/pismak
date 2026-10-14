@@ -632,8 +632,21 @@ PDF o tej samej nazwie w katalogu `RAW/`.
 3. Uruchom to samo polecenie z `--file`. Inny katalog metadanych wskażesz
    parametrem `--catalog`.
 
-Plik, którego SHA-256 się nie zmienił, jest przy ponownym uruchomieniu pomijany;
-`--force` wymusza ponowne przetworzenie.
+Gdy SHA-256 pliku się nie zmienił, ponowne uruchomienie nie dzieli go i nie liczy
+embeddingów od nowa, ale zapisuje w bazie bieżące metadane z katalogu. Poprawkę
+statusu, numeru aktu czy adresu wystarczy więc wprowadzić w katalogu i uruchomić
+polecenie jeszcze raz. Zmiana tytułu, typu dokumentu albo miasta powoduje pełne
+przetworzenie, bo te pola są częścią embeddingów; `--force` wymusza je zawsze.
+
+O tym, czy dokument trafia do pism, decydują dwa pola katalogu:
+
+- `is_active: false` — dokument nieobowiązujący (np. zastąpiony nowszym). Zostaje w
+  bazie, ale nie jest używany jako źródło pisma. `lifecycle_status: "superseded"`
+  wymaga tej wartości.
+- `retrieval_enabled: false` — dokument jest pomijany przez każde wyszukiwanie.
+
+Po aktualizacji kodu uruchom polecenie z `--file` przynajmniej raz: dodaje ono do
+istniejącej bazy kolumny, z których korzysta wyszukiwanie.
 
 ---
 

@@ -63,6 +63,17 @@ class PgVectorRepository:
                     )
                     """
                 )
+                # Kolumny dodane po pierwszej wersji schematu. ALTER uzupełnia też bazy
+                # utworzone wcześniej, a istniejące dokumenty pozostają włączone do wyszukiwania.
+                cur.execute(
+                    """
+                    ALTER TABLE rag_documents
+                        ADD COLUMN IF NOT EXISTS lifecycle_status TEXT,
+                        ADD COLUMN IF NOT EXISTS retrieval_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        ADD COLUMN IF NOT EXISTS metadata_url TEXT,
+                        ADD COLUMN IF NOT EXISTS is_annex BOOLEAN NOT NULL DEFAULT FALSE
+                    """
+                )
 
                 cur.execute(
                     f"""
@@ -148,11 +159,13 @@ class PgVectorRepository:
                     valid_from, valid_to, is_active,
                     source_url, source_filename, content_sha256,
                     language, tags, relations, notes, ingestion_version,
+                    lifecycle_status, retrieval_enabled, metadata_url, is_annex,
                     ingested_at
                 )
                 VALUES (
                     %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now()
+                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                    %s,%s,%s,%s,now()
                 )
                 ON CONFLICT (document_id) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -175,6 +188,10 @@ class PgVectorRepository:
                     relations = EXCLUDED.relations,
                     notes = EXCLUDED.notes,
                     ingestion_version = EXCLUDED.ingestion_version,
+                    lifecycle_status = EXCLUDED.lifecycle_status,
+                    retrieval_enabled = EXCLUDED.retrieval_enabled,
+                    metadata_url = EXCLUDED.metadata_url,
+                    is_annex = EXCLUDED.is_annex,
                     ingested_at = now()
                 """,
                 (
@@ -199,7 +216,37 @@ class PgVectorRepository:
                     Jsonb([x.model_dump(mode="json") for x in metadata.relations]),
                     metadata.notes,
                     ingestion_version,
+                    metadata.lifecycle_status.value if metadata.lifecycle_status else None,
+                    metadata.retrieval_enabled,
+                    metadata.metadata_url,
+                    metadata.is_annex,
                 ),
+            )
+            conn.commit()
+
+    def embedding_metadata(self, document_id: str) -> tuple[str, str, str] | None:
+        """Return the stored title, kind and city, which are part of every chunk's embedding."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT title, document_kind, city FROM rag_documents WHERE document_id = %s",
+                (document_id,),
+            ).fetchone()
+        return (row[0], row[1], row[2]) if row else None
+
+    def refresh_chunk_metadata(
+        self,
+        *,
+        document_id: str,
+        hierarchy_rank: int,
+        metadata: dict[str, Any],
+    ) -> None:
+        """Rewrite the document-level metadata copied into every chunk of one document."""
+        from psycopg.types.json import Jsonb
+
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE rag_chunks SET metadata = %s, hierarchy_rank = %s WHERE document_id = %s",
+                (Jsonb(metadata), hierarchy_rank, document_id),
             )
             conn.commit()
 

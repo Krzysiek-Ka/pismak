@@ -106,6 +106,19 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def chunk_document_metadata(metadata: DocumentMetadata) -> dict[str, object]:
+    """Return the document-level metadata that is copied into every chunk."""
+    return {
+        "title": metadata.title,
+        "document_kind": metadata.document_kind.value,
+        "hierarchy_rank": metadata.hierarchy_rank,
+        "city": metadata.city,
+        "issuer": metadata.issuer,
+        "legal_form": metadata.legal_form.value,
+        "adoption_act_number": metadata.adoption_act_number,
+    }
+
+
 def chunk_units(
     units: list[TextUnit],
     metadata: DocumentMetadata,
@@ -170,15 +183,7 @@ def chunk_units(
                 text=text,
                 embedding_text=embedding_text,
                 text_sha256=text_hash,
-                metadata={
-                    "title": metadata.title,
-                    "document_kind": metadata.document_kind.value,
-                    "hierarchy_rank": metadata.hierarchy_rank,
-                    "city": metadata.city,
-                    "issuer": metadata.issuer,
-                    "legal_form": metadata.legal_form.value,
-                    "adoption_act_number": metadata.adoption_act_number,
-                },
+                metadata=chunk_document_metadata(metadata),
             )
         )
 

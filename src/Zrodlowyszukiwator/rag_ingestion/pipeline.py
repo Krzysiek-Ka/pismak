@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from .chunker import build_text_units, chunk_units
+from .chunker import build_text_units, chunk_document_metadata, chunk_units
 from .embedder import OllamaEmbedder
 from .models import DocumentMetadata
 from .pdf_extractor import extract_pdf_pages
@@ -37,10 +37,30 @@ def ingest_pdf(
     digest = file_sha256(pdf_path)
 
     existing_hash = repository.document_hash(metadata.document_id)
-    if existing_hash == digest and not force:
+    # Tytuł, typ i miasto są częścią tekstu, z którego liczony jest embedding każdego chunka,
+    # więc ich zmiana wymaga pełnego przetworzenia tak samo jak zmiana treści pliku.
+    embedding_metadata = (metadata.title, metadata.document_kind.value, metadata.city)
+    if (
+        existing_hash == digest
+        and repository.embedding_metadata(metadata.document_id) == embedding_metadata
+        and not force
+    ):
+        # Treść bez zmian: bez ponownego dzielenia i embeddingów. Metadane z katalogu są
+        # jednak zapisywane, żeby poprawka statusu, numeru aktu czy adresu trafiła do bazy.
+        repository.upsert_document(
+            metadata,
+            source_filename=pdf_path.name,
+            content_sha256=digest,
+            ingestion_version=INGESTION_VERSION,
+        )
+        repository.refresh_chunk_metadata(
+            document_id=metadata.document_id,
+            hierarchy_rank=metadata.hierarchy_rank,
+            metadata=chunk_document_metadata(metadata),
+        )
         return {
             "status": "skipped",
-            "reason": "identical_content_already_ingested",
+            "reason": "identical_content_metadata_refreshed",
             "document_id": metadata.document_id,
             "sha256": digest,
         }

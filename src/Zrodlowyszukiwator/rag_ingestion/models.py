@@ -4,7 +4,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DocumentKind(StrEnum):
@@ -34,6 +34,18 @@ class LegalForm(StrEnum):
     ANNEX = "annex"
     STANDALONE = "standalone"
     UNKNOWN = "unknown"
+
+
+class LifecycleStatus(StrEnum):
+    """
+    Miejsce dokumentu w obiegu miejskich dokumentów.
+    Uzupełnia is_active: mówi, w jakiej roli dokument jest dziś używany.
+    """
+
+    CURRENT = "current"
+    CURRENT_REFERENCE = "current_reference"
+    REFERENCE = "reference"
+    SUPERSEDED = "superseded"  # zastąpiony nowszym dokumentem
 
 
 HIERARCHY_RANK: dict[DocumentKind, int] = {
@@ -71,13 +83,27 @@ class DocumentMetadata(BaseModel):
     valid_from: date | None = None
     valid_to: date | None = None
     is_active: bool | None = None
+    lifecycle_status: LifecycleStatus | None = None
+    # False wyłącza dokument z wyszukiwania bez usuwania go z bazy.
+    retrieval_enabled: bool = True
 
     source_url: str | None = None
+    metadata_url: str | None = None
     language: str = "pl"
+    is_annex: bool = False
 
     tags: list[str] = Field(default_factory=list)
     relations: list[DocumentRelation] = Field(default_factory=list)
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_superseded_is_inactive(self) -> DocumentMetadata:
+        """Reject a superseded document that is not also marked as no longer in force."""
+        # Wyszukiwanie pomija dokumenty nieobowiązujące na podstawie is_active,
+        # więc sprzeczny wpis przepuściłby zastąpiony dokument do pism.
+        if self.lifecycle_status is LifecycleStatus.SUPERSEDED and self.is_active is not False:
+            raise ValueError("lifecycle_status=superseded wymaga is_active=false")
+        return self
 
     @property
     def hierarchy_rank(self) -> int:

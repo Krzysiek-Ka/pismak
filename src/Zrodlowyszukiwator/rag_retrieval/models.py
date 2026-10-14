@@ -13,11 +13,14 @@ class SearchIntent(BaseModel):
 
 
 class RetrievalFilters(BaseModel):
-    """Opcjonalne filtry. Domyślnie retrieval niczego agresywnie nie odcina."""
+    """Opcjonalne filtry. Domyślnie odpadają tylko dokumenty jawnie nieobowiązujące."""
 
     city: str | None = None
     document_kinds: list[str] = Field(default_factory=list)
     active_only: bool = False
+    # Dokument zastąpiony nie może uzasadniać pisma. False włącza go z powrotem,
+    # np. do pytań o historię i zmiany polityki miasta.
+    exclude_inactive: bool = True
 
 
 class RetrievedChunk(BaseModel):
@@ -30,6 +33,7 @@ class RetrievedChunk(BaseModel):
     adoption_act_number: str | None = None
     adoption_date: str | None = None
     is_active: bool | None = None
+    lifecycle_status: str | None = None
     source_url: str | None = None
     source_filename: str | None = None
 

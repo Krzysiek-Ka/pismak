@@ -57,6 +57,8 @@ argumentation_markdown:
 - sources może zawierać wyłącznie identyfikatory E1, E2... z EvidencePack
     albo U1, U2... z materiałów użytkownika,
 - nie wymyślaj źródeł, dokumentów, URL-i ani identyfikatorów,
+- źródła o statusie "nieobowiązujący" nie przedstawiaj jako aktualnie obowiązującego
+    dokumentu miasta,
 - w argumentacji oznaczaj użyte źródła jako [1], [2], ... zgodnie z kolejnością
     identyfikatorów w polu sources,
 - jeżeli nie ma odpowiedniego źródła, nie twórz cytowania.

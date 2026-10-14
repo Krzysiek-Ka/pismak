@@ -73,6 +73,10 @@ class RetrievalRepository:
             # tylko dokumenty jawnie aktywne.
             clauses.append("d.is_active IS TRUE")
 
+        if filters.exclude_inactive:
+            # Odpada tylko dokument jawnie nieobowiązujący; NULL (status nieustalony) zostaje.
+            clauses.append("d.is_active IS NOT FALSE")
+
         if not clauses:
             return "", params
 
@@ -107,10 +111,11 @@ class RetrievalRepository:
                 c.page_end,
                 c.section_path,
                 c.text,
-                1 - (c.embedding <=> %s) AS semantic_score
+                1 - (c.embedding <=> %s) AS semantic_score,
+                d.lifecycle_status
             FROM rag_chunks c
             JOIN rag_documents d USING (document_id)
-            WHERE 1=1 {filter_sql}
+            WHERE d.retrieval_enabled {filter_sql}
             ORDER BY c.embedding <=> %s
             LIMIT %s
         """
@@ -138,6 +143,7 @@ class RetrievalRepository:
                 section_path=row[13] or [],
                 text=row[14],
                 semantic_score=float(row[15]),
+                lifecycle_status=row[16],
             )
             for row in rows
         ]
@@ -175,11 +181,12 @@ class RetrievalRepository:
                 c.page_end,
                 c.section_path,
                 c.text,
-                ts_rank_cd(c.search_vector, q.query) AS lexical_score
+                ts_rank_cd(c.search_vector, q.query) AS lexical_score,
+                d.lifecycle_status
             FROM rag_chunks c
             JOIN rag_documents d USING (document_id)
             CROSS JOIN q
-            WHERE c.search_vector @@ q.query {filter_sql}
+            WHERE c.search_vector @@ q.query AND d.retrieval_enabled {filter_sql}
             ORDER BY lexical_score DESC
             LIMIT %s
         """
@@ -207,6 +214,7 @@ class RetrievalRepository:
                 section_path=row[13] or [],
                 text=row[14],
                 lexical_score=float(row[15]),
+                lifecycle_status=row[16],
             )
             for row in rows
         ]

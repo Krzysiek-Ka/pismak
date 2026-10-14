@@ -16,6 +16,13 @@ def _truncate_at_boundary(text: str, max_chars: int) -> str:
     return shortened.rstrip() + "…"
 
 
+def _validity_label(is_active: bool | None) -> str:
+    """Describe for the letter prompt whether a source document is in force."""
+    if is_active is None:
+        return "nieustalony"
+    return "obowiązujący" if is_active else "nieobowiązujący (dokument historyczny)"
+
+
 def evidence_pack_to_markdown(
     pack: EvidencePack,
     *,
@@ -38,6 +45,7 @@ def evidence_pack_to_markdown(
 ## [{e.evidence_id}] {e.document_title}
 - document_kind: {e.document_kind}
 - legal_form: {e.legal_form}
+- status obowiązywania: {_validity_label(e.is_active)}
 - strony PDF: {pages}
 - sekcja: {section}
 - powód trafności: {e.relevance_reason}

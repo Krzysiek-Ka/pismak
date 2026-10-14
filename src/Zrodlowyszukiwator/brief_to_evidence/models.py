@@ -21,6 +21,7 @@ class Evidence(BaseModel):
     adoption_act_number: str | None = None
     adoption_date: str | None = None
     is_active: bool | None = None
+    lifecycle_status: str | None = None
 
     page_start: int
     page_end: int

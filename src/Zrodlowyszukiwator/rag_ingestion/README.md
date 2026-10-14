@@ -79,7 +79,12 @@ Polecenie tworzy tabele, jeśli ich jeszcze nie ma. Inny katalog metadanych
 wskażesz parametrem `--catalog`.
 
 Jeśli plik o tym samym `document_id` i tym samym SHA-256 jest już w bazie,
-ingestion zostanie pominięty. `--force` wymusza ponowne przetworzenie.
+treść nie jest przetwarzana ponownie, ale metadane z katalogu są zapisywane od
+nowa. Zmiana tytułu, typu dokumentu albo miasta powoduje pełne przetworzenie,
+bo te pola wchodzą w skład embeddingów. `--force` wymusza je zawsze.
+
+Pola `is_active`, `lifecycle_status` i `retrieval_enabled` oraz ich wpływ na
+wyszukiwanie opisuje główne README, punkt 6.2.
 
 ## Zasada wersjonowania
 

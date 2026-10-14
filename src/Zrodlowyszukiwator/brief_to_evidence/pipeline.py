@@ -102,6 +102,7 @@ class BriefToEvidencePipeline:
                     adoption_act_number=chunk.adoption_act_number,
                     adoption_date=chunk.adoption_date,
                     is_active=chunk.is_active,
+                    lifecycle_status=chunk.lifecycle_status,
                     page_start=chunk.page_start,
                     page_end=chunk.page_end,
                     section_path=chunk.section_path,
