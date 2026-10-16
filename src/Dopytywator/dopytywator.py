@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from src.Dopytywator import dopytywator_helper_functions, prompts, structures
 from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 
@@ -89,6 +91,63 @@ def ask_questions(
     return messages
 
 
+def generate_brief(
+    messages: list[structures.ConversationMessage],
+    llm: object,
+) -> structures.CaseBrief:
+    """Ask the model for the final CaseBrief of a conversation."""
+    return llm.generate_structured(
+        system_prompt=prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
+        user_prompt=prompts.brief_user_prompt(messages),
+        response_model=structures.CaseBrief,
+        temperature=0.0,
+        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
+    )
+
+
+def interview_step(
+    messages: list[structures.ConversationMessage],
+    llm: object,
+    *,
+    questions_asked: int,
+    max_interview_questions: int,
+    temperature: float = 0.1,
+    after_llm_call: Callable[[], None] | None = None,
+) -> structures.InterviewStep:
+    """Run one interview step after the latest user message: ask the next question or build the brief."""
+
+    def called() -> None:
+        if after_llm_call is not None:
+            after_llm_call()
+
+    # Odpowiedź na ostatnie dozwolone pytanie trafia od razu do briefu.
+    if questions_asked >= max_interview_questions:
+        case_brief = generate_brief(messages, llm)
+        called()
+        return structures.InterviewStep(case_brief=case_brief, end_reason="question_limit")
+
+    turn = llm.generate_structured(
+        system_prompt=prompts.DOPYTYWATOR_INTERVIEW_SYSTEM_PROMPT,
+        user_prompt=prompts.interviewer_user_prompt(
+            messages,
+            question_number=questions_asked + 1,
+            max_interview_questions=max_interview_questions,
+        ),
+        response_model=structures.InterviewTurnResult,
+        temperature=temperature,
+        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
+    )
+    called()
+
+    if turn.ready_to_build_brief:
+        # Model uznał, że informacje są wystarczające do zbudowania briefu.
+        case_brief = generate_brief(messages, llm)
+        called()
+        return structures.InterviewStep(turn=turn, case_brief=case_brief, end_reason="model_ready")
+
+    return structures.InterviewStep(turn=turn, question=turn.next_question.strip())
+
+
 def build_brief(
     messages: list[structures.ConversationMessage],
     llm: object,
@@ -100,13 +159,7 @@ def build_brief(
         print("Użytkownik wyszedł z kreatora, nie można zbudować brifu")
         raise RuntimeError("Użytkownik wyszedł z kreatora, nie można zbudować brifu")
 
-    case_brief = llm.generate_structured(
-        system_prompt=prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
-        user_prompt=prompts.brief_user_prompt(messages),
-        response_model=structures.CaseBrief,
-        temperature=0.0,
-        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
-    )
+    case_brief = generate_brief(messages, llm)
 
     readiness_errors = dopytywator_helper_functions.validate_brief_readiness(case_brief)
     dopytywator_helper_functions.print_case_brief(case_brief)

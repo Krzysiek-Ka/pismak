@@ -44,10 +44,9 @@ from src._shared.serwer import (
     LLMOutputLimitError,
     error_log_detail,
 )
-from src.Dopytywator import prompts as dopytywator_prompts
-from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
+from src.Dopytywator import dopytywator
 from src.Dopytywator.dopytywator_helper_functions import validate_brief_readiness
-from src.Dopytywator.structures import CaseBrief, ConversationMessage, InterviewTurnResult
+from src.Dopytywator.structures import CaseBrief, ConversationMessage
 from src.Pismogenerator import pismogenerator
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
@@ -499,61 +498,26 @@ if st.session_state.case_brief is None:
                 context_tokens=dopytywator_context,
             )
 
-            # Po osiągnięciu limitu pytań pomijamy kolejne pytanie i budujemy brief.
-            if st.session_state.question_count >= max_questions:
-                brief = dopytywator_llm.generate_structured(
-                    system_prompt=dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
-                    user_prompt=dopytywator_prompts.brief_user_prompt(conversation),
-                    response_model=CaseBrief,
-                    temperature=0.0,
-                    max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
-                )
-                record_model_usage(
+            # Po osiągnięciu limitu pytań brief powstaje od razu; w przeciwnym razie model
+            # decyduje, czy zadać następne pytanie. Użycie modelu zapisujemy po każdym wywołaniu.
+            step = dopytywator.interview_step(
+                conversation,
+                dopytywator_llm,
+                questions_asked=st.session_state.question_count,
+                max_interview_questions=max_questions,
+                after_llm_call=lambda: record_model_usage(
                     "Dopytywator",
                     dopytywator_provider,
                     dopytywator_model,
                     dopytywator_llm,
-                )
-                st.session_state.case_brief = brief
+                ),
+            )
+
+            if step.case_brief is not None:
+                st.session_state.case_brief = step.case_brief
                 st.session_state.stage = "BRIEF_READY"
-            else:
-                # W przeciwnym razie model decyduje, czy zadać następne pytanie.
-                result = dopytywator_llm.generate_structured(
-                    system_prompt=dopytywator_prompts.DOPYTYWATOR_INTERVIEW_SYSTEM_PROMPT,
-                    user_prompt=dopytywator_prompts.interviewer_user_prompt(
-                        conversation,
-                        question_number=st.session_state.question_count + 1,
-                        max_interview_questions=max_questions,
-                    ),
-                    response_model=InterviewTurnResult,
-                    temperature=0.1,
-                    max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
-                )
-                record_model_usage(
-                    "Dopytywator",
-                    dopytywator_provider,
-                    dopytywator_model,
-                    dopytywator_llm,
-                )
 
-                if result.ready_to_build_brief:
-                    # Model uznał, że informacje są wystarczające do zbudowania briefu.
-                    brief = dopytywator_llm.generate_structured(
-                        system_prompt=dopytywator_prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT,
-                        user_prompt=dopytywator_prompts.brief_user_prompt(conversation),
-                        response_model=CaseBrief,
-                        temperature=0.0,
-                        max_output_tokens=DOPYTYWATOR_MAX_OUTPUT_TOKENS,
-                    )
-                    record_model_usage(
-                        "Dopytywator",
-                        dopytywator_provider,
-                        dopytywator_model,
-                        dopytywator_llm,
-                    )
-                    st.session_state.case_brief = brief
-                    st.session_state.stage = "BRIEF_READY"
-
+                if step.end_reason == "model_ready":
                     st.session_state.messages.append(
                         {
                             "role": "assistant",
@@ -562,21 +526,16 @@ if st.session_state.case_brief is None:
                             ),
                         }
                     )
-                else:
-                    # Odpowiedź modelu jest pytaniem; zapisujemy je przed rerunem.
-                    question = result.next_question.strip()
-                    st.session_state.question_count += 1
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": question,
-                        }
-                    )
-
-                    if st.session_state.question_count >= max_questions:
-                        # Brief zostanie zbudowany po bieżącej odpowiedzi
-                        # użytkownika w następnej turze.
-                        pass
+            else:
+                # Odpowiedź modelu jest pytaniem; zapisujemy je przed rerunem. Po ostatnim
+                # dozwolonym pytaniu brief powstanie z odpowiedzi użytkownika w następnej turze.
+                st.session_state.question_count += 1
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": step.question,
+                    }
+                )
 
             if st.session_state.case_brief is not None:
                 # Walidacja nie blokuje draftu, ale pokazuje użytkownikowi braki briefu.

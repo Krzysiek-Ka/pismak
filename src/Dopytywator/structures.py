@@ -71,3 +71,13 @@ class InterviewTurnResult(BaseModel):
                     "next_question musi zawierać pytanie, gdy ready_to_build_brief=False"
                 )
         return self
+
+
+class InterviewStep(BaseModel):
+    """Outcome of one interview step: the next question, or the brief and why the interview ended."""
+
+    # None, gdy brief powstał po osiągnięciu limitu pytań bez pytania modelu o kolejną turę.
+    turn: InterviewTurnResult | None = None
+    question: str | None = None
+    case_brief: CaseBrief | None = None
+    end_reason: Literal["model_ready", "question_limit"] | None = None

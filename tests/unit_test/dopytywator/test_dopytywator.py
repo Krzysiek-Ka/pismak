@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from src.Dopytywator import dopytywator, structures
 from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 
@@ -280,3 +282,101 @@ class TestBuildBrief:
         assert "Brak oczekiwanego rezultatu" in out
         assert "Brak co najmniej jednego konkretnego postulatu" in out
         assert "spełnia minimalne kryteria" not in out
+
+
+BRIEF = structures.CaseBrief(
+    title="Przejście przy szkole",
+    problem_description="Brak przejścia.",
+    desired_outcome="Wyznaczenie przejścia.",
+    requested_actions=["Wyznaczenie przejścia"],
+)
+CONVERSATION = [structures.ConversationMessage(role="user", content="Brak przejścia")]
+
+
+class TestInterviewStep:
+    def test_interview_step__question_is_returned_stripped_without_a_brief(self) -> None:
+        """Verify a model question is passed on trimmed and the interview continues."""
+        llm = ScriptedLLM(question("  Gdzie?  "))
+
+        step = dopytywator.interview_step(
+            CONVERSATION, llm, questions_asked=1, max_interview_questions=3
+        )
+
+        assert step.question == "Gdzie?"
+        assert step.case_brief is None
+        assert step.end_reason is None
+        assert step.turn.reason_for_question == "Brakuje szczegółów."
+        assert "pytaniem pomocniczym nr 2 z maksymalnie 3" in llm.calls[0]["user_prompt"]
+        assert llm.calls[0]["temperature"] == 0.1
+
+    def test_interview_step__ready_model_builds_the_brief_in_the_same_step(self) -> None:
+        """Verify a ready verdict is followed at once by the brief built from the conversation."""
+        llm = ScriptedLLM(READY, BRIEF)
+
+        step = dopytywator.interview_step(
+            CONVERSATION, llm, questions_asked=0, max_interview_questions=3
+        )
+
+        assert step.end_reason == "model_ready"
+        assert step.case_brief == BRIEF
+        assert step.question is None
+        assert step.turn == READY
+        assert [c["response_model"] for c in llm.calls] == [
+            structures.InterviewTurnResult,
+            structures.CaseBrief,
+        ]
+        assert llm.calls[1]["temperature"] == 0.0
+        assert llm.calls[1]["max_output_tokens"] == DOPYTYWATOR_MAX_OUTPUT_TOKENS
+
+    def test_interview_step__reached_limit_builds_the_brief_without_asking_the_model(
+        self,
+    ) -> None:
+        """Verify the answer to the last allowed question goes straight to the brief."""
+        llm = ScriptedLLM(BRIEF)
+
+        step = dopytywator.interview_step(
+            CONVERSATION, llm, questions_asked=3, max_interview_questions=3
+        )
+
+        assert step.end_reason == "question_limit"
+        assert step.case_brief == BRIEF
+        assert step.turn is None
+        assert [c["response_model"] for c in llm.calls] == [structures.CaseBrief]
+
+    def test_interview_step__reports_every_successful_model_call(self) -> None:
+        """Verify the caller can record model usage after each call, as the UI does."""
+        llm = ScriptedLLM(READY, BRIEF)
+        calls_seen: list[int] = []
+
+        dopytywator.interview_step(
+            CONVERSATION,
+            llm,
+            questions_asked=0,
+            max_interview_questions=3,
+            after_llm_call=lambda: calls_seen.append(len(llm.calls)),
+        )
+
+        assert calls_seen == [1, 2]
+
+    def test_interview_step__failed_brief_keeps_the_report_of_the_interview_call(self) -> None:
+        """Verify a brief failure still leaves the earlier successful call recorded."""
+
+        class BriefFails(ScriptedLLM):
+            def generate_structured(self, **kwargs):
+                if kwargs["response_model"] is structures.CaseBrief:
+                    raise RuntimeError("model niedostępny")
+                return super().generate_structured(**kwargs)
+
+        llm = BriefFails(READY)
+        calls_seen: list[int] = []
+
+        with pytest.raises(RuntimeError):
+            dopytywator.interview_step(
+                CONVERSATION,
+                llm,
+                questions_asked=0,
+                max_interview_questions=3,
+                after_llm_call=lambda: calls_seen.append(1),
+            )
+
+        assert calls_seen == [1]

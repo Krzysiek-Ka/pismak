@@ -348,6 +348,9 @@ Testy uruchom:
 python -m pytest
 ```
 
+Testy end-to-end na prawdziwych modelach i bazie uruchamia się tylko ręcznie
+(`PISMAK_E2E=1`), zob. `tests/e2e/README.md`.
+
 
 ## 4. Ollama i modele lokalne
 
