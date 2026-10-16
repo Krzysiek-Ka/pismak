@@ -27,37 +27,6 @@ class DraftValidationError(ValueError):
         super().__init__(f"DraftLetter nie przeszedł walidacji:\n{details}")
 
 
-def extract_sources_from_brief(case_brief: CaseBrief) -> list[str]:
-    """Extract the allowed source candidates from a brief, preferring explicit sources when present."""
-    if hasattr(case_brief, "model_dump"):
-        data = case_brief.model_dump()
-    elif isinstance(case_brief, dict):
-        data = case_brief
-    else:
-        data = vars(case_brief)
-
-    raw_sources = data.get("sources", [])
-
-    if raw_sources:
-        source_candidates = [str(x).strip() for x in raw_sources if str(x).strip()]
-    else:
-        source_candidates = [
-            str(x).strip() for x in case_brief.available_evidence if str(x).strip()
-        ]
-
-    # Usuń duplikaty z zachowaniem kolejności.
-    source_candidates = list(dict.fromkeys(source_candidates))
-
-    print("Dozwolone źródła / materiały:")
-    if source_candidates:
-        for i, source in enumerate(source_candidates, start=1):
-            print(f" [{i}] {source}")
-    else:
-        print(" - brak")
-
-    return source_candidates
-
-
 def fit_draft_user_prompt(
     case_brief: CaseBrief,
     evidence_pack: EvidencePack,
