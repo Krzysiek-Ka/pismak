@@ -9,7 +9,7 @@
 | Zakres audytu | wyłącznie odczyt; **żaden plik projektu nie został zmieniony** |
 | Odbiorca | model AI wdrażający poprawki oraz właściciel projektu |
 | Werdykt | projekt **nie jest gotowy** do upublicznienia repo ani do publicznego dema |
-| Zmiany po audycie | 2026-10-11: **K1 naprawione** (T-01 wykonane) — zmiana tylko na hoście i w lokalnym `.env`, bez zmian w plikach śledzonych. 2026-10-12: **W1 i W2 naprawione** przez właściciela (commit `483321d`); `print` z `DATABASE_URL` usunięty z notebooka (commit `27ee2f1`); **W3 częściowo** — tunel zweryfikowany lokalnie, README poprawione, Access do ustawienia w panelu; **W4 naprawione** (T-15); naprawiony skutek uboczny K1 — `DATABASE_URL` wskazuje `127.0.0.1` (patrz T-01); okno kontekstu wykrywane dla wybranego modelu i limit czasu 15 minut dla modeli lokalnych (T-15, T-10; commit `656ec68`); **W6 naprawione** — dwa dokumenty PDF i pliki Modelfile dołączone do repozytorium, README uzupełnione (T-19; commit `9c602f9`). 2026-10-13: **S1 naprawione** — interfejs pokazuje tylko ogólne komunikaty, szczegóły i ślad stosu są w logach (T-09; commit `464334c`); **S2 naprawione** — jeden handler logów bez otwartych plików, wpisy bez sprawy trafiają do pliku wspólnego (T-11; commit `7ea21fe`); **S4 uznane za działanie zamierzone** — użytkownik ma móc wybierać dostawcę i model, T-13 nie będzie realizowane; **S5 naprawione** — obsługa nowych pól katalogu, dokumenty nieobowiązujące nie trafiają do pism, baza zsynchronizowana z katalogiem (T-16; commit `d8f8df9`). 2026-10-14: **S6 naprawione** — wyszukiwanie pełnotekstowe łączy znaczące słowa przez OR i dopasowuje odmienione formy prefiksem; zapytania, które dawały 0 trafień, dają pełne 20 (T-18, niezacommitowane); **S9 częściowo** — zależności przypięte do najnowszych wersji, `requirements.txt` jest pełną blokadą generowaną z `requirements.in` (T-20; commit `29b40d3`); **D4 rozstrzygnięte** — licencja projektu zmieniona z MIT na AGPL-3.0-or-later, zgodną z PyMuPDF (T-20, niezacommitowane) |
+| Zmiany po audycie | 2026-10-11: **K1 naprawione** (T-01 wykonane) — zmiana tylko na hoście i w lokalnym `.env`, bez zmian w plikach śledzonych. 2026-10-12: **W1 i W2 naprawione** przez właściciela (commit `483321d`); `print` z `DATABASE_URL` usunięty z notebooka (commit `27ee2f1`); **W3 częściowo** — tunel zweryfikowany lokalnie, README poprawione, Access do ustawienia w panelu; **W4 naprawione** (T-15); naprawiony skutek uboczny K1 — `DATABASE_URL` wskazuje `127.0.0.1` (patrz T-01); okno kontekstu wykrywane dla wybranego modelu i limit czasu 15 minut dla modeli lokalnych (T-15, T-10; commit `656ec68`); **W6 naprawione** — dwa dokumenty PDF i pliki Modelfile dołączone do repozytorium, README uzupełnione (T-19; commit `9c602f9`). 2026-10-13: **S1 naprawione** — interfejs pokazuje tylko ogólne komunikaty, szczegóły i ślad stosu są w logach (T-09; commit `464334c`); **S2 naprawione** — jeden handler logów bez otwartych plików, wpisy bez sprawy trafiają do pliku wspólnego (T-11; commit `7ea21fe`); **S4 uznane za działanie zamierzone** — użytkownik ma móc wybierać dostawcę i model, T-13 nie będzie realizowane; **S5 naprawione** — obsługa nowych pól katalogu, dokumenty nieobowiązujące nie trafiają do pism, baza zsynchronizowana z katalogiem (T-16; commit `d8f8df9`). 2026-10-14: **S6 naprawione** — wyszukiwanie pełnotekstowe łączy znaczące słowa przez OR i dopasowuje odmienione formy prefiksem; zapytania, które dawały 0 trafień, dają pełne 20 (T-18, niezacommitowane); **S9 częściowo** — zależności przypięte do najnowszych wersji, `requirements.txt` jest pełną blokadą generowaną z `requirements.in` (T-20; commit `29b40d3`); **D4 rozstrzygnięte** — licencja projektu zmieniona z MIT na AGPL-3.0-or-later, zgodną z PyMuPDF (T-20, niezacommitowane). 2026-10-16: **S10 naprawione** — jedno drzewo `tests/unit_test/` (D8), testy `AppTest` dla `app.py` i testy przypadków brzegowych; 457 testów, pokrycie gałęziowe `src/` z 82% do 98% (T-21, niezacommitowane) |
 
 ## Jak czytać ten dokument
 
@@ -36,7 +36,7 @@ W tej kolejności. Pozycje 1–4 są obowiązkowe przed jakąkolwiek zmianą.
 7. `src/Dopytywator/` — `structures.py`, `prompts.py`, `constants.py`.
 8. `docker-compose.yaml`, `.env_template`, `requirements.txt`, `.github/workflows/ci.yml`, `.gitignore`, `run_pismak.bat`.
 9. `README.md` (sekcje 3, 5, 8) oraz `src/*/README.md`.
-10. Testy wyznaczające obecne zachowanie: `tests/unit_tests/shared/test_serwer.py`, `tests/unit_tests/pismogenerator/test_pismogenerator.py`, `tests/unit_test/wyswietlator/test_services.py`, `tests/unit_tests/test_release_configuration.py`.
+10. Testy wyznaczające obecne zachowanie: `tests/unit_test/shared/test_serwer.py`, `tests/unit_test/pismogenerator/test_pismogenerator.py`, `tests/unit_test/wyswietlator/test_services.py`, `tests/unit_test/wyswietlator/test_app.py`, `tests/unit_test/test_release_configuration.py`. (Do 2026-10-16 część z nich leżała w `tests/unit_tests/`; ścieżki w dalszych sekcjach opisują stan z dnia audytu.)
 
 Moduł `rag_ingestion` (offline) czytaj dopiero przy zadaniach T-16, T-20, T-23.
 
@@ -260,6 +260,7 @@ Zmienne środowiskowe faktycznie czytane przez kod: `OPENROUTER_KEY`, `OLLAMA_UR
 - [FAKT] Komunikat w `rag_ingestion/repository.py:24` każe sprawdzić `psycopg[binary]`, choć projekt go nie używa.
 
 **S10 — Testy.**
+> **Status: NAPRAWIONE 2026-10-16** (niezacommitowane). Opis w T-21. Poniższe punkty opisują stan z dnia audytu.
 - [FAKT] Istnieją dwa równoległe drzewa: `tests/unit_test/` (24 testy, z `__init__.py`) i `tests/unit_tests/` (67 testów, bez `__init__.py`). Sześć nazw klas powtarza się w obu.
 - [FAKT] `.github/copilot-instructions.md:4` każe umieszczać testy w `tests\unit_test\<moduł>\`.
 - [FAKT] `app.py`, `rag_ingestion/cli.py` i `rag_ingestion/catalog.py` nie mają żadnego testu. Izolacja sesji w UI nie jest testowana automatycznie.
@@ -298,7 +299,7 @@ Zmienne środowiskowe faktycznie czytane przez kod: `OPENROUTER_KEY`, `OLLAMA_UR
 3. Stan CI na GitHubie oraz przebieg testów na Linuksie i Pythonie 3.11.
 4. Przepływ end-to-end w przeglądarce, dwie sesje równolegle, kolejka generacji, zachowanie przy wyłączonej Ollamie albo bazie. Nie uruchamiałem Streamlita ani generacji.
 5. Instalacja na czystym środowisku.
-6. Czy pole „Max pytań” (`app.py:304-313`, bez `key`) zachowuje wartość po zablokowaniu po pierwszym pytaniu. Jeśli wraca do 1, wywiad zawsze kończy się po jednym pytaniu.
+6. Czy pole „Max pytań” (`app.py:304-313`, bez `key`) zachowuje wartość po zablokowaniu po pierwszym pytaniu. Jeśli wraca do 1, wywiad zawsze kończy się po jednym pytaniu. — **Sprawdzone 2026-10-16 testem `AppTest`**: wartość 2 zostaje po zablokowaniu pola, wywiad zadaje drugie pytanie (`test_app__question_limit_set_before_the_interview_still_applies_once_locked`). Ręczny test A7 w przeglądarce nadal zalecany.
 7. Planner i reranker przez OpenRouter. Wysyłają `strict: True` ze schematem z `model_json_schema()` (`planner.py:100-107`, `reranker.py:106-113`), który nie spełnia wymogów trybu ścisłego. W logach RAG działał tylko na Ollamie.
 8. Zużycie pamięci i czas PLLuM przy `n_ctx=131072`; parametry sprzętu.
 9. Licencje modeli PLLuM i Bielik oraz dokumentów miejskich (nie są rozpowszechniane w repo).
@@ -318,7 +319,7 @@ Zmienne środowiskowe faktycznie czytane przez kod: `OPENROUTER_KEY`, `OLLAMA_UR
 | D5 | ~~Czy publiczne demo pozwala wybrać OpenRouter i dowolny model?~~ Rozstrzygnięte 2026-10-13: tak, wybór dostawcy i modelu jest zamierzony (S4). | — |
 | D6 | Które modele są oficjalnie wspierane? Bielik z oknem 8192 wymaga dużo mniejszych promptów. | T-15 |
 | D7 | ~~Poprawny numer i data aktu dla Strategii 2030 oraz adresy URL wszystkich dokumentów źródłowych.~~ Dostarczone przez właściciela w katalogu (commit `e96e4d3`). | — |
-| D8 | Które drzewo testów zostaje: `tests/unit_test/` czy `tests/unit_tests/`? | T-21 |
+| D8 | ~~Które drzewo testów zostaje: `tests/unit_test/` czy `tests/unit_tests/`?~~ Rozstrzygnięte 2026-10-16: `tests/unit_test/`, zgodnie z `.github/copilot-instructions.md`. | — |
 | D9 | Czy `plans/` (stary handover, ten plik, plan audytu) ma być w publicznym repo? | T-08 |
 | D10 | Czy prywatny e-mail w metadanych commitów może zostać publiczny? | T-04 |
 
@@ -684,10 +685,32 @@ Otwarte po zmianie licencji:
 - Sekcja 13 AGPL: przy publicznym demie interfejs powinien pokazywać link do kodu źródłowego. Adres repozytorium nie jest jeszcze znany (README używa `<URL_REPOZYTORIUM>`). Dodaj link w `app.py` przed upublicznieniem dema.
 - Licencje dwóch dołączonych dokumentów miejskich w `RAW/` nie są sprawdzone (pytanie 9 w sekcji 4).
 
-**T-21 Testy (S10).** Zależy od D8.
+**T-21 Testy (S10). — WYKONANE 2026-10-16 (niezacommitowane)**
 - Ustal drzewo docelowe już na etapie T-03 i tam umieszczaj wszystkie nowe testy; przeniesienie starych zrób tutaj.
 - Dodaj testy `AppTest` dla `app.py` (pierwszy render, za długa wiadomość, wymóg zgody, rozdzielność stanu sesji) oraz testy `catalog.py` i `cli.py`.
 - Akceptacja: jedno drzewo; CI zielone na 3.11 i 3.14.
+
+Co zrobiono:
+- Jedno drzewo `tests/unit_test/` (D8). Pliki bez odpowiednika przeniesione przez `git mv`; literówka w nazwie poprawiona (`test_dopytywator_helper_funtcions.py` → `..._functions.py`). Cztery pary o tych samych nazwach scalone w jeden plik (`dopytywator/test_dopytywator.py`, `pismogenerator/test_pismogenerator.py`, `shared/test_serwer.py`, `wyswietlator/test_services.py`). Test `validate_draft` przeniesiony do testów funkcji pomocniczych, test blokady LLM do nowego `shared/test_llm_runtime.py`, testy `error_location` / `error_log_detail` / `structured_output_error_detail` do własnych klas. Żaden test nie został usunięty: liczba testów po scaleniu = suma obu drzew.
+- `tests/unit_tests/` usunięte. Usunięty też nieśledzony katalog `tests/unit_test/zrodlowyszukiwacz/` (same pliki `.pyc` po starej nazwie).
+- `wyswietlator/test_app.py`: 24 nowe testy `AppTest` na prawdziwym `app.py` z modelem odpowiadającym według scenariusza — pierwszy render (także brak modeli i niedziałająca Ollama), zgoda na zapis danych, zgoda na OpenRouter (wywiad i osobno sam etap źródeł), limit 5000 znaków (granica włącznie), przepełnienie okna przez całą rozmowę, pytanie i blokada ustawień, brief i zapis przebiegu, limit pytań, punkt 6 z sekcji 4 (A7), brief z brakami, ucięta i niepoprawna odpowiedź modelu, „Nowa sprawa”, rozdzielność dwóch sesji (rozmowy, briefy, katalogi `outputs/`, pliki logów), pełny przebieg do pisma, odrzucony draft, awaria RAG, brak źródeł, źródła nieocenione.
+- Nowe pliki: `dopytywator/test_structures.py`, `shared/test_llm_runtime.py`, `zrodlowyszukiwator/test_catalog.py`, `test_hybrid.py`, `test_pipeline.py`, `test_ingestion_repository.py`, `test_ingestion_embedder.py`. Przypadki brzegowe dopisane do testów `ask_questions`, `validate_draft`, `render_sources`, `cli.py`, planera, rerankera, `LLMClient`, `recover_partial_structured_response`, `model_context`, repozytorium wyszukiwania, chunkera i `services.py` (m.in. komunikaty dla błędów 401/403/429/400/5xx, przekroczenia czasu i braku połączenia).
+- Testy nadal nie łączą się z siecią ani z bazą.
+
+Weryfikacja:
+- [FAKT] 457 passed, 18 skipped (ewaluacja RAG na żywej bazie), 5 xfailed — na Pythonie 3.11.16 i 3.14.2. Przed zmianą: 255 passed, 18 skipped. `ruff check` czysty.
+- [FAKT] Pokrycie gałęziowe `src/` (coverage.py, poza zależnościami projektu): 82% → 98%. `rag_ingestion/repository.py` 19% → 92%, `embedder.py` 24% → 100%, `dopytywator.py` 53% → 97%, `app.py` 53% → 94%, `services.py` 87% → 98%.
+- [FAKT] Wynik nie zależy od kolejności: pliki uruchomione w odwrotnym porządku i każdy katalog osobno dają ten sam wynik.
+
+Znane usterki zapisane jako `xfail(strict=True)` — test zacznie przechodzić po poprawce i wtedy pytest zgłosi błąd, żeby usunąć znacznik:
+- S7 / T-17: `validate_draft` odrzuca „na start.” i „kwart.” (podciąg „art.”). 2 testy.
+- N8 / T-23: chunk przekracza `max_chars` po doklejeniu zakładki (przy limicie 100 powstają fragmenty po 162 znaki); po podziale długiego akapitu ostatni kawałek jest zapisywany drugi raz jako osobny fragment. 2 testy.
+- [FAKT] Nowe: `load_catalog` przy dwóch wpisach z tą samą nazwą pliku po cichu zostawia tylko późniejszy. 1 test.
+
+Inne obserwacje z pisania testów (bez zmian w kodzie):
+- `ask_questions` po `/exit` w trakcie wywiadu wypisuje „Osiągnięto limit N pytań.” i zwraca rozmowę, więc wywołujący nie odróżni przerwania od końca wywiadu; flaga `exited` w `build_brief` jest martwa (N7).
+- `recover_partial_structured_response` odzyskuje uciętą odpowiedź tylko wtedy, gdy cięcie wypadło między elementami listy; ucięty element w środku unieważnia całość. Zgodne z opisem funkcji, zapisane testem.
+- Formatowanie (`ruff format`) nadal nie jest wymuszane: sformatowane są tylko nowe pliki testów; reszta należy do T-22.
 
 **T-22 Formatowanie (N4).** `ruff format .`; wyrównaj wersję w `.pre-commit-config.yaml`.
 

@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from src._shared.context_budget import LLMInputLimitError
-from src._shared.serwer import LLMResponseError
+from src._shared.serwer import LLMOutputLimitError, LLMResponseError
+from src.Dopytywator.structures import CaseBrief
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import (
     ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
     LLMQueryPlanner,
@@ -48,6 +49,24 @@ class _ScriptedClient:
                 self.calls.append(kwargs)
                 message = SimpleNamespace(content=content)
                 choice = SimpleNamespace(finish_reason="stop", message=message)
+                return SimpleNamespace(model="vendor/model", choices=[choice])
+
+        self.chat = SimpleNamespace(completions=Completions())
+
+
+class _FinishingClient:
+    """Return (content, finish_reason) pairs one per call."""
+
+    def __init__(self, *replies: tuple[str | None, str]) -> None:
+        class Completions:
+            def __init__(self) -> None:
+                self.calls: list[dict] = []
+
+            def create(self, **kwargs):
+                content, finish_reason = replies[len(self.calls)]
+                self.calls.append(kwargs)
+                message = SimpleNamespace(content=content)
+                choice = SimpleNamespace(finish_reason=finish_reason, message=message)
                 return SimpleNamespace(model="vendor/model", choices=[choice])
 
         self.chat = SimpleNamespace(completions=Completions())
@@ -263,3 +282,125 @@ class TestLlmQueryPlanner:
             planner.plan({"problem_description": "p" * 40_000, "requested_actions": []})
 
         assert client.chat.completions.calls == 1
+
+    def test_plan__returns_a_valid_prefix_when_the_compact_retry_is_truncated_too(
+        self, pismak_log
+    ) -> None:
+        """Verify a complete plan cut off only after its last intent is still used."""
+        truncated = VALID_PLAN[:-1] + ',"extra":'
+        client = _FinishingClient((truncated, "length"), (truncated, "length"))
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=False)
+
+        plan = planner.plan(BRIEF)
+
+        assert plan.case_summary == "ok"
+        assert len(client.chat.completions.calls) == 2
+        assert "llm_partial_response_recovered stage=query_planner" in pismak_log.text
+
+    def test_plan__raises_an_output_limit_error_when_a_truncated_plan_cannot_be_used(
+        self, pismak_log
+    ) -> None:
+        """Verify an unusable cut-off plan on OpenRouter fails clearly instead of guessing."""
+        client = _FinishingClient(('{"case_summary": "o', "length"), ('{"intents": [', "length"))
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=False)
+
+        with pytest.raises(LLMOutputLimitError, match="ucięty"):
+            planner.plan(BRIEF)
+
+        assert "llm_output_limit stage=query_planner" in pismak_log.text
+
+    def test_plan__local_model_falls_back_after_an_unusable_truncated_plan(self) -> None:
+        """Verify the local model still gets a deterministic search plan after truncation."""
+        client = _FinishingClient(('{"case_summary": "o', "length"), ('{"intents": [', "length"))
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=True)
+
+        plan = planner.plan(BRIEF)
+
+        assert [intent.semantic_query for intent in plan.intents] == ["Problem", "Rozwiązanie"]
+
+    def test_plan__rejects_a_plan_without_intents_when_fallback_is_disabled(self) -> None:
+        """Verify an empty OpenRouter plan is an error, not a search with no queries."""
+        client = _ScriptedClient('{"case_summary": "ok", "intents": []}')
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=False)
+
+        with pytest.raises(RuntimeError, match="Planner zwrócił plan bez zapytań."):
+            planner.plan(BRIEF)
+
+    def test_plan__accepts_a_case_brief_model(self) -> None:
+        """Verify the UI can pass its CaseBrief object directly to the planner."""
+        client = _ScriptedClient(VALID_PLAN)
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=False)
+
+        planner.plan(
+            CaseBrief(
+                title="Sprawa",
+                problem_description="Problem",
+                desired_outcome="Rozwiązanie",
+                requested_actions=["Działanie"],
+            )
+        )
+
+        sent = client.chat.completions.calls[0]["messages"][1]["content"]
+        assert '"title": "Sprawa"' in sent
+        assert '"requested_actions": [\n    "Działanie"\n  ]' in sent
+
+    def test_plan__rejects_a_brief_of_an_unsupported_type_even_with_fallback(self) -> None:
+        """Verify a wrong argument is a programming error and not hidden by the fallback."""
+        planner = LLMQueryPlanner(client=_CountingClient(), model="m", allow_fallback=True)
+
+        with pytest.raises(TypeError, match="case_brief musi być dict"):
+            planner.plan("Brak przejścia")
+
+    def test_plan__remembers_the_model_that_answered(self) -> None:
+        """Verify the run records the model OpenRouter actually routed the request to."""
+        planner = LLMQueryPlanner(client=_ScriptedClient(VALID_PLAN), model="openrouter/free")
+
+        planner.plan(BRIEF)
+
+        assert planner.last_model == "vendor/model"
+
+
+class TestFallbackPlan:
+    def test_fallback_plan__searches_problem_goal_and_up_to_three_actions(self) -> None:
+        """Verify the deterministic plan covers the whole brief within five intents."""
+        brief = {
+            "problem_description": "Brak przejścia",
+            "desired_outcome": "Nowe przejście",
+            "requested_actions": ["A1", " ", "A2", "A3", "A4"],
+        }
+
+        plan = LLMQueryPlanner._fallback_plan(brief)
+
+        assert [i.semantic_query for i in plan.intents] == [
+            "Brak przejścia",
+            "Nowe przejście",
+            "A1",
+            "A2",
+            "A3",
+        ]
+        assert [i.priority for i in plan.intents] == [3, 2, 3, 3, 3]
+        assert plan.case_summary == "Nowe przejście"
+
+    def test_fallback_plan__shortens_only_the_full_text_query(self) -> None:
+        """Verify a long description keeps its full meaning for vectors but not for tsquery."""
+        problem = "słowo " * 100
+
+        [intent] = LLMQueryPlanner._fallback_plan({"problem_description": problem}).intents
+
+        assert intent.semantic_query == problem.strip()
+        assert len(intent.lexical_query) == 220
+
+    def test_fallback_plan__summarizes_by_the_problem_when_there_is_no_goal(self) -> None:
+        """Verify the pack summary is never empty when the brief has only a problem."""
+        plan = LLMQueryPlanner._fallback_plan({"problem_description": "Brak przejścia"})
+
+        assert plan.case_summary == "Brak przejścia"
+
+    def test_fallback_plan__returns_no_intents_for_an_empty_brief(self) -> None:
+        """Verify an empty brief leads to 'nothing found' instead of a search for blank text."""
+        plan = LLMQueryPlanner._fallback_plan(
+            {"problem_description": "  ", "desired_outcome": None, "requested_actions": None}
+        )
+
+        assert plan.intents == []
+        assert plan.case_summary == "Sprawa z CaseBrief"

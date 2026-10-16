@@ -1,3 +1,5 @@
+"""Tests for the Streamlit UI service adapters."""
+
 from __future__ import annotations
 
 import importlib
@@ -8,13 +10,26 @@ import sys
 from pathlib import Path
 from threading import Thread
 
+import httpx
 import pytest
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AuthenticationError,
+    BadRequestError,
+    InternalServerError,
+    PermissionDeniedError,
+    RateLimitError,
+)
 from pydantic import ValidationError
 
 from src._shared.context_budget import LLMInputLimitError
 from src._shared.serwer import LLMConfigurationError, LLMResponseError
+from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
+from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
 from src.Zrodlowyszukiwator.rag_retrieval import DatabaseConnectionError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -42,6 +57,24 @@ def logs(tmp_path: Path):
 
 def log_as(session_id: str, message: str) -> None:
     services.LOGGER.info(message, extra={"session_id": session_id})
+
+
+def make_brief(**overrides: object) -> CaseBrief:
+    values: dict[str, object] = {
+        "title": "Sprawa",
+        "problem_description": "Problem z dostępem.",
+        "desired_outcome": "Przywrócenie dostępu.",
+        "requested_actions": ["Sprawdzenie sprawy"],
+    }
+    values.update(overrides)
+    return CaseBrief(**values)
+
+
+def make_empty_pack() -> EvidencePack:
+    return EvidencePack(
+        query_summary="Brak wyników",
+        research_plan=ResearchPlan(case_summary="Brak wyników", intents=[]),
+    )
 
 
 class TestGetLlmClient:
@@ -167,6 +200,8 @@ class TestGetOpenaiClient:
             "max_retries": 0,
         }
 
+
+class TestErrorLocation:
     def test_error_location__identifies_project_file_and_line(self) -> None:
         """Verify exception diagnostics point to the project code that raised the error."""
 
@@ -271,6 +306,40 @@ class TestValidateUserMessage:
             "a" * 100, conversation_chars=50_000, provider="ollama", context_tokens=131072
         )
 
+    def test_validate_user_message__accepts_message_at_limit(self) -> None:
+        """Verify the configured maximum remains usable for legitimate long descriptions."""
+        message = "x" * services.MAX_USER_MESSAGE_CHARS
+
+        assert services.validate_user_message(message) is None
+
+    def test_validate_user_message__rejects_message_over_limit(self) -> None:
+        """Verify oversized user text is rejected before it enters session history."""
+        message = "x" * (services.MAX_USER_MESSAGE_CHARS + 1)
+
+        with pytest.raises(ValueError, match="Wiadomość jest zbyt długa"):
+            services.validate_user_message(message)
+
+
+class TestListGenerationModels:
+    def test_list_generation_models__filters_embedding_models_case_insensitively(self) -> None:
+        """Verify embedding-only models cannot be selected for generation."""
+
+        class Models:
+            data = [
+                type("Model", (), {"id": "Bielik"})(),
+                type("Model", (), {"id": "BGE-M3"})(),
+                type("Model", (), {"id": "nomic-embed-text"})(),
+            ]
+
+        class Client:
+            class ModelsApi:
+                def list(self):
+                    return Models()
+
+            models = ModelsApi()
+
+        assert services.list_generation_models(Client()) == ["Bielik"]
+
 
 class TestBuildZrodlowyszukiwator:
     def test_build_zrodlowyszukiwator__routes_openrouter_without_changing_embeddings(
@@ -341,6 +410,34 @@ class TestBuildZrodlowyszukiwator:
             "base_url": "http://127.0.0.1:11434",
         }
 
+    def test_build_zrodlowyszukiwator__fails_before_connecting_without_database_url(
+        self, monkeypatch
+    ) -> None:
+        """Verify missing database configuration produces a clear setup error."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+
+        with pytest.raises(RuntimeError, match=r"^Brak DATABASE_URL w \.env\.$"):
+            services.build_zrodlowyszukiwator(client=object(), model="test")
+
+
+class TestRenderLetter:
+    def test_render_letter__normalizes_blank_user_evidence_before_resolving_ids(self) -> None:
+        """Verify blank user materials do not shift U-source identifiers in the rendered letter."""
+        draft = DraftLetter(
+            recipient="Urząd",
+            request_summary="sprawdzenie sprawy",
+            argumentation_markdown="A" * 120,
+            sources=["U1"],
+        )
+
+        result = services.render_letter(
+            draft,
+            make_empty_pack(),
+            ["  ", "Zdjęcie"],
+        )
+
+        assert "U1: Zdjęcie" in result
+
 
 class TestSaveRun:
     def test_save_run__persists_rejected_draft_and_validation_errors(self, tmp_path: Path) -> None:
@@ -380,6 +477,31 @@ class TestSaveRun:
             '{\n  "Dopytywator": [\n    {\n      "provider": "openrouter",\n'
             '      "model": "vendor/actual-model"\n    }\n  ]\n}'
         )
+
+    def test_save_run__writes_only_provided_optional_artifacts(self, tmp_path: Path) -> None:
+        """Verify a partial UI run saves its conversation without creating absent artifacts."""
+        run_dir = services.save_run(
+            project_root=tmp_path,
+            messages=[{"role": "user", "content": "Opis"}],
+            run_dir=tmp_path / "run",
+        )
+
+        assert run_dir == tmp_path / "run"
+        assert json.loads((run_dir / "conversation.json").read_text(encoding="utf-8")) == [
+            {"role": "user", "content": "Opis"}
+        ]
+        assert not (run_dir / "brief.json").exists()
+        assert not (run_dir / "letter.md").exists()
+
+    def test_save_run__creates_unique_directories_for_runs_in_same_second(
+        self, tmp_path: Path
+    ) -> None:
+        """Verify simultaneous sessions cannot write artifacts into one output directory."""
+        first = services.save_run(project_root=tmp_path, messages=[])
+        second = services.save_run(project_root=tmp_path, messages=[])
+
+        assert first != second
+        assert first.parent == second.parent == tmp_path / "outputs"
 
 
 class TestConfigureLogging:
@@ -560,3 +682,131 @@ class TestCloseCaseLogging:
         assert "after the case was closed" not in case_log.read_text(encoding="utf-8")
         shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
         assert "after the case was closed" in shared
+
+
+OPENROUTER_REQUEST = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+
+
+def status_error(error_class: type[Exception], status_code: int) -> Exception:
+    return error_class(
+        f"Error code: {status_code} - {{'error': 'sk-or-v1-tajny upstream detail'}}",
+        response=httpx.Response(status_code, request=OPENROUTER_REQUEST),
+        body=None,
+    )
+
+
+class TestLlmErrorMessageForProviderErrors:
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (status_error(AuthenticationError, 401), "OpenRouter odrzucił dostęp aplikacji"),
+            (status_error(PermissionDeniedError, 403), "OpenRouter odrzucił dostęp aplikacji"),
+            (status_error(RateLimitError, 429), "z powodu limitu"),
+            (status_error(BadRequestError, 400), "nie obsłużył wymaganej odpowiedzi strukturalnej"),
+            (status_error(InternalServerError, 503), "chwilowo niedostępna"),
+            (APITimeoutError(request=OPENROUTER_REQUEST), "Przekroczono czas oczekiwania"),
+            (APIConnectionError(request=OPENROUTER_REQUEST), "Nie udało się połączyć z usługą"),
+        ],
+        ids=["401", "403", "429", "400", "503", "timeout", "connection"],
+    )
+    def test_llm_error_message__explains_each_provider_failure_without_its_details(
+        self, error: Exception, expected: str
+    ) -> None:
+        """Verify each OpenRouter failure gets its own hint and never the upstream message."""
+        message = services.llm_error_message(error)
+
+        assert expected in message
+        assert "sk-or-v1" not in message
+        assert "upstream" not in message
+
+    def test_llm_error_message__does_not_call_a_timeout_a_connection_failure(self) -> None:
+        """Verify a slow model is not reported as unreachable, though it subclasses that error."""
+        timeout = services.llm_error_message(APITimeoutError(request=OPENROUTER_REQUEST))
+        connection = services.llm_error_message(APIConnectionError(request=OPENROUTER_REQUEST))
+
+        assert timeout != connection
+
+    @pytest.mark.parametrize("status_code", [404, 422])
+    def test_llm_error_message__uses_the_general_message_for_other_client_errors(
+        self, status_code: int
+    ) -> None:
+        """Verify an unexpected 4xx is not presented as a temporary server outage."""
+        message = services.llm_error_message(status_error(APIStatusError, status_code))
+
+        assert message.startswith("Wystąpił błąd podczas przetwarzania sprawy")
+
+
+class TestBuildZrodlowyszukiwatorChecks:
+    def test_build_zrodlowyszukiwator__rejects_an_unknown_provider_before_the_database(
+        self, monkeypatch
+    ) -> None:
+        """Verify a typo in the provider fails fast instead of opening a connection."""
+        monkeypatch.setattr(
+            services, "RetrievalRepository", lambda url: pytest.fail("must not connect")
+        )
+
+        with pytest.raises(ValueError, match="Nieznany dostawca modelu: azure"):
+            services.build_zrodlowyszukiwator(client=object(), model="m", provider="azure")
+
+    def test_build_zrodlowyszukiwator__reports_an_empty_rag_database(self, monkeypatch) -> None:
+        """Verify an un-ingested database is named as such instead of returning no sources."""
+
+        class EmptyRepository:
+            def __init__(self, database_url: str) -> None:
+                pass
+
+            def counts(self) -> tuple[int, int]:
+                return 0, 0
+
+        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
+        monkeypatch.setattr(services, "RetrievalRepository", EmptyRepository)
+
+        with pytest.raises(RuntimeError, match="Baza RAG jest pusta"):
+            services.build_zrodlowyszukiwator(client=object(), model="m")
+
+    def test_build_zrodlowyszukiwator__lets_the_local_model_fall_back(self, monkeypatch) -> None:
+        """Verify planner and reranker may use deterministic fallbacks only on Ollama."""
+        captures: dict[str, dict] = {}
+
+        def capture(name):
+            return lambda **kwargs: captures.setdefault(name, kwargs)
+
+        class Repository:
+            def __init__(self, database_url: str) -> None:
+                pass
+
+            def counts(self) -> tuple[int, int]:
+                return 1, 1
+
+        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
+        monkeypatch.setattr(services, "RetrievalRepository", Repository)
+        for name in ("OllamaEmbedder", "LLMQueryPlanner", "LLMReranker", "HybridRetriever"):
+            monkeypatch.setattr(services, name, capture(name))
+        monkeypatch.setattr(services, "BriefToEvidencePipeline", capture("pipeline"))
+        monkeypatch.setattr(services, "detect_context_tokens", lambda *args, **kwargs: 8192)
+
+        services.build_zrodlowyszukiwator(client=object(), model="pismak-bielik", session_id="s1")
+
+        assert captures["LLMQueryPlanner"]["allow_fallback"] is True
+        assert captures["LLMReranker"]["allow_fallback"] is True
+        assert captures["HybridRetriever"]["session_id"] == "s1"
+        assert captures["pipeline"]["evidence_k"] == 6
+
+
+class TestCaseLogHandlerFailures:
+    def test_configure_logging__a_failed_log_write_does_not_break_the_case(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Verify a full disk or locked log file cannot stop the user's case from running."""
+        (tmp_path / "logs").write_text("to jest plik, nie katalog", encoding="utf-8")
+        handled: list[logging.LogRecord] = []
+        services.configure_logging(tmp_path, "case-1")
+        try:
+            handler = services._LOG_HANDLERS[(tmp_path / "logs").resolve()]
+            monkeypatch.setattr(handler, "handleError", handled.append)
+
+            log_as("case-1", "zdarzenie sprawy")
+        finally:
+            detach_log_handler(tmp_path)
+
+        assert [record.getMessage() for record in handled] == ["zdarzenie sprawy"]

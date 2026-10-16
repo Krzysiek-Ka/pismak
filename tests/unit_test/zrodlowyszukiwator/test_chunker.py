@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from src.Zrodlowyszukiwator.rag_ingestion.chunker import (
     _looks_like_heading,
     _split_page_to_units,
@@ -157,3 +159,88 @@ class TestChunkUnits:
         )
         assert any("Koordynator (oficer rowerowy) oraz" in text for text in texts)
         assert any("Sekcja ds. rozwoju ruchu rowerowego" in text for text in texts)
+
+    def test_chunk_units__starts_a_new_chunk_at_a_new_section_once_the_buffer_is_large_enough(
+        self,
+    ) -> None:
+        """Verify chunks follow section boundaries so one chunk cites one section."""
+        units = [
+            TextUnit(page_number=1, section_path=["1. Cele"], text="a" * 30),
+            TextUnit(page_number=2, section_path=["2. Działania"], text="b" * 30),
+        ]
+
+        chunks = chunk_units(units, make_metadata(), max_chars=200, min_chars=20, overlap_units=0)
+
+        assert [(c.section_path, c.page_start, c.page_end) for c in chunks] == [
+            (["1. Cele"], 1, 1),
+            (["2. Działania"], 2, 2),
+        ]
+
+    def test_chunk_units__merges_a_short_section_with_the_next_one(self) -> None:
+        """Verify a lone heading-sized section is not stored as a near-empty chunk."""
+        units = [
+            TextUnit(page_number=1, section_path=["1. Cele"], text="krótko"),
+            TextUnit(page_number=2, section_path=["2. Działania"], text="b" * 30),
+        ]
+
+        [chunk] = chunk_units(units, make_metadata(), max_chars=200, min_chars=20, overlap_units=0)
+
+        assert (chunk.page_start, chunk.page_end) == (1, 2)
+        assert chunk.section_path == ["2. Działania"]
+        assert chunk.text == "krótko\n\n" + "b" * 30
+
+    def test_chunk_units__repeats_the_last_paragraph_of_a_chunk_as_overlap(self) -> None:
+        """Verify context spanning two chunks is searchable from both of them."""
+        units = [TextUnit(page_number=1, text=f"{letter * 40}") for letter in "abc"]
+
+        chunks = chunk_units(units, make_metadata(), max_chars=90, min_chars=10, overlap_units=1)
+
+        assert chunks[0].text.endswith("b" * 40)
+        assert chunks[1].text.startswith("b" * 40)
+
+    def test_chunk_units__gives_each_chunk_a_stable_unique_id_and_embedding_header(self) -> None:
+        """Verify re-ingesting the same text yields the same IDs and the header names the place."""
+        units = [TextUnit(page_number=3, text=f"{letter * 40}") for letter in "abc"]
+
+        first = chunk_units(units, make_metadata(), max_chars=50, min_chars=10, overlap_units=0)
+        second = chunk_units(units, make_metadata(), max_chars=50, min_chars=10, overlap_units=0)
+
+        assert [c.chunk_id for c in first] == [c.chunk_id for c in second]
+        assert len({c.chunk_id for c in first}) == len(first) == 3
+        assert first[0].chunk_id.startswith("doc-1:00000:")
+        assert "Sekcja: (bez nagłówka)\nStrony PDF: 3-3" in first[0].embedding_text
+        assert first[0].metadata["title"] == "Dokument testowy"
+
+    def test_chunk_units__drops_units_that_contain_only_whitespace(self) -> None:
+        """Verify blank extraction leftovers do not become empty chunks."""
+        units = [TextUnit(page_number=1, text="   "), TextUnit(page_number=1, text="\n")]
+
+        assert chunk_units(units, make_metadata(), min_chars=1) == []
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="N8: zakładka (overlap) jest doklejana bez sprawdzenia limitu, więc fragment "
+        "może przekroczyć max_chars (w bazie: 6363 znaki przy limicie 3500).",
+    )
+    def test_chunk_units__never_exceeds_max_chars_when_overlap_is_added(self) -> None:
+        """Verify the size limit holds for every chunk, including overlap."""
+        units = [TextUnit(page_number=1, text=letter * 80) for letter in "abc"]
+
+        chunks = chunk_units(units, make_metadata(), max_chars=100, min_chars=10, overlap_units=1)
+
+        assert all(len(chunk.text) <= 100 for chunk in chunks), [len(c.text) for c in chunks]
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="N8: po podziale długiego akapitu ostatni kawałek zostaje jako zakładka "
+        "i końcowy flush zapisuje go drugi raz jako osobny fragment.",
+    )
+    def test_chunk_units__does_not_emit_a_chunk_made_only_of_overlap(self) -> None:
+        """Verify the end of a document is not stored twice as two identical chunks."""
+        text = "".join(chr(ord("a") + index % 26) for index in range(250))
+        units = [TextUnit(page_number=1, text=text)]
+
+        chunks = chunk_units(units, make_metadata(), max_chars=100, min_chars=10, overlap_units=1)
+
+        texts = [chunk.text for chunk in chunks]
+        assert len(texts) == len(set(texts)), texts

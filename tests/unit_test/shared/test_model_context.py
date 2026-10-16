@@ -192,3 +192,67 @@ class TestDetectContextTokens:
 
         assert model_context.detect_context_tokens("other", "model") is None
         assert http.calls == []
+
+
+class _Response:
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def read(self) -> bytes:
+        return self.body
+
+
+class TestRequestJson:
+    def test_request_json__sends_a_get_without_a_body_when_there_is_no_payload(
+        self, monkeypatch
+    ) -> None:
+        """Verify listing endpoints such as /api/ps are queried with GET."""
+        sent: list[object] = []
+
+        def urlopen(request, timeout):
+            sent.append((request.get_method(), request.data, timeout, request.get_header("User-agent")))
+            return _Response(b'{"models": []}')
+
+        monkeypatch.setattr(model_context.urllib.request, "urlopen", urlopen)
+
+        assert model_context._request_json("http://ollama.test/api/ps", timeout=3.0) == {
+            "models": []
+        }
+        assert sent == [("GET", None, 3.0, "pismak")]
+
+    def test_request_json__posts_the_payload_as_json(self, monkeypatch) -> None:
+        """Verify /api/show receives the model name as a JSON body."""
+        sent: list[object] = []
+
+        def urlopen(request, timeout):
+            sent.append((request.get_method(), request.data, request.get_header("Content-type")))
+            return _Response(b'{"ok": true}')
+
+        monkeypatch.setattr(model_context.urllib.request, "urlopen", urlopen)
+
+        model_context._request_json("http://ollama.test/api/show", {"model": "bielik"}, timeout=1)
+
+        assert sent == [("POST", b'{"model": "bielik"}', "application/json")]
+
+
+class TestTagged:
+    @pytest.mark.parametrize(
+        ("model", "expected"),
+        [
+            ("pismak-bielik", "pismak-bielik:latest"),
+            ("pismak-bielik:latest", "pismak-bielik:latest"),
+            ("hf.co/org/model:Q4_K_M", "hf.co/org/model:Q4_K_M"),
+            ("localhost:5000/model", "localhost:5000/model:latest"),
+        ],
+    )
+    def test_tagged__adds_latest_only_when_the_model_name_has_no_tag(
+        self, model: str, expected: str
+    ) -> None:
+        """Verify a registry port is not mistaken for a tag when matching loaded models."""
+        assert model_context._tagged(model) == expected

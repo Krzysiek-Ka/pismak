@@ -7,9 +7,10 @@ from types import SimpleNamespace
 import pytest
 
 from src._shared.context_budget import SAFETY_MARGIN_TOKENS, estimate_tokens, input_char_budget
-from src._shared.serwer import LLMResponseError
+from src._shared.serwer import LLMOutputLimitError, LLMResponseError
 from src.Zrodlowyszukiwator.rag_retrieval.models import RetrievedChunk
 from src.Zrodlowyszukiwator.rag_retrieval.reranker import (
+    FALLBACK_REASON,
     RERANKER_MAX_TEXT_CHARS,
     RERANKER_MIN_TEXT_CHARS,
     RERANKER_RESERVED_OUTPUT_TOKENS,
@@ -287,3 +288,128 @@ class TestRerankSupportAssessment:
         )
         with pytest.raises(RuntimeError, match="nieznane chunk_id"):
             strict.rerank(case_brief={}, candidates=candidates)
+
+
+class _FinishingClient:
+    """Return (content, finish_reason) pairs one per call."""
+
+    def __init__(self, *replies: tuple[str | None, str]) -> None:
+        class Completions:
+            def __init__(self) -> None:
+                self.calls: list[dict] = []
+
+            def create(self, **kwargs):
+                content, finish_reason = replies[len(self.calls)]
+                self.calls.append(kwargs)
+                message = SimpleNamespace(content=content)
+                choice = SimpleNamespace(finish_reason=finish_reason, message=message)
+                return SimpleNamespace(model="vendor/model", choices=[choice])
+
+        self.chat = SimpleNamespace(completions=Completions())
+
+
+def selection(*items: tuple[str, int]) -> str:
+    return json.dumps(
+        {"selected": [{"chunk_id": cid, "score": score, "reason": cid} for cid, score in items]}
+    )
+
+
+class TestRerankSelection:
+    def test_rerank__does_not_call_the_model_without_candidates(self) -> None:
+        """Verify an empty search is reported as assessed 'no support' without a model call."""
+        client = _ScriptedClient()
+        reranker = LLMReranker(client=client, model="local")
+
+        result = reranker.rerank(case_brief={}, candidates=[])
+
+        assert (result.selected, result.assessed) == ([], True)
+        assert client.chat.completions.calls == []
+
+    def test_rerank__orders_by_model_score_and_keeps_at_most_max_selected(self) -> None:
+        """Verify the strongest support comes first and the pack size is respected."""
+        candidates = [make_candidate(f"c{i}", "Treść") for i in range(4)]
+        client = _ScriptedClient(selection(("c0", 50), ("c1", 90), ("c2", 70), ("c3", 80)))
+        reranker = LLMReranker(client=client, model="local", max_selected=2)
+
+        result = reranker.rerank(case_brief={}, candidates=candidates)
+
+        assert [(chunk.chunk_id, score) for chunk, _, score in result.selected] == [
+            ("c1", 90),
+            ("c3", 80),
+        ]
+
+    def test_rerank__keeps_a_fragment_scored_exactly_at_the_threshold(self) -> None:
+        """Verify the minimum support score is inclusive."""
+        candidates = [make_candidate("c0", "A"), make_candidate("c1", "B")]
+        client = _ScriptedClient(selection(("c0", 40), ("c1", 39)))
+
+        result = LLMReranker(client=client, model="local").rerank(case_brief={}, candidates=candidates)
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
+
+    def test_rerank__ignores_unknown_ids_mixed_with_known_ones(self) -> None:
+        """Verify one invented ID does not discard the model's valid judgements."""
+        candidates = [make_candidate("c0", "A")]
+        client = _ScriptedClient(selection(("invented", 95), ("c0", 60)))
+
+        result = LLMReranker(client=client, model="local").rerank(case_brief={}, candidates=candidates)
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
+        assert result.assessed is True
+
+    def test_rerank__falls_back_to_the_hybrid_order_after_a_local_model_error(self) -> None:
+        """Verify a broken local model still yields sources, marked as not assessed."""
+        candidates = [make_candidate(f"c{i}", "Treść") for i in range(8)]
+        client = _ScriptedClient("nie JSON", "dalej nie JSON")
+        reranker = LLMReranker(client=client, model="local", max_selected=3)
+
+        result = reranker.rerank(case_brief={}, candidates=candidates)
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0", "c1", "c2"]
+        assert {reason for _, reason, _ in result.selected} == {FALLBACK_REASON}
+        assert result.assessed is False
+
+
+class TestStructuredOutputLimit:
+    def test_structured__returns_a_valid_prefix_when_the_compact_retry_is_truncated_too(
+        self,
+    ) -> None:
+        """Verify a selection cut off after complete items still counts as an assessment."""
+        truncated = selection(("c0", 80))[:-2] + ", "
+        client = _FinishingClient((truncated, "length"), (truncated, "length"))
+        reranker = LLMReranker(client=client, model="remote", allow_fallback=False)
+
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
+        assert result.assessed is True
+        assert len(client.chat.completions.calls) == 2
+
+    def test_structured__raises_an_output_limit_error_for_an_unusable_truncated_answer(
+        self,
+    ) -> None:
+        """Verify OpenRouter does not silently fall back after its answer was cut off twice."""
+        client = _FinishingClient(('{"selec', "length"), ('{"selected": [{"chu', "length"))
+        reranker = LLMReranker(client=client, model="remote", allow_fallback=False)
+
+        with pytest.raises(LLMOutputLimitError, match="ucięty"):
+            reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+
+    def test_structured__local_model_falls_back_after_an_unusable_truncated_answer(self) -> None:
+        """Verify truncation on the local model ends in the unassessed hybrid order."""
+        client = _FinishingClient(('{"selec', "length"), ('{"selected": [{"chu', "length"))
+        reranker = LLMReranker(client=client, model="local", allow_fallback=True)
+
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+
+        assert result.assessed is False
+
+    def test_structured__rejects_a_score_outside_zero_to_one_hundred(self) -> None:
+        """Verify an out-of-scale score is repaired instead of outranking real judgements."""
+        client = _ScriptedClient(selection(("c0", 150)), selection(("c0", 90)))
+        reranker = LLMReranker(client=client, model="remote", allow_fallback=False)
+
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+
+        assert [score for _, _, score in result.selected] == [90]
+        assert "score" in client.chat.completions.calls[1]["messages"][1]["content"]
