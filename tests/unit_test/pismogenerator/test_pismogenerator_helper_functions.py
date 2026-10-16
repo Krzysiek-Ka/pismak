@@ -219,20 +219,17 @@ class TestValidateDraft:
             "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
         ]
 
-    def test_validate_draft__warns_when_facts_to_verify_are_not_carried_into_the_letter(
+    def test_validate_draft__does_not_block_or_print_facts_missing_from_the_control_section(
         self, capsys
     ) -> None:
-        """Verify unchecked facts from the brief are flagged without blocking the draft."""
+        """Verify unchecked facts do not block the draft and no case data reaches the console."""
         brief = make_brief(facts_to_verify=["Data wypadku", "Liczba uczniów"])
         draft = make_draft(claims_requiring_verification=["Data wypadku"])
 
         errors = validate(draft, case_brief=brief)
 
-        out = capsys.readouterr().out
         assert errors == []
-        assert "nie zostały przepisane literalnie do sekcji kontrolnej" in out
-        assert " - Liczba uczniów" in out
-        assert " - Data wypadku" not in out
+        assert capsys.readouterr().out == ""
 
 
 class TestRenderListAndSources:
@@ -286,9 +283,12 @@ class TestRenderListAndSources:
 
     def test_render_sources__treats_u0_as_unknown_instead_of_the_last_material(self) -> None:
         """Verify U0 is not resolved through index -1 to the user's last material."""
-        assert pismogenerator_helper_functions.render_sources(
-            ["U0"], make_evidence_pack(), ["Zdjęcie", "Pismo"]
-        ) == "[1] U0"
+        assert (
+            pismogenerator_helper_functions.render_sources(
+                ["U0"], make_evidence_pack(), ["Zdjęcie", "Pismo"]
+            )
+            == "[1] U0"
+        )
 
     def test_render_list__uses_the_placeholder_for_an_empty_section(self) -> None:
         """Verify an empty control section still says explicitly that there is nothing to check."""

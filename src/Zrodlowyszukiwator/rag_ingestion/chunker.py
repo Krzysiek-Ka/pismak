@@ -170,6 +170,9 @@ def chunk_units(
     """
     chunks: list[ChunkRecord] = []
     buffer: list[TextUnit] = []
+    # Liczba początkowych jednostek bufora, które są zakładką z poprzedniego fragmentu.
+    # Ich tekst jest już zapisany, więc sama zakładka nie tworzy nowego fragmentu.
+    carried = 0
 
     def buffer_len(items: list[TextUnit]) -> int:
         """Calculate the approximate rendered length of buffered text units."""
@@ -177,8 +180,10 @@ def chunk_units(
 
     def flush(force: bool = False) -> None:
         """Materialize the current chunk buffer when its size or force flag allows it."""
-        nonlocal buffer
-        if not buffer:
+        nonlocal buffer, carried
+        if len(buffer) <= carried:
+            buffer = []
+            carried = 0
             return
         if not force and buffer_len(buffer) < min_chars:
             return
@@ -186,6 +191,7 @@ def chunk_units(
         text = "\n\n".join(x.text for x in buffer).strip()
         if not text:
             buffer = []
+            carried = 0
             return
 
         page_start = min(x.page_number for x in buffer)
@@ -223,6 +229,7 @@ def chunk_units(
 
         keep = max(0, overlap_units)
         buffer = buffer[-keep:] if keep else []
+        carried = len(buffer)
 
     for unit in units:
         if buffer:
@@ -234,6 +241,12 @@ def chunk_units(
                 flush(force=True)
             elif would_overflow:
                 flush(force=True)
+
+            # Zakładka nie może wypchnąć fragmentu ponad max_chars: gdy nie mieści się
+            # razem z nową jednostką, następny fragment zaczyna się bez niej.
+            while carried and buffer_len(buffer) + len(unit.text) + 2 > max_chars:
+                buffer.pop(0)
+                carried -= 1
 
         # bardzo długi pojedynczy paragraf: konserwatywny split znakowy
         if len(unit.text) > max_chars:
@@ -249,6 +262,7 @@ def chunk_units(
                         text=piece,
                     )
                     buffer = [temp]
+                    carried = 0
                     flush(force=True)
                 start += max_chars
             continue

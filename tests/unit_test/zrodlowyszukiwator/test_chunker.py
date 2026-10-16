@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from src.Zrodlowyszukiwator.rag_ingestion.chunker import (
     _looks_like_heading,
     _split_page_to_units,
@@ -217,11 +215,6 @@ class TestChunkUnits:
 
         assert chunk_units(units, make_metadata(), min_chars=1) == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N8: zakładka (overlap) jest doklejana bez sprawdzenia limitu, więc fragment "
-        "może przekroczyć max_chars (w bazie: 6363 znaki przy limicie 3500).",
-    )
     def test_chunk_units__never_exceeds_max_chars_when_overlap_is_added(self) -> None:
         """Verify the size limit holds for every chunk, including overlap."""
         units = [TextUnit(page_number=1, text=letter * 80) for letter in "abc"]
@@ -229,12 +222,28 @@ class TestChunkUnits:
         chunks = chunk_units(units, make_metadata(), max_chars=100, min_chars=10, overlap_units=1)
 
         assert all(len(chunk.text) <= 100 for chunk in chunks), [len(c.text) for c in chunks]
+        assert [chunk.text for chunk in chunks] == ["a" * 80, "b" * 80, "c" * 80]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N8: po podziale długiego akapitu ostatni kawałek zostaje jako zakładka "
-        "i końcowy flush zapisuje go drugi raz jako osobny fragment.",
-    )
+    def test_chunk_units__keeps_the_overlap_when_it_fits_with_the_next_paragraph(self) -> None:
+        """Verify the size fix drops the overlap only when it would break the limit."""
+        units = [TextUnit(page_number=1, text=letter * 40) for letter in "abc"]
+
+        chunks = chunk_units(units, make_metadata(), max_chars=90, min_chars=10, overlap_units=1)
+
+        assert [chunk.text for chunk in chunks] == [
+            "a" * 40 + "\n\n" + "b" * 40,
+            "b" * 40 + "\n\n" + "c" * 40,
+        ]
+
+    def test_chunk_units__a_bundled_pdf_has_no_chunk_over_the_limit_or_repeated(self) -> None:
+        """Verify real PDF text stays within the default limit and no chunk is stored twice."""
+        chunks = chunk_units(
+            build_text_units(extract_pdf_pages(BICYCLE_POLICY_PDF)), make_metadata()
+        )
+
+        assert max(len(chunk.text) for chunk in chunks) <= 3500
+        assert len({chunk.text for chunk in chunks}) == len(chunks)
+
     def test_chunk_units__does_not_emit_a_chunk_made_only_of_overlap(self) -> None:
         """Verify the end of a document is not stored twice as two identical chunks."""
         text = "".join(chr(ord("a") + index % 26) for index in range(250))

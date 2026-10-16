@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import logging
 from threading import Event, Thread
-from types import SimpleNamespace
 
 import pytest
-from openai import LengthFinishReasonError
 
 from src._shared import llm_runtime
 from src._shared.llm_runtime import llm_generation_lock
@@ -121,25 +119,6 @@ class TestLlmGenerationLock:
             thread.join(timeout=1)
 
         assert not llm_runtime._LLM_LOCK.locked()
-
-    def test_llm_generation_lock__logs_truncated_output_as_a_warning_and_reraises(
-        self, records
-    ) -> None:
-        """Verify an output-limit stop is logged as truncation, not as a generic failure."""
-        error = LengthFinishReasonError(completion=SimpleNamespace(usage=None))
-
-        with pytest.raises(LengthFinishReasonError):
-            with llm_generation_lock(stage="draft", session_id="case-1"):
-                raise error
-
-        messages = _messages(records)
-        assert any(
-            message.startswith("llm_output_truncated stage=draft session_id=case-1")
-            for message in messages
-        )
-        assert not any(message.startswith("llm_failed") for message in messages)
-        warning = next(r for r in records if r.getMessage().startswith("llm_output_truncated"))
-        assert warning.levelno == logging.WARNING
 
     def test_llm_generation_lock__logs_other_failures_with_type_but_without_message(
         self, records

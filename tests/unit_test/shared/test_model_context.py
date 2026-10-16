@@ -216,7 +216,9 @@ class TestRequestJson:
         sent: list[object] = []
 
         def urlopen(request, timeout):
-            sent.append((request.get_method(), request.data, timeout, request.get_header("User-agent")))
+            sent.append(
+                (request.get_method(), request.data, timeout, request.get_header("User-agent"))
+            )
             return _Response(b'{"models": []}')
 
         monkeypatch.setattr(model_context.urllib.request, "urlopen", urlopen)

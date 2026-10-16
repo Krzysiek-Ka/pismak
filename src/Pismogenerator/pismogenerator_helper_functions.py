@@ -73,20 +73,6 @@ def validate_draft(
             "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
         )
 
-    # Te braki muszą pozostać widoczne w sekcji kontrolnej, by użytkownik zweryfikował je przed wysłaniem.
-    missing_verification_flags = [
-        fact
-        for fact in case_brief.facts_to_verify
-        if fact not in draft.claims_requiring_verification
-    ]
-    if missing_verification_flags:
-        print(
-            "Uwaga: poniższe elementy facts_to_verify nie zostały "
-            "przepisane literalnie do sekcji kontrolnej:"
-        )
-        for fact in missing_verification_flags:
-            print(" -", fact)
-
     return errors
 
 

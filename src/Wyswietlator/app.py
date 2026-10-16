@@ -20,7 +20,8 @@ for import_root in (PROJECT_ROOT, HERE):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-load_dotenv(PROJECT_ROOT / ".env", override=True)
+# Zmienne ustawione w procesie (np. przez operatora albo testy) mają pierwszeństwo przed .env.
+load_dotenv(PROJECT_ROOT / ".env")
 
 from services import (
     MAX_INTERVIEW_QUESTIONS,
@@ -28,6 +29,7 @@ from services import (
     close_case_logging,
     configure_logging,
     error_location,
+    escape_markdown_links,
     get_llm_client,
     get_openai_client,
     list_generation_models,
@@ -217,32 +219,34 @@ def require_server_storage_consent() -> bool:
 
 def show_brief(brief: CaseBrief) -> None:
     """Render the current CaseBrief summary and its missing-information warnings."""
+    # Wszystkie pola briefu pisze model, więc linki i obrazy są pokazywane jako tekst.
+    text = escape_markdown_links
     with st.container(border=True):
         st.subheader("Podsumowanie sprawy")
-        st.markdown(f"**{brief.title}**")
-        st.write(brief.problem_description)
+        st.markdown(f"**{text(brief.title)}**")
+        st.markdown(text(brief.problem_description))
 
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Oczekiwany rezultat**")
-            st.write(brief.desired_outcome)
+            st.markdown(text(brief.desired_outcome))
         with col2:
             st.markdown("**Lokalizacja**")
-            st.write(brief.location or "—")
+            st.markdown(text(brief.location or "—"))
 
         st.markdown("**Wnioskowane działania**")
         for action in brief.requested_actions:
-            st.markdown(f"- {action}")
+            st.markdown(f"- {text(action)}")
 
         if brief.missing_information:
             with st.expander("Brakujące informacje"):
                 for item in brief.missing_information:
-                    st.markdown(f"- {item}")
+                    st.markdown(f"- {text(item)}")
 
         if brief.facts_to_verify:
             with st.expander("Fakty do weryfikacji"):
                 for item in brief.facts_to_verify:
-                    st.markdown(f"- {item}")
+                    st.markdown(f"- {text(item)}")
 
 
 def show_evidence(evidence_pack: EvidencePack) -> None:
@@ -278,7 +282,7 @@ def show_evidence(evidence_pack: EvidencePack) -> None:
             st.markdown(f"**[{idx}] {item.document_title} — s. {pages}**")
             if item.section_path:
                 st.caption(" > ".join(item.section_path))
-            st.write(item.relevance_reason)
+            st.markdown(escape_markdown_links(item.relevance_reason))
             st.code(item.excerpt[:1200], language=None)
 
 
@@ -287,6 +291,10 @@ init_state()
 
 st.title("Pismak - twój asystent w pisaniu wniosków")
 st.caption("Od opisu sprawy, przez sprawdzone źródła, do projektu pisma.")
+st.caption(
+    "Sprawa jest pamiętana tylko w tej karcie przeglądarki. Odświeżenie strony rozpoczyna "
+    "nową sprawę, więc pobierz gotowe pismo przed zamknięciem lub odświeżeniem karty."
+)
 
 # Panel konfiguracji zapisuje wartości widgetów w session_state dzięki ich kluczom.
 with st.container(border=True):
@@ -432,7 +440,7 @@ st.subheader("Rozmowa")
 # Historia rozmowy jest renderowana ze stanu, a nie przechowywana w lokalnej zmiennej.
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.write(message["content"])
+        st.markdown(escape_markdown_links(message["content"]))
 
 
 if st.session_state.case_brief is None:
@@ -798,11 +806,13 @@ if st.session_state.case_brief is not None:
                 thinking_overlay.empty()
 
 
-# Gotowy draft jest wyświetlany niezależnie od tego, czy użytkownik odświeżył stronę.
+# Pismo zostaje widoczne przy kolejnych rerunach tej sesji. Odświeżenie strony tworzy nową
+# sesję Streamlit i nowy session_state, więc sprawa znika; zostają tylko pliki w outputs/.
 if st.session_state.letter_markdown is not None:
     with st.container(border=True):
         st.subheader("Projekt pisma")
-        st.markdown(st.session_state.letter_markdown)
+        # Pobierany plik zachowuje Markdown modelu; na stronie linki i obrazy są tekstem.
+        st.markdown(escape_markdown_links(st.session_state.letter_markdown))
 
         st.download_button(
             "Pobierz pismo.md",

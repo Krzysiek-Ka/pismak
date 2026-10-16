@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from collections.abc import Callable
 from time import perf_counter
 from typing import Literal, TypeVar
@@ -12,7 +13,7 @@ from pydantic_core import from_json
 from src._shared.context_budget import fit_output_tokens, usage_summary
 from src._shared.llm_runtime import llm_generation_lock
 
-OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1/"
+DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 # Lokalny model na CPU przetwarza pełny prompt nawet kilkanaście minut. Ponowienia SDK
 # są wyłączone, bo każde wysłałoby to samo wielominutowe żądanie od początku.
 OLLAMA_REQUEST_TIMEOUT_SECONDS = 900.0
@@ -20,9 +21,6 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MODEL = "openrouter/free"
 OPENROUTER_KEY_PLACEHOLDER = "sk-or-v1-WSTAW_TUTAJ_SWÓJ_KLUCZ"
 ProviderName = Literal["ollama", "openrouter"]
-MAX_INTERVIEW_QUESTIONS = 3
-ANALYST_TEMPERATURE = 0.1
-DEBUG = False
 LOGGER = logging.getLogger("pismak")
 MAX_LOGGED_MODEL_RESPONSE_CHARS = 20_000
 COMPACT_OUTPUT_INSTRUCTION = (
@@ -63,10 +61,16 @@ def log_model_response(
     )
 
 
+def ollama_base_url() -> str:
+    """Return the OpenAI-compatible endpoint of the Ollama server named in OLLAMA_URL."""
+    return os.getenv("OLLAMA_URL", DEFAULT_OLLAMA_URL).rstrip("/") + "/v1/"
+
+
 def check_available_model() -> None:
     """Print the list of models currently exposed by a local Ollama instance."""
+    base_url = ollama_base_url()
     client = OpenAI(
-        base_url=OLLAMA_BASE_URL,
+        base_url=base_url,
         api_key="ollama",  # wymagane przez SDK, ignorowane przez Ollamę
         timeout=180.0,
     )
@@ -75,7 +79,7 @@ def check_available_model() -> None:
         available_models = [m.id for m in client.models.list().data]
     except Exception as exc:
         raise RuntimeError(
-            f"Nie udało się połączyć z Ollamą pod {OLLAMA_BASE_URL}. Sprawdź, czy Ollama działa."
+            f"Nie udało się połączyć z Ollamą pod {base_url}. Sprawdź, czy Ollama działa."
         ) from exc
 
     if not available_models:
@@ -107,14 +111,12 @@ def set_up_client(type: Literal["local"] | ProviderName = "local") -> OpenAI:
     """Create an OpenAI-compatible client for Ollama or OpenRouter."""
     if type in ("local", "ollama"):
         return OpenAI(
-            base_url=OLLAMA_BASE_URL,
+            base_url=ollama_base_url(),
             api_key="ollama",
             timeout=OLLAMA_REQUEST_TIMEOUT_SECONDS,
             max_retries=0,
         )
     if type == "openrouter":
-        import os
-
         api_key = os.getenv("OPENROUTER_KEY", "").strip()
         if not api_key or api_key == OPENROUTER_KEY_PLACEHOLDER:
             raise LLMConfigurationError(

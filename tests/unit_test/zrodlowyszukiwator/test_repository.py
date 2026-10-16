@@ -19,9 +19,7 @@ class TestRetrievalRepository:
         monkeypatch.setattr(psycopg, "connect", fail_to_connect)
 
         with pytest.raises(DatabaseConnectionError) as error:
-            RetrievalRepository(
-                "postgresql://user:secret@localhost:5432/pismak"
-            ).connect()
+            RetrievalRepository("postgresql://user:secret@localhost:5432/pismak").connect()
 
         assert "Docker Desktop" in str(error.value)
         assert "docker compose up -d postgres" in str(error.value)

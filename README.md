@@ -72,7 +72,10 @@ Wynikiem jest obiekt:
 CaseBrief
 ```
 
-Dopytywator zadaje maksymalnie 10 pytań pomocniczych.
+Dopytywator zadaje najwyżej tyle pytań pomocniczych, ile ustawisz w polu „Max pytań”
+w interfejsie: domyślnie 1, maksymalnie 12 (`MAX_INTERVIEW_QUESTIONS` w
+`src/Wyswietlator/services.py`). Może skończyć wcześniej, gdy uzna, że ma komplet
+informacji.
 
 ### Pismogenerator
 
@@ -397,6 +400,11 @@ Oba pliki to kwantyzacje przygotowane przez osoby trzecie na podstawie modeli
 `CYFRAGOVPL/PLLuM-4B-chat-2512` i `speakleash/Bielik-4.5B-v3.0-Instruct`. Przed
 użyciem sprawdź ich licencje na stronach modeli.
 
+Plik GGUF PLLuM nie zawiera szablonu rozmowy, więc `modele\pllum\Modelfile` podaje
+szablon z modelu źródłowego (`[INST]prompt systemowy + wiadomość[/INST]`). Model
+zarejestrowany przed tą zmianą (z szablonem `{{ .Prompt }}`) zaktualizujesz tym
+samym poleceniem `ollama create`; wagi pozostają te same.
+
 Wystarczy jeden z nich. Nazwy też nie są wymagane: interfejs pokazuje wszystkie
 modele generatywne dostępne w Ollamie. Modeli lokalnych nie potrzebujesz wcale,
 jeśli wszystkie etapy mają korzystać z OpenRouter (punkt 8) — wtedy wystarczy
@@ -500,11 +508,21 @@ copy .env_template .env
 ```
 
 Wartości z szablonu wystarczą do pracy lokalnej. Zrób to przed pierwszym
-uruchomieniem bazy: `POSTGRES_PASSWORD` jest zapisywane w bazie przy jej
-pierwszym starcie, a późniejsza zmiana samego pliku `.env` już go nie zmieni.
-Hasło z szablonu jest publiczne, więc zmień je, zanim udostępnisz komukolwiek
-aplikację. Nowe hasło wpisz także w `DATABASE_URL`.
+uruchomieniem bazy: hasła są zapisywane w bazie przy jej pierwszym starcie, a
+późniejsza zmiana samego pliku `.env` już ich nie zmieni. Hasła z szablonu są
+publiczne, więc zmień je, zanim udostępnisz komukolwiek aplikację.
 
+Baza ma trzy role, każda z własnym hasłem:
+
+| Rola | Hasło w `.env` | Do czego | Adres w `.env` |
+|---|---|---|---|
+| `pismak` (superuser) | `POSTGRES_PASSWORD` | administracja bazą | — |
+| `pismak_ingest` | `PISMAK_INGEST_DB_PASSWORD` | wczytywanie dokumentów (punkt 6), właściciel tabel | `RAG_INGESTION_DATABASE_URL` |
+| `pismak_app` | `PISMAK_APP_DB_PASSWORD` | interfejs i wyszukiwanie; tylko odczyt | `DATABASE_URL` |
+
+Zmieniając hasło roli, wpisz je także w odpowiadający jej adres.
+
+Zmienne ustawione w systemie albo w konsoli mają pierwszeństwo przed `.env`.
 `OPENROUTER_KEY` uzupełnij tylko wtedy, gdy chcesz korzystać z OpenRouter.
 Pliku `.env` nie dodawaj do repozytorium.
 
@@ -528,7 +546,28 @@ Rozszerzenie `pgvector` jest włączane przez skrypt:
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-zapisany w `docker/postgres/init/001_extensions.sql`.
+zapisany w `docker/postgres/init/001_extensions.sql`. Drugi skrypt,
+`docker/postgres/init/002_roles.sql`, tworzy role `pismak_ingest` i `pismak_app`
+z hasłami z `.env` (punkt 5.2) i nadaje im uprawnienia. Oba wykonują się tylko
+przy pierwszym starcie, na pustym wolumenie.
+
+Baza utworzona przed rozdzieleniem ról (aplikacja łączyła się jako `pismak`):
+
+1. Dopisz do `.env` z szablonu `PISMAK_INGEST_DB_PASSWORD`, `PISMAK_APP_DB_PASSWORD`
+   i `RAG_INGESTION_DATABASE_URL`, a `DATABASE_URL` zmień na rolę `pismak_app`.
+2. Odtwórz kontener, żeby dostał nowe zmienne. Wolumen z danymi zostaje; nie używaj
+   `docker compose down -v`, bo usuwa bazę.
+
+   ```cmd
+   docker compose up -d
+   ```
+
+3. Wykonaj skrypt ról. Można go uruchamiać wielokrotnie; przekazuje też istniejące
+   tabele roli `pismak_ingest`.
+
+   ```cmd
+   docker exec pismak-postgres psql -U pismak -d pismak -f /docker-entrypoint-initdb.d/002_roles.sql
+   ```
 
 ### 5.4. Uruchom bazę
 
@@ -589,7 +628,7 @@ from src.Zrodlowyszukiwator.rag_ingestion.repository import (
 load_dotenv()
 
 repo = PgVectorRepository(
-    os.environ["DATABASE_URL"],
+    os.environ["RAG_INGESTION_DATABASE_URL"],
     embedding_dim=1024,
 )
 
@@ -629,8 +668,11 @@ python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator
 python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\01_Wroclawska_polityka_mobilnosci.pdf
 ```
 
-Polecenie tworzy tabele `rag_documents` i `rag_chunks`, jeśli ich jeszcze nie ma,
-i wypisuje liczbę stron oraz fragmentów. To wystarcza do uruchomienia dema.
+Polecenie łączy się jako rola `pismak_ingest` (`RAG_INGESTION_DATABASE_URL`), tworzy
+tabele `rag_documents` i `rag_chunks`, jeśli ich jeszcze nie ma, i wypisuje liczbę
+stron oraz fragmentów. To wystarcza do uruchomienia dema. Bez
+`RAG_INGESTION_DATABASE_URL` polecenie kończy się błędem i niczego nie zapisuje: rola
+aplikacji z `DATABASE_URL` nie ma prawa zapisu.
 
 ### 6.2. Własne dokumenty
 
@@ -784,6 +826,11 @@ testów. Przy zdalnym udostępnieniu aplikacji dane nadal są przechowywane na
 hoście właściciela. Nie umieszczaj w sprawach danych osobowych, które nie są
 konieczne, i nie publikuj zawartości `outputs/` ani `logs/`.
 
+Sprawa jest pamiętana tylko w otwartej karcie przeglądarki: odświeżenie strony
+rozpoczyna nową sprawę, a poprzednia zostaje wyłącznie w `outputs/`. Interfejs
+pokazuje treść od modelu bez aktywnych linków i obrazów; pobrany `pismo.md` jest
+niezmieniony.
+
 ### Struktura UI
 
 - `src/Wyswietlator/app.py` — komponenty Streamlit, stan sesji, chat i widoki;
@@ -875,6 +922,8 @@ Access na własnej domenie.
 #### Kontrole przed każdym udostępnieniem
 
 - Uruchom `docker compose config` i sprawdź, że PostgreSQL nasłuchuje wyłącznie na `127.0.0.1`.
+- Sprawdź, że `DATABASE_URL` w `.env` wskazuje rolę `pismak_app` (tylko odczyt), a nie `pismak` (punkt 5.2).
+- Ruff sprawdza w CI także formatowanie; przed pushem uruchom `ruff format .` albo `pre-commit run --all-files`.
 - Sprawdź lokalnie UI, Ollamę oraz działanie dwóch niezależnych sesji.
 - Sprawdź kolejkę równoczesnych generacji i komunikaty przy niedostępności Ollamy lub bazy.
 - Przed udostępnieniem zdalnym sprawdź trasy tunelu (`curl http://127.0.0.1:20241/config`) i ochronę Access (`curl -I https://<NAZWA_HOSTA>` zwraca przekierowanie do logowania), w tym odmowę dostępu dla nieuprawnionego konta.
@@ -895,7 +944,9 @@ Pismak/
 ├── docker-compose.yaml
 ├── run_pismak.bat
 ├── .streamlit/config.toml
-├── docker/postgres/init/001_extensions.sql
+├── docker/postgres/init/
+│   ├── 001_extensions.sql
+│   └── 002_roles.sql
 ├── modele/
 │   ├── bielik/Modelfile
 │   └── pllum/Modelfile

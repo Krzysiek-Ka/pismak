@@ -200,6 +200,45 @@ class TestGetOpenaiClient:
             "max_retries": 0,
         }
 
+    def test_get_openai_client__prefers_an_explicit_address_over_the_environment(
+        self, monkeypatch
+    ) -> None:
+        """Verify a caller can point the client at another Ollama than the one in .env."""
+        calls: dict[str, object] = {}
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs) -> None:
+                calls.update(kwargs)
+
+        monkeypatch.setenv("OLLAMA_URL", "http://ollama.test/")
+        monkeypatch.setattr(services, "OpenAI", FakeOpenAI)
+
+        services.get_openai_client("http://inna-ollama.test:11434/")
+
+        assert calls["base_url"] == "http://inna-ollama.test:11434/v1/"
+
+
+class TestEscapeMarkdownLinks:
+    def test_escape_markdown_links__turns_images_and_links_into_literal_text(self) -> None:
+        """Verify Markdown cannot embed an image or disguise a link address."""
+        text = "Zob. ![](http://tracker.test/p.png) i [mapa](http://phish.test)."
+
+        assert services.escape_markdown_links(text) == (
+            "Zob. !\\[](http://tracker.test/p.png) i \\[mapa](http://phish.test)."
+        )
+
+    def test_escape_markdown_links__a_backslash_in_the_text_cannot_undo_the_escape(self) -> None:
+        """Verify a model-written backslash before a bracket still leaves the link inert."""
+        assert services.escape_markdown_links("\\[mapa](http://phish.test)") == (
+            "\\\\\\[mapa](http://phish.test)"
+        )
+
+    def test_escape_markdown_links__keeps_text_without_brackets_unchanged(self) -> None:
+        """Verify ordinary letter formatting such as bold and headings is left alone."""
+        text = "**Adresat:** ZDiUM\n\n# WNIOSEK\n\n- punkt"
+
+        assert services.escape_markdown_links(text) == text
+
 
 class TestErrorLocation:
     def test_error_location__identifies_project_file_and_line(self) -> None:

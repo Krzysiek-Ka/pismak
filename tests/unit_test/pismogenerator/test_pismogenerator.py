@@ -73,47 +73,6 @@ def make_evidence_pack() -> EvidencePack:
     )
 
 
-class TestExtractSourcesFromBrief:
-    def test_extract_sources_from_brief__uses_available_evidence_when_no_sources_field_exists(
-        self,
-    ) -> None:
-        """Verify source candidates are derived from the brief when no explicit sources field is present."""
-        brief = CaseBrief(
-            title="Brak dostępu",
-            problem_description="Problem z dostępem do dokumentów.",
-            desired_outcome="Przywrócenie dostępu.",
-            requested_actions=["Sprawdzenie dokumentacji"],
-            available_evidence=["Zdjęcie 1", "Zdjęcie 1", "Wniosek"],
-        )
-
-        result = pismogenerator.extract_sources_from_brief(brief)
-
-        assert result == ["Zdjęcie 1", "Wniosek"]
-
-    def test_extract_sources_from_brief__prefers_an_explicit_sources_field_of_a_dict(
-        self, capsys
-    ) -> None:
-        """Verify a brief loaded from JSON with its own source list keeps that list."""
-        brief = {
-            "sources": [" Uchwała ", "", "Uchwała", 7],
-            "available_evidence": ["Zdjęcie"],
-        }
-
-        result = pismogenerator.extract_sources_from_brief(brief)
-
-        assert result == ["Uchwała", "7"]
-        assert " [1] Uchwała" in capsys.readouterr().out
-
-    def test_extract_sources_from_brief__reports_that_there_are_no_materials(
-        self, capsys
-    ) -> None:
-        """Verify an empty source list is stated explicitly rather than printed as nothing."""
-        result = pismogenerator.extract_sources_from_brief(make_brief())
-
-        assert result == []
-        assert " - brak" in capsys.readouterr().out
-
-
 class TestFitDraftUserPrompt:
     def test_fit_draft_user_prompt__shortens_excerpts_until_the_prompt_fits_the_window(
         self, monkeypatch

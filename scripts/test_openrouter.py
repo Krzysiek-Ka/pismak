@@ -16,7 +16,8 @@ from src._shared.serwer import OPENROUTER_KEY_PLACEHOLDER
 
 def main() -> None:
     """Send one short manual smoke-test request without printing the API key."""
-    load_dotenv(PROJECT_ROOT / ".env", override=True)
+    # Tak jak aplikacja: zmienna ustawiona w systemie ma pierwszeństwo przed .env.
+    load_dotenv(PROJECT_ROOT / ".env")
     api_key = os.getenv("OPENROUTER_KEY", "").strip()
     if not api_key or api_key == OPENROUTER_KEY_PLACEHOLDER:
         raise SystemExit("Brak OPENROUTER_KEY. Ustaw klucz w pliku .env.")

@@ -25,10 +25,12 @@ from openai import (
 from src._shared.context_budget import LLMInputLimitError, input_char_budget
 from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import (
+    DEFAULT_OLLAMA_URL,
     OLLAMA_REQUEST_TIMEOUT_SECONDS,
     LLMConfigurationError,
     LLMOutputLimitError,
     LLMResponseError,
+    ollama_base_url,
     set_up_client,
 )
 from src.Dopytywator import prompts as dopytywator_prompts
@@ -183,9 +185,8 @@ def validate_user_message(
 
 def get_openai_client(ollama_url: str | None = None) -> OpenAI:
     """Create an OpenAI-compatible client configured for the local Ollama endpoint."""
-    base = (ollama_url or os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")).rstrip("/")
     return OpenAI(
-        base_url=base + "/v1/",
+        base_url=ollama_url.rstrip("/") + "/v1/" if ollama_url else ollama_base_url(),
         api_key="ollama",
         timeout=OLLAMA_REQUEST_TIMEOUT_SECONDS,
         max_retries=0,
@@ -290,10 +291,7 @@ def build_zrodlowyszukiwator(
 
     embedder = OllamaEmbedder(
         model=os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"),
-        base_url=os.getenv(
-            "OLLAMA_URL",
-            "http://127.0.0.1:11434",
-        ),
+        base_url=os.getenv("OLLAMA_URL", DEFAULT_OLLAMA_URL),
     )
 
     # Po sprawdzeniu bazy, bo ustalenie okna może wymagać załadowania modelu.
@@ -355,6 +353,15 @@ def render_letter(
         evidence_pack=evidence_pack,
         user_evidence=normalized_user_evidence,
     )
+
+
+def escape_markdown_links(text: str) -> str:
+    """Show Markdown links and images from model output as plain text."""
+    # Streamlit renderuje Markdown (HTML jest wyłączony). Obraz z adresu podanego przez model
+    # przeglądarka pobrałaby sama, a link mógłby ukryć adres pod dowolnym tekstem. Bez nawiasu
+    # otwierającego nie powstaje ani jedno, ani drugie; przypisy „[1]” wyglądają tak samo.
+    # Najpierw ukośniki, żeby „\[” z treści nie zniosło dodanego tu escapowania.
+    return text.replace("\\", "\\\\").replace("[", "\\[")
 
 
 def save_run(

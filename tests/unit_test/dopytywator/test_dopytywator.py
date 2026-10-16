@@ -108,7 +108,6 @@ class TestAskQuestions:
         assert result == []
         assert "Przerwano." in capsys.readouterr().out
 
-
     def test_ask_questions__asks_for_a_description_first_when_started_with_done(
         self, capsys
     ) -> None:
@@ -140,7 +139,9 @@ class TestAskQuestions:
         assert len(llm.calls) == 2
         assert "pytaniem pomocniczym nr 1 z maksymalnie 2" in llm.calls[0]["user_prompt"]
         assert "pytaniem pomocniczym nr 2 z maksymalnie 2" in llm.calls[1]["user_prompt"]
-        assert "Pismak [2/2]: Od kiedy?" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Pismak [2/2]: Od kiedy?" in out
+        assert "Osiągnięto limit 2 pytań." in out
 
     def test_ask_questions__repeats_the_prompt_until_the_answer_is_not_blank(
         self, monkeypatch, capsys
@@ -166,7 +167,9 @@ class TestAskQuestions:
 
         assert [m.content for m in result] == ["Brak przejścia", "Gdzie?"]
         assert len(llm.calls) == 1
-        assert "Przerwano. CaseBrief nie został utworzony." in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Przerwano. CaseBrief nie został utworzony." in out
+        assert "Osiągnięto limit" not in out
 
     def test_ask_questions__done_during_the_interview_keeps_the_answers_given_so_far(
         self, monkeypatch, capsys
@@ -179,7 +182,9 @@ class TestAskQuestions:
 
         assert [m.content for m in result] == ["Brak przejścia", "Gdzie?", "Przy SP 1", "Od kiedy?"]
         assert len(llm.calls) == 2
-        assert "Kończę pytania i tworzę brief" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Kończę pytania i tworzę brief" in out
+        assert "Osiągnięto limit" not in out
 
     def test_ask_questions__zero_question_limit_skips_the_model(self) -> None:
         """Verify a limit of zero goes straight to the brief with only the description."""

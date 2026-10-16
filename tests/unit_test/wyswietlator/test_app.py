@@ -343,9 +343,16 @@ class TestFirstRender:
         assert app_test.session_state["stage"] == "INTERVIEW"
         assert completions.calls == []
 
-    def test_app__first_render_without_generation_models_explains_what_is_missing(
-        self, ui
-    ) -> None:
+    def test_app__first_render_warns_that_refreshing_the_page_starts_a_new_case(self, ui) -> None:
+        """Verify the user learns before writing that the case lives only in this browser tab."""
+        app_test, _ = ui()
+
+        app_test.run()
+
+        captions = [c.value for c in app_test.caption]
+        assert any("Odświeżenie strony rozpoczyna nową sprawę" in c for c in captions)
+
+    def test_app__first_render_without_generation_models_explains_what_is_missing(self, ui) -> None:
         """Verify an Ollama with only embedding models blocks the interview with a clear hint."""
         app_test, completions = ui(models=[])
 
@@ -457,9 +464,7 @@ class TestConsent:
 
 
 class TestMessageLimits:
-    def test_app__message_over_the_limit_is_rejected_and_not_added_to_the_case(
-        self, ui
-    ) -> None:
+    def test_app__message_over_the_limit_is_rejected_and_not_added_to_the_case(self, ui) -> None:
         """Verify an oversized message is refused before it enters the history or the model."""
         app_test, completions = ui()
         app_test.run()
@@ -520,6 +525,21 @@ class TestInterview:
         assert app_test.chat_input[0].placeholder == "Odpowiedz Dopytywatorowi..."
         assert completions.calls == [INTERVIEW]
 
+    def test_app__links_and_images_in_a_model_question_are_shown_as_text(self, ui) -> None:
+        """Verify a model question cannot make the browser load an image or hide a link address."""
+        asked = "Czy to ta szkoła? ![](http://tracker.test/p.png) [mapa](http://phish.test)"
+        app_test, _ = ui({INTERVIEW: [{**QUESTION, "next_question": asked}]})
+        app_test.run()
+
+        app_test.chat_input[0].set_value("Brak przejścia").run()
+
+        rendered = [m.value for m in app_test.markdown]
+        assert (
+            "Czy to ta szkoła? !\\[](http://tracker.test/p.png) \\[mapa](http://phish.test)"
+            in rendered
+        )
+        assert chat_messages(app_test)[-1] == ("assistant", asked)
+
     def test_app__ready_answer_builds_the_brief_and_saves_the_run(self, ui, tmp_path) -> None:
         """Verify a complete interview produces a brief, closes the chat and stores the case."""
         app_test, completions = ui({INTERVIEW: [READY], BRIEF: [CASE_BRIEF]})
@@ -535,8 +555,9 @@ class TestInterview:
         assert GENERATE_LABEL in [b.label for b in app_test.button]
         [run_dir] = run_dirs(tmp_path)
         assert app_test.session_state["run_dir"] == run_dir
-        assert json.loads((run_dir / "brief.json").read_text(encoding="utf-8"))["title"] == (
-            CASE_BRIEF["title"]
+        assert (
+            json.loads((run_dir / "brief.json").read_text(encoding="utf-8"))["title"]
+            == (CASE_BRIEF["title"])
         )
         assert json.loads((run_dir / "models.json").read_text(encoding="utf-8")) == {
             "Dopytywator": [
@@ -697,6 +718,30 @@ class TestPipeline:
         assert "Reranker" not in models
         assert models["Pismogenerator"] == [{"provider": "ollama", "model": "fake/DraftLetter"}]
 
+    def test_app__letter_shows_model_links_as_text_but_keeps_them_in_the_file(
+        self, ui, tmp_path, monkeypatch
+    ) -> None:
+        """Verify the page loads no image from the letter while the saved letter is unchanged."""
+        image = "![](http://tracker.test/p.png)"
+        draft = {
+            **VALID_DRAFT,
+            "argumentation_markdown": VALID_DRAFT["argumentation_markdown"] + " " + image,
+        }
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, _ = ui({DRAFT: [draft]})
+        with_brief(app_test).run()
+
+        click(app_test, GENERATE_LABEL)
+
+        letter = app_test.session_state["letter_markdown"]
+        rendered = [m.value for m in app_test.markdown]
+        assert image in letter
+        assert services.escape_markdown_links(letter) in rendered
+        assert not any(image in value for value in rendered)
+        [run_dir] = run_dirs(tmp_path)
+        assert image in (run_dir / "letter.md").read_text(encoding="utf-8")
+
     def test_app__rejected_draft_is_saved_for_diagnosis_and_can_be_retried(
         self, ui, tmp_path, monkeypatch
     ) -> None:
@@ -748,8 +793,9 @@ class TestPipeline:
         click(app_test, GENERATE_LABEL)
 
         assert "Nie znaleziono źródeł, które odpowiadają na sprawę." in shown_text(app_test)
-        assert "Brak źródeł wskazanych przez użytkownika." in (
-            app_test.session_state["letter_markdown"]
+        assert (
+            "Brak źródeł wskazanych przez użytkownika."
+            in (app_test.session_state["letter_markdown"])
         )
 
     def test_app__unassessed_sources_are_labelled_as_not_checked(self, ui, monkeypatch) -> None:

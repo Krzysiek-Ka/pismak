@@ -343,7 +343,9 @@ class TestRerankSelection:
         candidates = [make_candidate("c0", "A"), make_candidate("c1", "B")]
         client = _ScriptedClient(selection(("c0", 40), ("c1", 39)))
 
-        result = LLMReranker(client=client, model="local").rerank(case_brief={}, candidates=candidates)
+        result = LLMReranker(client=client, model="local").rerank(
+            case_brief={}, candidates=candidates
+        )
 
         assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
 
@@ -352,7 +354,9 @@ class TestRerankSelection:
         candidates = [make_candidate("c0", "A")]
         client = _ScriptedClient(selection(("invented", 95), ("c0", 60)))
 
-        result = LLMReranker(client=client, model="local").rerank(case_brief={}, candidates=candidates)
+        result = LLMReranker(client=client, model="local").rerank(
+            case_brief={}, candidates=candidates
+        )
 
         assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
         assert result.assessed is True

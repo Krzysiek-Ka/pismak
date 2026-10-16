@@ -159,13 +159,29 @@ class TestSetUpClient:
                 calls["kwargs"] = kwargs
                 self.models = object()
 
+        monkeypatch.delenv("OLLAMA_URL", raising=False)
         monkeypatch.setattr(serwer, "OpenAI", FakeOpenAI)
 
         client = serwer.set_up_client("local")
 
         assert isinstance(client, FakeOpenAI)
-        assert calls["kwargs"]["base_url"] == serwer.OLLAMA_BASE_URL
+        assert calls["kwargs"]["base_url"] == "http://127.0.0.1:11434/v1/"
         assert calls["kwargs"]["api_key"] == "ollama"
+
+    def test_set_up_client__uses_the_ollama_address_from_the_environment(self, monkeypatch) -> None:
+        """Verify OLLAMA_URL from .env moves the client the same way it moves the UI client."""
+        calls: dict[str, object] = {}
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs) -> None:
+                calls.update(kwargs)
+
+        monkeypatch.setenv("OLLAMA_URL", "http://ollama.test:11434/")
+        monkeypatch.setattr(serwer, "OpenAI", FakeOpenAI)
+
+        serwer.set_up_client("local")
+
+        assert calls["base_url"] == "http://ollama.test:11434/v1/"
 
 
 class TestCallStructured:
@@ -542,7 +558,9 @@ class TestLLMClient:
 
 
 class TestStructuredOutputErrorDetail:
-    def test_structured_output_error_detail__describes_validation_without_input_values(self) -> None:
+    def test_structured_output_error_detail__describes_validation_without_input_values(
+        self,
+    ) -> None:
         """Verify schema diagnostics identify missing fields but never include rejected content."""
 
         class ResponseModel(serwer.BaseModel):
@@ -626,7 +644,6 @@ class TestRecoverPartialStructuredResponse:
         assert serwer.recover_partial_structured_response("Oto plan:", _Plan) is None
 
 
-
 class _Replies:
     """Return prepared completions one per call."""
 
@@ -650,12 +667,13 @@ class TestCheckAvailableModelErrors:
             def fail(self):
                 raise ConnectionError("refused")
 
+        monkeypatch.setenv("OLLAMA_URL", "http://ollama.test:11434")
         monkeypatch.setattr(serwer, "OpenAI", Unreachable)
 
         with pytest.raises(RuntimeError, match="Sprawdź, czy Ollama działa") as error:
             serwer.check_available_model()
 
-        assert serwer.OLLAMA_BASE_URL in str(error.value)
+        assert "http://ollama.test:11434/v1/" in str(error.value)
         assert isinstance(error.value.__cause__, ConnectionError)
 
     def test_check_available_model__reports_an_ollama_without_models(self, monkeypatch) -> None:

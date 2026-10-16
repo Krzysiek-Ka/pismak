@@ -38,7 +38,8 @@ def ingested(monkeypatch) -> dict[str, object]:
 
     FakeRepository.created = []
     monkeypatch.setattr(cli, "load_dotenv", lambda: None)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://test")
+    monkeypatch.setenv("RAG_INGESTION_DATABASE_URL", "postgresql://ingest@test")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://app@test")
     for name in ("RAG_EMBEDDING_MODEL", "OLLAMA_URL", "RAG_EMBEDDING_DIM"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(cli, "PgVectorRepository", FakeRepository)
@@ -92,8 +93,17 @@ class TestMain:
         cli.main()
 
         assert ingested["embedder"] == {"model": "bge-m3", "base_url": "http://127.0.0.1:11434"}
-        assert ingested["repository"].database_url == "postgresql://test"
         assert ingested["repository"].embedding_dim == 1024
+
+    def test_main__writes_as_the_ingestion_role_not_as_the_read_only_app_role(
+        self, monkeypatch, ingested
+    ) -> None:
+        """Verify ingestion connects with its own URL even when the app URL is set too."""
+        monkeypatch.setattr(sys, "argv", ["cli", "--file", "01_Polityka-rowerowa-wroclawia.pdf"])
+
+        cli.main()
+
+        assert ingested["repository"].database_url == "postgresql://ingest@test"
 
     def test_main__applies_embedding_settings_from_the_environment(
         self, monkeypatch, ingested
@@ -132,22 +142,20 @@ class TestMain:
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(
-            sys, "argv", ["cli", "--file", "wlasny.pdf", "--catalog", str(catalog)]
-        )
+        monkeypatch.setattr(sys, "argv", ["cli", "--file", "wlasny.pdf", "--catalog", str(catalog)])
 
         cli.main()
 
         assert ingested["metadata"].document_id == "wlasny"
 
-    def test_main__stops_before_the_database_when_database_url_is_missing(
+    def test_main__stops_before_the_database_when_the_ingestion_url_is_missing(
         self, monkeypatch, ingested
     ) -> None:
-        """Verify a missing connection string fails before any table or vector is touched."""
-        monkeypatch.delenv("DATABASE_URL")
+        """Verify ingestion does not fall back to the read-only app URL and touches nothing."""
+        monkeypatch.delenv("RAG_INGESTION_DATABASE_URL")
         monkeypatch.setattr(sys, "argv", ["cli", "--file", "01_Polityka-rowerowa-wroclawia.pdf"])
 
-        with pytest.raises(KeyError, match="DATABASE_URL"):
+        with pytest.raises(SystemExit, match="RAG_INGESTION_DATABASE_URL"):
             cli.main()
 
         assert FakeRepository.created == []

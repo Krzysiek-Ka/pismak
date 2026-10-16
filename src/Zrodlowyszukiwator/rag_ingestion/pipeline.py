@@ -13,7 +13,8 @@ from .repository import PgVectorRepository
 # zapisane starszą wersją są wtedy przetwarzane od nowa mimo identycznego pliku.
 # 0.2: nagłówki zostają w treści, sklejone przeniesienia, naprawa „Ŝ” → „ż”.
 # 0.3: bez znaków sterujących i bez powtórzeń nagłówków/stopek stron.
-INGESTION_VERSION = "0.3"
+# 0.4: zakładka nie przekracza max_chars i nie tworzy osobnego fragmentu.
+INGESTION_VERSION = "0.4"
 
 
 def file_sha256(path: str | Path) -> str:

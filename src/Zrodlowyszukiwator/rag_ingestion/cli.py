@@ -34,7 +34,13 @@ def main() -> None:
     if path.name not in catalog:
         raise SystemExit(f"Brak metadanych dla {path.name!r} w katalogu {args.catalog}")
 
-    database_url = os.environ["DATABASE_URL"]
+    # Ingestion zapisuje do bazy, więc używa własnej roli; DATABASE_URL aplikacji czyta tylko.
+    database_url = os.getenv("RAG_INGESTION_DATABASE_URL", "").strip()
+    if not database_url:
+        raise SystemExit(
+            "Brak RAG_INGESTION_DATABASE_URL w .env. Ingestion łączy się jako rola "
+            "pismak_ingest; rola z DATABASE_URL ma tylko prawo odczytu (README, punkt 5.2)."
+        )
     embedding_model = os.getenv("RAG_EMBEDDING_MODEL", "bge-m3")
     ollama_url = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     embedding_dim = int(os.getenv("RAG_EMBEDDING_DIM", "1024"))

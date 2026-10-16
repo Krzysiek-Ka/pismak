@@ -84,8 +84,9 @@ def ask_questions(
                 print("\nKończę pytania i tworzę brief z dostępnych danych.")
                 break
             messages.append(structures.ConversationMessage(role="user", content=answer))
-
-        print(f"\nOsiągnięto limit {max_interview_questions} pytań.")
+        else:
+            # Limit wyczerpała tylko pętla bez break; /exit, /done i gotowość modelu go nie osiągają.
+            print(f"\nOsiągnięto limit {max_interview_questions} pytań.")
         return messages
 
     return messages
@@ -153,12 +154,6 @@ def build_brief(
     llm: object,
 ) -> structures.CaseBrief:
     """Build a case brief from a complete conversation and print readiness warnings."""
-    exited = False
-
-    if exited:
-        print("Użytkownik wyszedł z kreatora, nie można zbudować brifu")
-        raise RuntimeError("Użytkownik wyszedł z kreatora, nie można zbudować brifu")
-
     case_brief = generate_brief(messages, llm)
 
     readiness_errors = dopytywator_helper_functions.validate_brief_readiness(case_brief)

@@ -6,6 +6,23 @@
 .env.*
 !.env.example
 
+# Sekrety Streamlit.
+.streamlit/secrets.toml
+
+# Poświadczenia Cloudflare Tunnel: certyfikat konta, pliki tuneli <UUID>.json, token.
+.cloudflared/
+cloudflared/
+cert.pem
+token
+
+
+# ==========================================
+# DOKUMENTY ROBOCZE
+# ==========================================
+
+# Handovery, audyty i raporty robocze zostają lokalnie (decyzja D9).
+plans/
+
 
 # ==========================================
 # PYTHON
