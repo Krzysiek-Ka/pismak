@@ -1,10 +1,12 @@
 """
 Testy end-to-end Pismaka na prawdziwych modelach, bazie RAG i konfiguracji z .env.
 
-Trzech dostawców (lokalny Bielik, lokalny PLLuM, OpenRouter) × dwa przypadki = 6 uruchomień.
+Uruchomienia (modele na etapach Dopytywator, Źródłowyszukiwacz, Pismogenerator) są w liście
+URUCHOMIENIA w e2e_cases.py; każde idzie na każdej sprawie z CASES albo na wybranych.
 Zbierane tylko z PISMAK_E2E=1 (tests/e2e/conftest.py). Opcjonalnie PISMAK_E2E_LABEL nazywa
 przebieg. Raport trafia do outputs/e2e/<czas>_<etykieta>/report.md i jest przepisywany po
-każdym uruchomieniu, zanim zostaną sprawdzone asercje.
+każdym uruchomieniu, zanim zostaną sprawdzone asercje; tabela podsumowania pojawia się też
+na końcu wyjścia pytest.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from dataclasses import dataclass, field
 
 import pytest
 from dotenv import load_dotenv
-from e2e_cases import CASES, PROVIDERS, Case, Provider
+from e2e_cases import CASES, Case, Provider, Setup, run_plan
 from e2e_support import (
     MAX_QUESTIONS,
     PROJECT_ROOT,
@@ -40,10 +42,17 @@ class Environment:
     common_problem: str | None = None
     ollama_models: list[str] = field(default_factory=list)
 
-    def not_run_reason(self, provider: Provider) -> str | None:
-        """Return why a provider's runs cannot start, or None when they can."""
+    def not_run_reason(self, setup: Setup) -> str | None:
+        """Return why a setup cannot start (first unavailable stage), or None when it can."""
         if self.common_problem:
             return self.common_problem
+        for stage, provider in setup.stages:
+            reason = self._provider_problem(provider)
+            if reason:
+                return f"{stage}: {reason}"
+        return None
+
+    def _provider_problem(self, provider: Provider) -> str | None:
         if provider.provider == "ollama" and provider.model not in self.ollama_models:
             return (
                 f"model {provider.model} nie jest zarejestrowany w Ollamie "
@@ -93,14 +102,15 @@ def environment() -> Environment:
 
 
 @pytest.fixture(scope="session")
-def e2e_session(environment: Environment):
+def e2e_session(environment: Environment, request: pytest.FixtureRequest) -> E2ESession:
     session = E2ESession(
         label=os.getenv("PISMAK_E2E_LABEL", "run"),
         header=environment_header(environment.documents, environment.chunks),
         cases=CASES,
     )
-    yield session
-    print(f"\nRaport E2E: {session.report_path}")
+    # conftest.py drukuje z niej tabelę podsumowania na końcu wyjścia pytest.
+    request.config.stash[E2ESession.KEY] = session
+    return session
 
 
 def test_interview_limit_matches_the_app() -> None:
@@ -110,21 +120,21 @@ def test_interview_limit_matches_the_app() -> None:
         assert len(case.answers) == MAX_QUESTIONS, case.id
 
 
-RUNS = [pytest.param(p, c, id=run_id(p, c)) for p in PROVIDERS for c in CASES]
+RUNS = [pytest.param(setup, case, id=run_id(setup, case)) for setup, case in run_plan()]
 
 
-@pytest.mark.parametrize(("provider", "case"), RUNS)
+@pytest.mark.parametrize(("setup", "case"), RUNS)
 def test_pismak_end_to_end(
-    provider: Provider, case: Case, environment: Environment, e2e_session: E2ESession
+    setup: Setup, case: Case, environment: Environment, e2e_session: E2ESession
 ) -> None:
     """Run description → interview → CaseBrief → RAG → letter and check the invariants."""
-    reason = environment.not_run_reason(provider)
+    reason = environment.not_run_reason(setup)
     if reason:
-        e2e_session.add_not_run(provider, case, reason)
+        e2e_session.add_not_run(setup, case, reason)
         pytest.skip(f"NIEURUCHOMIONY: {reason}")
 
     result = run_case(
-        provider, case, e2e_session.run_dir(provider, case), database_url=environment.database_url
+        setup, case, e2e_session.run_dir(setup, case), database_url=environment.database_url
     )
     e2e_session.add(result)
 

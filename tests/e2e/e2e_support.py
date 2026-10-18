@@ -31,7 +31,8 @@ from time import perf_counter
 from typing import Any
 from urllib.parse import urlsplit
 
-from e2e_cases import Case, Provider
+import pytest
+from e2e_cases import Case, Provider, Setup
 
 from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import OPENROUTER_KEY_PLACEHOLDER, LLMClient, error_log_detail
@@ -191,17 +192,17 @@ class PhaseError:
 @dataclass
 class RunResult:
     run_id: str
-    provider_id: str
-    provider: str
-    configured_model: str
-    provider_label: str
+    setup_id: str
+    setup_label: str
+    # Etap → skonfigurowany dostawca i model, jak w panelu konfiguracji aplikacji.
+    stages: dict[str, dict[str, str]]
     case_id: str
     case_title: str
     status: str = FAILED
     not_run_reason: str | None = None
     session_id: str | None = None
     started_at: str = ""
-    context_tokens: int | None = None
+    context_tokens: dict[str, int | None] = field(default_factory=dict)
     turns: list[Turn] = field(default_factory=list)
     questions_asked: int = 0
     answers_used: int = 0
@@ -237,26 +238,29 @@ class RunResult:
         return list(dict.fromkeys(models))
 
 
-def run_id(provider: Provider, case: Case) -> str:
-    """Return the identifier of one provider/case run, also used as the pytest id."""
-    return f"{provider.id}-{case.id}"
+def run_id(setup: Setup, case: Case) -> str:
+    """Return the identifier of one setup/case run, also used as the pytest id."""
+    return f"{setup.id}-{case.id}"
 
 
-def new_result(provider: Provider, case: Case) -> RunResult:
-    """Create an empty result describing one provider/case combination."""
-    rid = run_id(provider, case)
+def new_result(setup: Setup, case: Case) -> RunResult:
+    """Create an empty result describing one setup/case combination."""
+    rid = run_id(setup, case)
     return RunResult(
         run_id=rid,
-        provider_id=provider.id,
-        provider=provider.provider,
-        configured_model=provider.model,
-        provider_label=provider.label,
+        setup_id=setup.id,
+        setup_label=setup.label,
+        stages={
+            stage: {"name": provider.id, "provider": provider.provider, "model": provider.model}
+            for stage, provider in setup.stages
+        },
         case_id=case.id,
         case_title=case.title,
         started_at=datetime.now().isoformat(timespec="seconds"),
+        # Pełny identyfikator testu, bo `-k bielik-buspas` wybrałby też konfiguracje mieszane.
         reproduce=(
             '$env:PISMAK_E2E="1"; .venv\\Scripts\\python.exe -m pytest '
-            f'tests/e2e/test_pismak_e2e.py -k "{rid}" -v -rA -s'
+            f'"tests/e2e/test_pismak_e2e.py::test_pismak_end_to_end[{rid}]" -v -rA -s'
         ),
     )
 
@@ -268,7 +272,6 @@ def new_result(provider: Provider, case: Case) -> RunResult:
 @dataclass
 class _RunState:
     database_url: str
-    client: Any = None
     messages: list[ConversationMessage] = field(default_factory=list)
     brief: CaseBrief | None = None
     evidence_pack: EvidencePack | None = None
@@ -292,19 +295,29 @@ def _record_model(result: RunResult, stage: str, provider: Provider, model: str 
     )
 
 
-def _interview(provider: Provider, case: Case, result: RunResult, state: _RunState) -> None:
+def _stage_client(provider: Provider) -> Any:
+    """Create the client of one stage the way the app does for the provider selected there."""
+    return services.get_llm_client(provider.provider)
+
+
+def _context(result: RunResult, stage: str, provider: Provider) -> int | None:
+    """Detect and remember the context window the stage's model is served with."""
+    tokens = detect_context_tokens(provider.provider, provider.model, session_id=result.session_id)
+    result.context_tokens[stage] = tokens
+    return tokens
+
+
+def _interview(setup: Setup, case: Case, result: RunResult, state: _RunState) -> None:
     """Run the interview with the case's answers in order until the brief is built."""
-    state.client = services.get_llm_client(provider.provider)
-    result.context_tokens = detect_context_tokens(
-        provider.provider, provider.model, session_id=result.session_id
-    )
+    provider = setup.dopytywator
+    context_tokens = _context(result, "Dopytywator", provider)
     llm = LLMClient(
-        client=state.client,
+        client=_stage_client(provider),
         model_name=provider.model,
         stage="dopytywator",
         session_id=result.session_id,
         provider=provider.provider,
-        context_tokens=result.context_tokens,
+        context_tokens=context_tokens,
     )
 
     def add_user_message(message: str) -> None:
@@ -313,7 +326,7 @@ def _interview(provider: Provider, case: Case, result: RunResult, state: _RunSta
             message,
             conversation_chars=sum(len(m.content) for m in state.messages),
             provider=provider.provider,
-            context_tokens=result.context_tokens,
+            context_tokens=context_tokens,
         )
         state.messages.append(ConversationMessage(role="user", content=message))
 
@@ -396,14 +409,17 @@ def verify_evidence_in_db(database_url: str, pack: EvidencePack) -> list[dict[st
     return checked
 
 
-def _retrieve(provider: Provider, case: Case, result: RunResult, state: _RunState) -> None:
+def _retrieve(setup: Setup, case: Case, result: RunResult, state: _RunState) -> None:
     """Search the RAG database for the brief with the production pipeline configuration."""
+    provider = setup.zrodla
     pipeline, documents, chunks = services.build_zrodlowyszukiwator(
-        client=state.client,
+        client=_stage_client(provider),
         model=provider.model,
         session_id=result.session_id,
         provider=provider.provider,
     )
+    # Pipeline ustalił okno sam; ponowne sprawdzenie tylko odczytuje je do raportu.
+    _context(result, "Źródłowyszukiwacz", provider)
     result.rag = {"documents": documents, "chunks": chunks}
     try:
         state.evidence_pack = pipeline.run(state.brief)
@@ -442,17 +458,16 @@ def _retrieve(provider: Provider, case: Case, result: RunResult, state: _RunStat
     )
 
 
-def _write_letter(provider: Provider, case: Case, result: RunResult, state: _RunState) -> None:
+def _write_letter(setup: Setup, case: Case, result: RunResult, state: _RunState) -> None:
     """Generate and render the letter from the brief and the evidence found."""
+    provider = setup.pismo
     llm = LLMClient(
-        client=state.client,
+        client=_stage_client(provider),
         model_name=provider.model,
         stage="pismogenerator",
         session_id=result.session_id,
         provider=provider.provider,
-        context_tokens=detect_context_tokens(
-            provider.provider, provider.model, session_id=result.session_id
-        ),
+        context_tokens=_context(result, "Pismogenerator", provider),
     )
     try:
         state.draft = pismogenerator.build_draft(
@@ -515,28 +530,32 @@ def _save(result: RunResult, state: _RunState, run_dir: Path) -> None:
     result.paths["artifacts"] = artifacts.relative_to(PROJECT_ROOT).as_posix()
 
 
-PHASES: tuple[tuple[str, Callable[[Provider, Case, RunResult, _RunState], None]], ...] = (
+PHASES: tuple[tuple[str, Callable[[Setup, Case, RunResult, _RunState], None]], ...] = (
     ("wywiad", _interview),
     ("rag", _retrieve),
     ("pismo", _write_letter),
 )
 
 
-def run_case(provider: Provider, case: Case, run_dir: Path, *, database_url: str) -> RunResult:
-    """Run the whole Pismak flow for one provider and case and evaluate it."""
+def run_case(setup: Setup, case: Case, run_dir: Path, *, database_url: str) -> RunResult:
+    """Run the whole Pismak flow for one setup and case and evaluate it."""
     run_dir.mkdir(parents=True, exist_ok=True)
-    result = new_result(provider, case)
+    result = new_result(setup, case)
     result.session_id = uuid.uuid4().hex
     state = _RunState(database_url=database_url)
     extra = {"session_id": result.session_id}
 
     services.configure_logging(run_dir, result.session_id)
     services.LOGGER.info(
-        "e2e_run_started session_id=%s run=%s provider=%s model=%s",
+        "e2e_run_started session_id=%s run=%s dopytywator=%s/%s zrodla=%s/%s pismo=%s/%s",
         result.session_id,
         result.run_id,
-        provider.provider,
-        provider.model,
+        setup.dopytywator.provider,
+        setup.dopytywator.model,
+        setup.zrodla.provider,
+        setup.zrodla.model,
+        setup.pismo.provider,
+        setup.pismo.model,
         extra=extra,
     )
     started = perf_counter()
@@ -544,7 +563,7 @@ def run_case(provider: Provider, case: Case, run_dir: Path, *, database_url: str
         for phase, action in PHASES:
             phase_started = perf_counter()
             try:
-                action(provider, case, result, state)
+                action(setup, case, result, state)
             except Exception as exc:
                 _record_error(result, phase, exc)
                 break
@@ -1076,8 +1095,11 @@ LIMITATIONS = (
     "Kontrole S1–S9 są heurystyczne (słowa-klucze, liczby, wzorce) — WARN wymaga ręcznej "
     "oceny na podstawie pełnego briefu, dowodów i pisma.",
     "Embeddingi zawsze liczy lokalny model z Ollamy, także w przebiegach OpenRouter.",
-    "Klient Ollamy przerywa żądanie po 900 s, klient OpenRouter po 60 s; przekroczenie "
-    "kończy przebieg jako NIEUDANY z podanym powodem.",
+    "Klient Ollamy ma limit 900 s, klient OpenRouter 60 s; przekroczenie kończy przebieg "
+    "jako NIEUDANY z podanym powodem. Limit nie zawsze przerywa wywołanie po tym czasie — "
+    "rzeczywiste czasy są w tabelach wywołań i w S9.",
+    "W konfiguracjach mieszanych błąd należy do dostawcy etapu, w którym wystąpił: faza "
+    "„wywiad” to Dopytywator, „rag” — Źródłowyszukiwacz, „pismo” — Pismogenerator.",
 )
 
 
@@ -1106,58 +1128,128 @@ def _end_reason(result: RunResult) -> str:
     return "—"
 
 
+def _short_end(result: RunResult) -> str:
+    if result.end_reason == "model_ready":
+        return f"model po {result.questions_asked}"
+    if result.end_reason == "question_limit":
+        return f"limit {MAX_QUESTIONS}"
+    return f"błąd ({result.errors[0].phase})" if result.errors else "—"
+
+
 def _brief_cell(result: RunResult) -> str:
     if result.brief is None:
         return "brak"
-    return (
-        "braki: " + "; ".join(result.brief_readiness_errors)
-        if result.brief_readiness_errors
-        else "OK"
-    )
+    return "braki" if result.brief_readiness_errors else "OK"
 
 
 def _rag_cell(result: RunResult) -> str:
     if result.rag is None or result.rag.get("evidence_status") is None:
         return "błąd" if any(e.phase == "rag" for e in result.errors) else "—"
-    return f"{result.rag['evidence_status']}, {len(result.rag['evidence'])} dowodów"
+    return f"{result.rag['evidence_status']} ({len(result.rag['evidence'])})"
 
 
 def _letter_cell(result: RunResult) -> str:
     if result.letter_chars:
-        return f"OK ({result.letter_chars} znaków)"
+        return "OK"
     if result.draft_validation_errors:
-        return "odrzucone przez walidację"
-    if any(e.phase == "pismo" for e in result.errors):
-        return "błąd"
-    return "—"
+        return "odrzucone"
+    return "błąd" if any(e.phase == "pismo" for e in result.errors) else "—"
 
 
-def _summary_row(result: RunResult) -> str:
+def failure_reason(result: RunResult) -> str:
+    """Return why a run did not pass: the not-run reason, the first error or failed invariants."""
     if result.status == NOT_RUN:
-        return (
-            f"| `{result.run_id}` | {_cell(result.provider_label)} / `{result.configured_model}` "
-            f"| — | — | — | — | — | — | — | {_cell(result.not_run_reason)} | **{NOT_RUN}** | — |"
+        return result.not_run_reason or ""
+    if not result.hard_failures():
+        return ""
+    if result.errors:
+        error = result.errors[0]
+        return f"{error.phase}: {error.error_type} — {error.detail}"
+    return "; ".join(f"{check.id}: {check.detail}" for check in result.hard_failures())
+
+
+def summary_rows(results: list[RunResult]) -> list[dict[str, str]]:
+    """Return one summary row per run, shared by the Markdown report and the terminal table."""
+    rows = []
+    for result in results:
+        ran = result.status != NOT_RUN
+        rows.append(
+            {
+                "uruchomienie": result.setup_id,
+                "sprawa": result.case_id,
+                # Model tak, jak wpisano go w URUCHOMIENIA (skrót albo nazwa modelu).
+                **{
+                    stage: config.get("name") or config["model"]
+                    for stage, config in result.stages.items()
+                },
+                "pytań": str(result.questions_asked) if ran else "—",
+                "zakończenie": _short_end(result) if ran else "—",
+                "brief": _brief_cell(result) if ran else "—",
+                "RAG": _rag_cell(result) if ran else "—",
+                "pismo": _letter_cell(result) if ran else "—",
+                "czas": _duration(result.timings.get("razem")) if ran else "—",
+                "wynik": result.status,
+                "WARN": str(len(result.warnings())) if ran else "—",
+            }
         )
-    errors = "; ".join(f"{e.phase}: {e.error_type}" for e in result.errors) or "—"
-    return (
-        f"| `{result.run_id}` | {_cell(result.provider_label)} / `{result.configured_model}` "
-        f"| {_cell(', '.join(result.actual_models()), 120)} | {result.questions_asked} "
-        f"| {_end_reason(result)} | {_cell(_brief_cell(result))} | {_rag_cell(result)} "
-        f"| {_letter_cell(result)} | {_duration(result.timings.get('razem'))} | {_cell(errors)} "
-        f"| **{result.status}** | {len(result.warnings())} |"
-    )
+    return rows
+
+
+def markdown_summary(results: list[RunResult]) -> list[str]:
+    """Render the summary table and the reasons of failed or skipped runs as Markdown."""
+    rows = summary_rows(results)
+    if not rows:
+        return ["Brak uruchomień."]
+    columns = list(rows[0])
+    out = ["| " + " | ".join(columns) + " |", "|" + "---|" * len(columns)]
+    for row in rows:
+        cells = [_cell(row[column], 60) for column in columns]
+        cells[0] = f"`{cells[0]}`"
+        cells[columns.index("wynik")] = f"**{row['wynik']}**"
+        out.append("| " + " | ".join(cells) + " |")
+    reasons = [(r.run_id, failure_reason(r)) for r in results if failure_reason(r)]
+    if reasons:
+        out.append("\nPrzyczyny niepowodzeń:\n")
+        out += [f"- `{rid}`: {_cell(reason, 400)}" for rid, reason in reasons]
+    return out
+
+
+def text_summary(results: list[RunResult], *, reason_width: int = 150) -> list[str]:
+    """Render the summary as a plain-text table for the terminal, reasons listed below it."""
+    rows = summary_rows(results)
+    if not rows:
+        return []
+    columns = list(rows[0])
+    widths = [max(len(column), *(len(row[column]) for row in rows)) for column in columns]
+
+    def line(values: list[str]) -> str:
+        return "| " + " | ".join(v.ljust(w) for v, w in zip(values, widths, strict=True)) + " |"
+
+    border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+    out = [border, line(columns), border]
+    out += [line([row[column] for column in columns]) for row in rows]
+    out.append(border)
+    for result in results:
+        reason = " ".join(failure_reason(result).split())
+        if reason:
+            if len(reason) > reason_width:
+                reason = reason[: reason_width - 1] + "…"
+            out.append(f"  {result.run_id}: {reason}")
+    return out
 
 
 def _run_section(result: RunResult, case: Case | None) -> list[str]:
-    out = [f"## `{result.run_id}` — {result.provider_label}, {result.case_title}\n"]
+    out = [f"## `{result.run_id}` — {result.setup_label}, {result.case_title}\n"]
     if result.status == NOT_RUN:
         out.append(f"**{NOT_RUN}:** {result.not_run_reason}\n")
         return out
     out.append(f"- Wynik: **{result.status}**, ostrzeżeń: {len(result.warnings())}")
-    out.append(
-        f"- Model skonfigurowany: `{result.configured_model}`; okno kontekstu: "
-        f"{result.context_tokens or 'nieustalone'} tokenów"
-    )
+    for stage, config in result.stages.items():
+        tokens = result.context_tokens.get(stage)
+        window = f"{tokens} tokenów" if tokens else "nieustalone (etap nie ruszył albo brak danych)"
+        out.append(
+            f"- {stage}: `{config['model']}` ({config['provider']}); okno kontekstu: {window}"
+        )
     for stage, calls in result.model_usage.items():
         models = ", ".join(dict.fromkeys(f"`{c['model']}`" for c in calls))
         out.append(f"- Modele faktyczne — {stage}: {models}")
@@ -1309,11 +1401,11 @@ def render_report(
 
     out.append("## Podsumowanie\n")
     out.append(
-        "| uruchomienie | dostawca / model | modele faktyczne | pytań | zakończenie | CaseBrief "
-        "| RAG | pismo | czas | błędy | wynik | WARN |"
+        "Kolumny etapów podają model wpisany w `URUCHOMIENIA`; modele, które faktycznie "
+        "odpowiedziały (ważne przy `openrouter/free`), są w sekcji każdego uruchomienia. "
+        "„RAG” to evidence_status i liczba dowodów, „zakończenie” — kto zakończył wywiad.\n"
     )
-    out.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
-    out += [_summary_row(result) for result in results]
+    out += markdown_summary(results)
     out.append("")
 
     executed = [r for r in results if r.status != NOT_RUN]
@@ -1343,6 +1435,9 @@ def render_report(
 class E2ESession:
     """Collect the runs of one pytest session and keep the report up to date after each."""
 
+    # Pod tym kluczem sesja trafia do konfiguracji pytest, skąd conftest.py drukuje tabelę.
+    KEY: pytest.StashKey[E2ESession] = pytest.StashKey()
+
     def __init__(self, label: str, header: dict[str, Any], cases: Iterable[Case]) -> None:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.label = label
@@ -1357,12 +1452,12 @@ class E2ESession:
     def report_path(self) -> Path:
         return self.out_dir / "report.md"
 
-    def run_dir(self, provider: Provider, case: Case) -> Path:
-        return self.out_dir / f"{provider.id}__{case.id}"
+    def run_dir(self, setup: Setup, case: Case) -> Path:
+        return self.out_dir / f"{setup.id}__{case.id}"
 
-    def add_not_run(self, provider: Provider, case: Case, reason: str) -> RunResult:
+    def add_not_run(self, setup: Setup, case: Case, reason: str) -> RunResult:
         """Record a run that could not start, with the reason."""
-        result = new_result(provider, case)
+        result = new_result(setup, case)
         result.status = NOT_RUN
         result.not_run_reason = reason
         self.add(result)
@@ -1388,7 +1483,7 @@ class E2ESession:
 
     def _write(self, result: RunResult) -> None:
         if result.status != NOT_RUN:
-            run_dir = self.out_dir / f"{result.provider_id}__{result.case_id}"
+            run_dir = self.out_dir / f"{result.setup_id}__{result.case_id}"
             run_dir.mkdir(parents=True, exist_ok=True)
             payload = json.dumps(asdict(result), ensure_ascii=False, indent=2, default=str)
             (run_dir / "result.json").write_text(payload, encoding="utf-8")

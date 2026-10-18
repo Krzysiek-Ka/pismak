@@ -4,10 +4,36 @@ Sprawdzają cały przepływ Pismaka na prawdziwych modelach, bazie RAG i konfigu
 z `.env`: opis sprawy → wywiad Dopytywatora → CaseBrief → Źródłowyszukiwacz → Pismogenerator.
 Nie ma tu atrap modeli, bazy, retrievera ani generatora.
 
-Zakres: trzech dostawców (OpenRouter `openrouter/free`, lokalny `pismak-bielik`,
-lokalny `pismak-pllum`) × dwa przypadki = 6 uruchomień. W każdym uruchomieniu ten sam
-dostawca obsługuje wszystkie etapy LLM (Dopytywator, planner, reranker, Pismogenerator).
-Embeddingi zawsze liczy lokalny `bge-m3`.
+## Jakie modele testować — lista `URUCHOMIENIA`
+
+Kombinacje modeli wpisuje się na początku `e2e_cases.py`, w liście `URUCHOMIENIA`. Każdy
+wpis to jedno uruchomienie, wykonywane na każdej sprawie (`kot_wrocek`, `buspas`) albo
+tylko na sprawach z pola `sprawy`. Etapy odpowiadają trzem wyborom dostawcy w panelu
+aplikacji; Źródłowyszukiwacz obejmuje planner i reranker, embeddingi zawsze liczy lokalny `bge-m3`.
+
+```python
+URUCHOMIENIA = [
+    {"nazwa": "bielik", "dopytywator": "bielik", "zrodlowyszukiwacz": "bielik", "pismogenerator": "bielik"},
+    {"nazwa": "pllum_or", "dopytywator": "pllum", "zrodlowyszukiwacz": "openrouter", "pismogenerator": "bielik"},
+    {"nazwa": "qwen_buspas", "dopytywator": "qwen2.5:7b", "zrodlowyszukiwacz": "bielik",
+     "pismogenerator": "openrouter:meta-llama/llama-3.3-70b-instruct:free", "sprawy": ["buspas"]},
+]
+```
+
+| pole | znaczenie |
+|---|---|
+| `nazwa` | unikalna nazwa uruchomienia (litery, cyfry, `_`, `-`); pojawia się w tabeli i w nazwie katalogu wyników |
+| `dopytywator` | model wywiadu i CaseBrief |
+| `zrodlowyszukiwacz` | model plannera i rerankera |
+| `pismogenerator` | model piszący pismo |
+| `sprawy` | opcjonalnie: lista spraw; domyślnie wszystkie |
+
+Model to skrót `bielik` (`pismak-bielik`), `pllum` (`pismak-pllum`) lub `openrouter`
+(`openrouter/free`, losowy darmowy model — tak jak w aplikacji), dowolna inna nazwa modelu
+z `ollama list` (np. `qwen2.5:7b`; bez tagu oznacza `:latest`) albo konkretny model
+OpenRouter z przedrostkiem `openrouter:`. Literówkę w nazwie pola, powtórzoną nazwę albo
+nieznaną sprawę pytest zgłasza od razu przy zbieraniu testów, z numerem wpisu do poprawienia.
+Model, którego nie ma w Ollamie, oznacza uruchomienie jako NIEURUCHOMIONE z powodem.
 
 ## Uruchamianie tylko ręczne
 
@@ -18,20 +44,37 @@ pokazuje jako pominiętych.
 
 ```powershell
 # Wymagane: baza (docker compose up -d postgres) z zaindeksowanymi dokumentami,
-# Ollama z bge-m3, pismak-bielik i pismak-pllum, OPENROUTER_KEY w .env.
+# Ollama z bge-m3 i modelami z URUCHOMIENIA, OPENROUTER_KEY w .env (gdy lista go używa).
 $env:PISMAK_E2E = "1"
 $env:PISMAK_E2E_LABEL = "po-zmianie"          # opcjonalna nazwa przebiegu
 
-# Szybka kontrola ewaluatorów (sekundy, bez modeli i bazy)
+# Szybka kontrola listy URUCHOMIENIA i ewaluatorów (sekundy, bez modeli i bazy)
 .venv\Scripts\python.exe -m pytest tests/e2e/test_e2e_support.py -q
 
-# Wszystkie 6 uruchomień (na CPU: 3–5 h)
-.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py -v -rA -s
+# Podgląd, co zostanie uruchomione (nic nie wywołuje modeli)
+.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py --collect-only -q
 
-# Wybrane uruchomienia, np. tylko OpenRouter (10–20 min) albo jeden przypadek
-.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py -k openrouter -v -rA -s
-.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py -k "bielik-buspas" -v -rA -s
+# Wszystkie uruchomienia z listy, po kolei; na końcu tabela podsumowania
+.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py -v
+
+# To samo z bieżącym podglądem postępu (wynik każdego uruchomienia zaraz po nim)
+.venv\Scripts\python.exe -m pytest tests/e2e/test_pismak_e2e.py -v -s
+
+# Jedno uruchomienie: pełny identyfikator <nazwa>-<sprawa>, bo `-k` dopasowuje fragment nazwy
+.venv\Scripts\python.exe -m pytest "tests/e2e/test_pismak_e2e.py::test_pismak_end_to_end[bielik-buspas]" -v
 ```
+
+Na końcu wyjścia pytest pojawia się sekcja **Podsumowanie E2E**: tabela z jednym wierszem
+na uruchomienie (nazwa, sprawa, model każdego etapu, liczba pytań, kto zakończył wywiad,
+CaseBrief, wynik RAG, pismo, czas, wynik, liczba ostrzeżeń), pod nią przyczyny niepowodzeń
+i ścieżka do pełnego raportu. Ta sama tabela otwiera `report.md`. Czas trwania zależy od
+listy: na CPU lokalne uruchomienie zajmuje zwykle 20–40 min, OpenRouter kilka minut.
+
+Każda sekcja raportu podaje gotowe polecenie odtwarzające dane uruchomienie.
+
+Komputer nie może zasnąć w trakcie testu: uśpienie wstrzymuje wywołanie modelu (może ono
+zawisnąć do wznowienia systemu) i zawyża zmierzone czasy. Podłącz zasilanie i wyłącz
+usypianie na czas przebiegu.
 
 Przebiegi OpenRouter wysyłają oba przypadki do usługi zewnętrznej (zob. ostrzeżenie
 w aplikacji). Darmowy plan ma limity zapytań; odrzucenie (429) kończy uruchomienie jako
@@ -79,23 +122,22 @@ komunikatem, jaki pokazałaby aplikacja, i miejscem w kodzie.
 `outputs/e2e/<czas>_<etykieta>/` (poza repozytorium, jak inne wyniki w `outputs/`):
 
 - `report.md`, `results.json` — przepisywane po każdym uruchomieniu, więc przerwany
-  przebieg też zostawia raport. Tabela zbiorcza: dostawca i model (skonfigurowany oraz
-  faktyczne), liczba pytań, przyczyna zakończenia, CaseBrief, RAG, pismo, czas, błędy, wynik.
-- `<dostawca>__<przypadek>/result.json`, `turns.json` — pytania z powodem i brakującymi
+  przebieg też zostawia raport. Otwiera go ta sama tabela podsumowania co w terminalu;
+  modele, które faktycznie odpowiedziały, są w sekcji każdego uruchomienia.
+- `<nazwa>__<sprawa>/result.json`, `turns.json` — pytania z powodem i brakującymi
   tematami według modelu, podane odpowiedzi, czasy.
-- `<dostawca>__<przypadek>/logs/pismak_*.log` — pełny log sprawy: budżety kontekstu,
+- `<nazwa>__<sprawa>/logs/pismak_*.log` — pełny log sprawy: budżety kontekstu,
   tokeny, odrzucone odpowiedzi modelu, ślady stosu.
-- `<dostawca>__<przypadek>/artifacts/` — to samo, co zapisuje aplikacja: `conversation.json`,
+- `<nazwa>__<sprawa>/artifacts/` — to samo, co zapisuje aplikacja: `conversation.json`,
   `brief.json`, `evidence.json`, `draft.json` lub `draft_with_error.json`, `letter.md`, `models.json`.
 
-Każda sekcja raportu podaje polecenie, które odtwarza dane uruchomienie.
 
 ## Pliki
 
-- `e2e_cases.py` — dostawcy, przypadki, słowa-klucze do ostrzeżeń.
+- `e2e_cases.py` — lista `URUCHOMIENIA` (do edycji), skróty modeli, sprawy, słowa-klucze do ostrzeżeń.
 - `e2e_support.py` — sterownik przebiegu (ta sama ścieżka co `src/Wyswietlator/app.py`:
   `dopytywator.interview_step`, `services.build_zrodlowyszukiwator`, `pismogenerator.build_draft`),
   kontrole, analiza logu, raport, usuwanie danych uwierzytelniających.
-- `test_pismak_e2e.py` — warunki wstępne i 6 uruchomień.
+- `test_pismak_e2e.py` — warunki wstępne i uruchomienia z listy.
 - `test_e2e_support.py` — kontrola ewaluatorów bez modeli.
-- `conftest.py` — bramka `PISMAK_E2E=1`.
+- `conftest.py` — bramka `PISMAK_E2E=1` i tabela podsumowania na końcu wyjścia pytest.

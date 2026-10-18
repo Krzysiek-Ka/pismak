@@ -6,19 +6,28 @@ Dane poniżej opisują sytuacje do oceny przez kontrole testu; nie zastępują m
 
 from __future__ import annotations
 
-from e2e_cases import CASES, PROVIDERS
+import re
+
+import pytest
+from e2e_cases import BIELIK, CASES, OPENROUTER, PLLUM, SETUPS, build_setups, resolve_model
 from e2e_support import (
     FAIL,
     MAX_QUESTIONS,
+    NOT_RUN,
     PASS,
+    PASSED,
     REDACTED,
+    Check,
+    PhaseError,
     analyze_log,
     contains_any,
     interview_invariants,
     legal_basis_outside,
+    markdown_summary,
     new_result,
     repeated_questions,
     scrub_secrets,
+    text_summary,
     unknown_numbers,
     words_outside,
 )
@@ -26,13 +35,25 @@ from e2e_support import (
 from src.Dopytywator.structures import ConversationMessage
 
 CASE = CASES[0]
+CASE_IDS = [case.id for case in CASES]
+
+
+def entry(name: str = "proba", **overrides: object) -> dict:
+    """Return one valid URUCHOMIENIA entry with the given fields changed."""
+    return {
+        "nazwa": name,
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "openrouter",
+        **overrides,
+    }
 
 
 def interview_checks(
     *, questions: int, calls: int, end_reason: str, ready: bool = True
 ) -> dict[str, str]:
     """Evaluate the interview invariants of a finished interview with the given counters."""
-    result = new_result(PROVIDERS[0], CASE)
+    result = new_result(SETUPS[0], CASE)
     result.questions_asked = result.answers_used = questions
     result.interview_calls = calls
     result.end_reason = end_reason
@@ -49,6 +70,81 @@ def test_cases_have_an_answer_for_every_allowed_question() -> None:
         assert case.description.strip()
         assert len(case.answers) == MAX_QUESTIONS
         assert all(answer.strip() for answer in case.answers)
+
+
+def test_run_list_entries_become_setups_with_a_model_per_stage() -> None:
+    [setup] = build_setups([entry("mix", sprawy=["buspas"])], CASE_IDS)
+
+    assert (setup.id, setup.dopytywator, setup.zrodla, setup.pismo) == (
+        "mix",
+        PLLUM,
+        BIELIK,
+        OPENROUTER,
+    )
+    assert setup.case_ids == ("buspas",)
+
+
+def test_models_are_shortcuts_ollama_names_or_openrouter_ids() -> None:
+    assert resolve_model("bielik") == BIELIK
+    assert (resolve_model("qwen2.5").provider, resolve_model("qwen2.5").model) == (
+        "ollama",
+        "qwen2.5:latest",
+    )
+    assert resolve_model("llama3.1:8b").model == "llama3.1:8b"
+    custom = resolve_model("openrouter:meta-llama/llama-3.3-70b-instruct:free")
+    assert (custom.provider, custom.model) == (
+        "openrouter",
+        "meta-llama/llama-3.3-70b-instruct:free",
+    )
+
+
+@pytest.mark.parametrize(
+    ("entries", "message"),
+    [
+        ([entry(pismogenerator="")], "brak pól: pismogenerator"),
+        ([entry(zrodla="bielik")], "nieznane pola ['zrodla']"),
+        ([entry("a b")], "nazwa może zawierać tylko"),
+        ([entry("x"), entry("x")], "„x” już występuje"),
+        ([entry(sprawy=["kot"])], "nieznane sprawy ['kot']"),
+        ([entry(dopytywator="openrouter:")], "brak identyfikatora modelu"),
+        ([], "lista jest pusta"),
+    ],
+)
+def test_run_list_mistakes_are_reported_with_the_entry_to_fix(entries, message) -> None:
+    with pytest.raises(ValueError, match=re.escape(message)):
+        build_setups(entries, CASE_IDS)
+
+
+def test_the_configured_run_list_is_valid() -> None:
+    assert SETUPS
+
+
+def test_result_names_every_stage_and_reproduces_exactly_one_run() -> None:
+    [mixed] = build_setups(
+        [
+            entry(
+                "mix_pllum_openrouter_bielik",
+                zrodlowyszukiwacz="openrouter",
+                pismogenerator="bielik",
+            )
+        ],
+        CASE_IDS,
+    )
+
+    result = new_result(mixed, CASE)
+
+    assert result.stages == {
+        "Dopytywator": {"name": "pllum", "provider": "ollama", "model": PLLUM.model},
+        "Źródłowyszukiwacz": {
+            "name": "openrouter",
+            "provider": "openrouter",
+            "model": OPENROUTER.model,
+        },
+        "Pismogenerator": {"name": "bielik", "provider": "ollama", "model": BIELIK.model},
+    }
+    # `-k bielik-kot_wrocek` wybrałby też ten przebieg; polecenie podaje pełny identyfikator.
+    assert f"test_pismak_end_to_end[{result.run_id}]" in result.reproduce
+    assert " -k " not in result.reproduce
 
 
 def test_interview_invariants_accept_both_ways_of_ending() -> None:
@@ -121,3 +217,34 @@ def test_scrub_secrets_redacts_keys_in_written_files(tmp_path) -> None:
 
     assert leaked == [log]
     assert log.read_text("utf-8") == f"klucz={REDACTED} haslo={REDACTED}"
+
+
+def test_summary_table_shows_each_stage_model_and_why_runs_did_not_pass() -> None:
+    [setup] = build_setups([entry("mix")], CASE_IDS)
+    passed = new_result(setup, CASES[1])
+    passed.status = PASSED
+    passed.questions_asked = 12
+    passed.end_reason = "question_limit"
+    passed.timings = {"razem": 1575.0}
+    failed = new_result(setup, CASE)
+    failed.errors = [
+        PhaseError("wywiad", "APITimeoutError", "Przekroczono czas", None, "timed out")
+    ]
+    failed.checks = [Check("H2", "x", "hard", FAIL, "timed out")]
+    skipped = new_result(setup, CASE)
+    skipped.status = NOT_RUN
+    skipped.not_run_reason = "Dopytywator: model nie jest zarejestrowany w Ollamie"
+
+    table = text_summary([passed, failed, skipped])
+    markdown = "\n".join(markdown_summary([passed, failed, skipped]))
+
+    header = table[1]
+    for column in ("uruchomienie", "Dopytywator", "Źródłowyszukiwacz", "Pismogenerator", "wynik"):
+        assert column in header
+    assert "| mix " in table[3] and "| pllum " in table[3] and "| limit 12 " in table[3]
+    assert "26 min 15 s" in table[3]
+    assert len({len(line) for line in table[:7]}) == 1  # wszystkie wiersze tabeli równej szerokości
+    assert any("mix-kot_wrocek: wywiad: APITimeoutError — timed out" in line for line in table)
+    assert any("model nie jest zarejestrowany" in line for line in table)
+    assert "| `mix` | buspas | pllum | bielik | openrouter |" in markdown
+    assert "Przyczyny niepowodzeń" in markdown

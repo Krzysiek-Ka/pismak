@@ -1,14 +1,76 @@
 """
-Przypadki testów E2E: opis sprawy i 12 odpowiedzi podawanych kolejno, niezależnie od pytań.
+Konfiguracja testów E2E: lista uruchomień (które modele na których etapach) i sprawy.
 
-Odpowiedzi celowo nie są dopasowane do pytań modelu: test sprawdza, czy Dopytywator radzi
-sobie z częściowo nieadekwatnymi odpowiedziami. Grupy słów-kluczy służą wyłącznie do
-ostrzeżeń w raporcie (WARN), a nie do oceny PASS/FAIL.
+Żeby zmienić kombinacje modeli, edytuj tylko listę URUCHOMIENIA poniżej. Każdy wpis jest
+uruchamiany na każdej sprawie z CASES (albo na sprawach podanych w "sprawy").
+
+Odpowiedzi w sprawach celowo nie są dopasowane do pytań modelu: test sprawdza, czy
+Dopytywator radzi sobie z częściowo nieadekwatnymi odpowiedziami. Grupy słów-kluczy służą
+wyłącznie do ostrzeżeń w raporcie (WARN), a nie do oceny PASS/FAIL.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+
+# ---------------------------------------------------------------------------
+# URUCHOMIENIA — tę listę edytuj
+#
+#   nazwa              nazwa uruchomienia: litery, cyfry, „_” i „-”; musi być unikalna
+#   dopytywator        model Dopytywatora (wywiad i CaseBrief)
+#   zrodlowyszukiwacz  model Źródłowyszukiwacza (planner i reranker; embeddingi zawsze bge-m3)
+#   pismogenerator     model Pismogeneratora
+#   sprawy             opcjonalnie: lista spraw, np. ["buspas"]; domyślnie wszystkie z CASES
+#
+# Model to jedno z:
+#   "bielik", "pllum", "openrouter"     skróty z MODELE niżej
+#   "qwen2.5:7b"                        dowolny inny model zarejestrowany w Ollamie
+#   "openrouter:<id modelu>"            konkretny model OpenRouter, np.
+#                                       "openrouter:meta-llama/llama-3.3-70b-instruct:free"
+#
+# Uruchomienia idą w kolejności z listy. Szybkie (OpenRouter) warto mieć na początku.
+
+URUCHOMIENIA = [
+    {
+        "nazwa": "openrouter",
+        "dopytywator": "openrouter",
+        "zrodlowyszukiwacz": "openrouter",
+        "pismogenerator": "openrouter",
+    },
+    {
+        "nazwa": "bielik",
+        "dopytywator": "bielik",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "bielik",
+    },
+    {
+        "nazwa": "pllum",
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "pllum",
+        "pismogenerator": "pllum",
+    },
+    {
+        "nazwa": "mix_pllum_bielik_openrouter",
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "openrouter",
+    },
+    {
+        "nazwa": "mix_bielik_pllum_openrouter",
+        "dopytywator": "bielik",
+        "zrodlowyszukiwacz": "pllum",
+        "pismogenerator": "openrouter",
+    },
+    {
+        "nazwa": "mix_pllum_openrouter_bielik",
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "openrouter",
+        "pismogenerator": "bielik",
+    },
+]
+
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -39,13 +101,97 @@ class Case:
     expected_evidence_status: tuple[str, ...] = field(default_factory=tuple)
 
 
-# OpenRouter jest pierwszy: odpowiada w minutach, więc ewentualny problem ze środowiskiem
-# widać, zanim ruszą wielogodzinne przebiegi lokalne na CPU.
-PROVIDERS = (
-    Provider("openrouter", "openrouter", "openrouter/free", "OpenRouter (losowy darmowy model)"),
-    Provider("bielik", "ollama", "pismak-bielik:latest", "Lokalny Bielik (Ollama)"),
-    Provider("pllum", "ollama", "pismak-pllum:latest", "Lokalny PLLuM (Ollama)"),
+@dataclass(frozen=True)
+class Setup:
+    """Dostawcy etapów LLM w jednym uruchomieniu — trzy wybory z panelu konfiguracji aplikacji."""
+
+    id: str
+    dopytywator: Provider
+    zrodla: Provider  # planner i reranker Źródłowyszukiwacza
+    pismo: Provider
+    # Sprawy, na których uruchomienie jest wykonywane; pusta krotka oznacza wszystkie.
+    case_ids: tuple[str, ...] = ()
+
+    @property
+    def stages(self) -> tuple[tuple[str, Provider], ...]:
+        return (
+            ("Dopytywator", self.dopytywator),
+            ("Źródłowyszukiwacz", self.zrodla),
+            ("Pismogenerator", self.pismo),
+        )
+
+    @property
+    def label(self) -> str:
+        if self.dopytywator == self.zrodla == self.pismo:
+            return self.dopytywator.label
+        return " → ".join(f"{stage}: {provider.label}" for stage, provider in self.stages)
+
+
+OPENROUTER = Provider(
+    "openrouter", "openrouter", "openrouter/free", "OpenRouter (losowy darmowy model)"
 )
+BIELIK = Provider("bielik", "ollama", "pismak-bielik:latest", "Lokalny Bielik (Ollama)")
+PLLUM = Provider("pllum", "ollama", "pismak-pllum:latest", "Lokalny PLLuM (Ollama)")
+
+# Skróty dostępne w URUCHOMIENIA.
+MODELE = {provider.id: provider for provider in (BIELIK, PLLUM, OPENROUTER)}
+
+OPENROUTER_PREFIX = "openrouter:"
+_REQUIRED_KEYS = ("nazwa", "dopytywator", "zrodlowyszukiwacz", "pismogenerator")
+_OPTIONAL_KEYS = ("sprawy",)
+_NAME = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def resolve_model(value: str) -> Provider:
+    """Turn a model entry (shortcut, Ollama model or `openrouter:<id>`) into a provider."""
+    value = value.strip()
+    if value in MODELE:
+        return MODELE[value]
+    if value.startswith(OPENROUTER_PREFIX):
+        model = value.removeprefix(OPENROUTER_PREFIX).strip()
+        if not model:
+            raise ValueError(f"brak identyfikatora modelu po „{OPENROUTER_PREFIX}”")
+        return Provider(value, "openrouter", model, f"OpenRouter {model}")
+    # Ollama traktuje nazwę bez tagu jak `:latest`; z tagiem łatwiej porównać ją z listą modeli.
+    model = value if ":" in value.rsplit("/", 1)[-1] else f"{value}:latest"
+    return Provider(value, "ollama", model, f"{model} (Ollama)")
+
+
+def build_setups(entries: list[dict], case_ids: list[str]) -> tuple[Setup, ...]:
+    """Validate the run list and turn every entry into a setup; errors name the entry."""
+    setups: list[Setup] = []
+    for number, entry in enumerate(entries, start=1):
+        where = f"URUCHOMIENIA, wpis {number}"
+        if not isinstance(entry, dict):
+            raise ValueError(f"{where}: wpis musi być słownikiem {{...}}")
+        where = f"{where} ({entry.get('nazwa', 'bez nazwy')})"
+        missing = [key for key in _REQUIRED_KEYS if not str(entry.get(key) or "").strip()]
+        if missing:
+            raise ValueError(f"{where}: brak pól: {', '.join(missing)}")
+        unknown = sorted(set(entry) - set(_REQUIRED_KEYS) - set(_OPTIONAL_KEYS))
+        if unknown:
+            allowed = ", ".join(_REQUIRED_KEYS + _OPTIONAL_KEYS)
+            raise ValueError(f"{where}: nieznane pola {unknown}; dozwolone: {allowed}")
+        name = entry["nazwa"].strip()
+        if not _NAME.fullmatch(name):
+            raise ValueError(f"{where}: nazwa może zawierać tylko litery, cyfry, „_” i „-”")
+        if any(setup.id == name for setup in setups):
+            raise ValueError(f"{where}: nazwa „{name}” już występuje na liście")
+        cases = tuple(entry.get("sprawy") or ())
+        unknown_cases = [case for case in cases if case not in case_ids]
+        if unknown_cases:
+            raise ValueError(
+                f"{where}: nieznane sprawy {unknown_cases}; dostępne: {', '.join(case_ids)}"
+            )
+        try:
+            stages = [resolve_model(str(entry[key])) for key in _REQUIRED_KEYS[1:]]
+        except ValueError as exc:
+            raise ValueError(f"{where}: {exc}") from exc
+        setups.append(Setup(name, *stages, case_ids=cases))
+    if not setups:
+        raise ValueError("URUCHOMIENIA: lista jest pusta — dodaj co najmniej jeden wpis")
+    return tuple(setups)
+
 
 HUMOR_MARKERS = (
     "happening",
@@ -145,3 +291,17 @@ CASES = (
         expected_evidence_status=("supported",),
     ),
 )
+
+# Lista sprawdzana przy zbieraniu testów: błąd we wpisie zatrzymuje pytest z opisem, który wpis
+# poprawić, zanim ruszy jakikolwiek model.
+SETUPS = build_setups(URUCHOMIENIA, [case.id for case in CASES])
+
+
+def run_plan() -> list[tuple[Setup, Case]]:
+    """Return every (setup, case) pair to run, in the order of URUCHOMIENIA and CASES."""
+    return [
+        (setup, case)
+        for setup in SETUPS
+        for case in CASES
+        if not setup.case_ids or case.id in setup.case_ids
+    ]
