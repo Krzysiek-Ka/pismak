@@ -159,3 +159,63 @@ class TestLlmGenerationLock:
             pass
 
         assert any("session_id=- " in m for m in _messages(records))
+
+
+class TestLlmGenerationLockWaitLimit:
+    def test_llm_generation_lock__waiter_gets_busy_error_after_the_wait_limit(
+        self, monkeypatch, records
+    ) -> None:
+        """Verify a second case stops waiting with a clear error instead of hanging forever."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.05)
+        notified = Event()
+        entered = Event()
+
+        with llm_generation_lock():
+            with pytest.raises(llm_runtime.LLMBusyError):
+                with llm_generation_lock(on_wait=notified.set, stage="draft", session_id="case-2"):
+                    entered.set()
+
+        assert notified.is_set()
+        assert not entered.is_set()
+        assert not llm_runtime._LLM_LOCK.locked()
+        timeouts = [r for r in records if r.getMessage().startswith("llm_wait_timeout")]
+        assert len(timeouts) == 1
+        assert "stage=draft session_id=case-2" in timeouts[0].getMessage()
+        assert getattr(timeouts[0], "session_id", None) == "case-2"
+
+    def test_llm_generation_lock__lock_is_free_for_the_next_case_after_a_timeout(
+        self, monkeypatch
+    ) -> None:
+        """Verify a waiter that gave up does not leave the lock taken or released twice."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.05)
+        with llm_generation_lock():
+            with pytest.raises(llm_runtime.LLMBusyError):
+                with llm_generation_lock():
+                    pass
+
+        with llm_generation_lock():
+            assert llm_runtime._LLM_LOCK.locked()
+        assert not llm_runtime._LLM_LOCK.locked()
+
+    def test_llm_generation_lock__openrouter_does_not_wait_for_the_local_model(self) -> None:
+        """Verify an external provider runs while Ollama is busy and leaves the local lock alone."""
+        notifications: list[str] = []
+
+        with llm_generation_lock():
+            with llm_generation_lock(
+                on_wait=lambda: notifications.append("wait"), provider="openrouter"
+            ):
+                assert llm_runtime._LLM_LOCK.locked()
+            assert llm_runtime._LLM_LOCK.locked()
+
+        assert notifications == []
+        assert not llm_runtime._LLM_LOCK.locked()
+
+    def test_llm_generation_lock__openrouter_failure_does_not_release_the_local_lock(self) -> None:
+        """Verify a failing external call never frees the lock another case holds."""
+        with llm_generation_lock():
+            with pytest.raises(RuntimeError):
+                with llm_generation_lock(provider="openrouter"):
+                    raise RuntimeError("429")
+            assert llm_runtime._LLM_LOCK.locked()
+        assert not llm_runtime._LLM_LOCK.locked()

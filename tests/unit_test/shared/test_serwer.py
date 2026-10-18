@@ -7,8 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from src._shared import serwer
+from src._shared import llm_runtime, serwer
 from src._shared.context_budget import LLMInputLimitError, estimate_tokens
+from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
 
 
 def _completion(
@@ -182,6 +183,49 @@ class TestSetUpClient:
         serwer.set_up_client("local")
 
         assert calls["base_url"] == "http://ollama.test:11434/v1/"
+
+
+class TestCallStructuredQueue:
+    def test_call_structured__openrouter_runs_while_the_local_model_is_busy(self) -> None:
+        """Verify an OpenRouter stage is not queued behind a long Ollama generation."""
+        completions = _Completions()
+        waits: list[str] = []
+        llm = serwer.LLMClient(
+            SimpleNamespace(chat=SimpleNamespace(completions=completions)),
+            "openrouter/free",
+            on_wait=lambda: waits.append("wait"),
+            provider="openrouter",
+        )
+
+        with llm_generation_lock():
+            result = llm._call_structured(
+                system_prompt="system",
+                user_prompt="user",
+                response_model=_Answer,
+                temperature=0.0,
+                max_output_tokens=512,
+                attempt=1,
+            )
+
+        assert result.value == "ok"
+        assert waits == []
+
+    def test_call_structured__busy_local_model_raises_without_calling_it(self, monkeypatch) -> None:
+        """Verify an Ollama stage that waited too long fails clearly and sends nothing."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.05)
+        completions = _Completions()
+        llm = serwer.LLMClient(SimpleNamespace(chat=SimpleNamespace(completions=completions)), "m")
+
+        with llm_generation_lock():
+            with pytest.raises(LLMBusyError):
+                llm.generate_structured(
+                    system_prompt="system",
+                    user_prompt="user",
+                    response_model=_Answer,
+                    max_output_tokens=512,
+                )
+
+        assert completions.calls == []
 
 
 class TestCallStructured:

@@ -6,7 +6,8 @@ from threading import Event, Thread
 
 import pytest
 
-from src._shared.llm_runtime import llm_generation_lock
+from src._shared import llm_runtime
+from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
 from src.Zrodlowyszukiwator.brief_to_evidence.models import ResearchPlan
 from src.Zrodlowyszukiwator.brief_to_evidence.pipeline import BriefToEvidencePipeline
 from src.Zrodlowyszukiwator.rag_retrieval.hybrid import HybridRetriever
@@ -161,6 +162,28 @@ class TestLLMReranker:
         assert [item[0].chunk_id for item in result.selected] == ["E1"]
         assert result.selected[0][2] == 0
         assert result.assessed is False
+
+    def test_rerank__busy_local_model_is_reported_instead_of_unassessed_sources(
+        self, monkeypatch
+    ) -> None:
+        """Verify a case that waited too long is told to retry, not given unchecked sources."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.05)
+
+        class UnusedClient:
+            class Chat:
+                class Completions:
+                    def create(self, **kwargs):
+                        raise AssertionError("A busy model must not be called")
+
+                completions = Completions()
+
+            chat = Chat()
+
+        reranker = LLMReranker(client=UnusedClient(), model="test")
+
+        with llm_generation_lock():
+            with pytest.raises(LLMBusyError):
+                reranker.rerank(case_brief={}, candidates=[make_chunk("E1")])
 
     def test_rerank__ignores_unknown_and_duplicate_ids(self) -> None:
         """Verify model output cannot introduce unknown chunks or duplicate selections."""

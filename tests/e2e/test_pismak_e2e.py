@@ -56,7 +56,7 @@ class Environment:
         if provider.provider == "ollama" and provider.model not in self.ollama_models:
             return (
                 f"model {provider.model} nie jest zarejestrowany w Ollamie "
-                f"(dostępne: {', '.join(self.ollama_models) or 'brak'}); zob. README, sekcja 4.2"
+                f"(dostępne: {', '.join(self.ollama_models) or 'brak'}); zob. README, punkt 3.1"
             )
         if provider.provider == "openrouter":
             try:

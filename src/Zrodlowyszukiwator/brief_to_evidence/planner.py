@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from src._shared.context_budget import fit_output_tokens, usage_summary
-from src._shared.llm_runtime import llm_generation_lock
+from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
 from src._shared.serwer import (
     COMPACT_OUTPUT_INSTRUCTION,
     REPAIR_PROMPT,
@@ -144,6 +144,7 @@ Zasady:
                     self.on_wait,
                     stage="query_planner",
                     session_id=self.session_id,
+                    provider=self.provider,
                 ):
                     response = self.client.chat.completions.create(
                         model=self.model,
@@ -322,6 +323,10 @@ Zasady:
                 return plan
             if not self.allow_fallback:
                 raise RuntimeError("Planner zwrócił plan bez zapytań.")
+        except LLMBusyError:
+            # Zajęty model to brak kolejki, nie słaba odpowiedź: użytkownik ma spróbować
+            # ponownie, a nie dostać po długim czekaniu pismo z planu zapasowego.
+            raise
         except Exception:
             if not self.allow_fallback:
                 raise

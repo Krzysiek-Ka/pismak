@@ -71,6 +71,8 @@ modele/pllum/*
 # ==========================================
 
 data/
+# Zbiór pytań ewaluacji RAG należy do testów; CI wczytuje go przy zbieraniu testów.
+!tests/rag_eval/data/
 *.db
 *.sqlite
 *.sqlite3

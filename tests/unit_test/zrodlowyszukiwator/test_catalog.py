@@ -128,14 +128,11 @@ class TestLoadCatalog:
         with pytest.raises(json.JSONDecodeError):
             load_catalog(path)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Dwa wpisy z tą samą nazwą pliku: późniejszy po cichu zastępuje wcześniejszy. "
-        "Usuń xfail, gdy load_catalog zacznie odrzucać duplikaty.",
-    )
-    def test_load_catalog__rejects_two_entries_for_the_same_file(self, tmp_path: Path) -> None:
-        """Verify a copy-paste mistake cannot ingest a PDF with another document's metadata."""
+    def test_load_catalog__later_entry_for_the_same_file_wins(self, tmp_path: Path) -> None:
+        """Verify the owner's chosen behaviour: a repeated file name keeps its last entry."""
         path = write_catalog(tmp_path, entry(), entry(document_id="inny", title="Inny dokument"))
 
-        with pytest.raises(ValueError, match="polityka.pdf"):
-            load_catalog(path)
+        catalog = load_catalog(path)
+
+        assert list(catalog) == ["polityka.pdf"]
+        assert catalog["polityka.pdf"].document_id == "inny"

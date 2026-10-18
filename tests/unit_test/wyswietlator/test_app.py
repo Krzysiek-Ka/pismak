@@ -13,7 +13,7 @@ import streamlit as st
 from streamlit import config
 from streamlit.testing.v1 import AppTest
 
-from src._shared import model_context
+from src._shared import llm_runtime, model_context
 from src.Dopytywator.structures import CaseBrief
 from src.Zrodlowyszukiwator.brief_to_evidence.models import (
     Evidence,
@@ -636,6 +636,24 @@ class TestInterview:
         assert "Model nie zwrócił poprawnych danych" in shown_text(app_test)
         assert app_test.session_state["question_count"] == 0
         assert "error_type=LLMResponseError" in case_log(tmp_path)
+
+    def test_app__second_case_gets_a_busy_message_instead_of_waiting_forever(
+        self, ui, tmp_path, monkeypatch
+    ) -> None:
+        """Verify a case queued behind another generation is told to retry after the wait limit."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.1)
+        app_test, completions = ui({INTERVIEW: [QUESTION]})
+        app_test.run()
+
+        with llm_runtime.llm_generation_lock():
+            app_test.chat_input[0].set_value("Opis sprawy").run()
+
+        shown = shown_text(app_test)
+        assert "Lokalny model jest zajęty obsługą innych spraw" in shown
+        assert completions.calls == []
+        assert app_test.session_state["question_count"] == 0
+        assert "llm_wait_timeout stage=dopytywator" in case_log(tmp_path)
+        assert "error_type=LLMBusyError" in case_log(tmp_path)
 
 
 class TestNewCase:

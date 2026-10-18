@@ -105,7 +105,7 @@ gdy dokument zapisano starszą wersją przetwarzania (`INGESTION_VERSION` w
   Wynik ingestion podaje strony z naprawą w `repaired_glyph_pages`.
 
 Pola `is_active`, `lifecycle_status` i `retrieval_enabled` oraz ich wpływ na
-wyszukiwanie opisuje główne README, punkt 6.2.
+wyszukiwanie opisuje główne README, punkt 5.2.
 
 ## Zasada wersjonowania
 

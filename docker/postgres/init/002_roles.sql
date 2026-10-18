@@ -3,7 +3,7 @@
 --   pismak_app    — interfejs i wyszukiwanie; tylko SELECT na tych tabelach.
 --
 -- Przy pierwszym starcie kontenera skrypt uruchamia obraz PostgreSQL. Na bazie
--- utworzonej wcześniej wykonaj go ręcznie (README, punkt 5.3); można go powtarzać.
+-- utworzonej wcześniej wykonaj go ręcznie (README, punkt 4.2); można go powtarzać.
 -- Hasła pochodzą ze zmiennych środowiskowych kontenera (docker-compose.yaml).
 
 \set ON_ERROR_STOP on

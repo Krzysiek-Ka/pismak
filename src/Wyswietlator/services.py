@@ -23,6 +23,7 @@ from openai import (
 )
 
 from src._shared.context_budget import LLMInputLimitError, input_char_budget
+from src._shared.llm_runtime import LLMBusyError
 from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import (
     DEFAULT_OLLAMA_URL,
@@ -213,6 +214,11 @@ def llm_error_message(error: Exception) -> str:
         )
     if isinstance(error, DatabaseConnectionError):
         return "Źródłowyszukiwacz jest obecnie niedostępny. Spróbuj ponownie później."
+    if isinstance(error, LLMBusyError):
+        return (
+            "Lokalny model jest zajęty obsługą innych spraw. Spróbuj ponownie za kilka minut "
+            "albo wybierz OpenRouter."
+        )
     if isinstance(error, LLMConfigurationError):
         return "Wybrany dostawca modeli nie jest skonfigurowany. Wybierz innego dostawcę."
     if isinstance(error, (AuthenticationError, PermissionDeniedError)):

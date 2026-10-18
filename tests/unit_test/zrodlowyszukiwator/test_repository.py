@@ -13,7 +13,7 @@ class TestRetrievalRepository:
     ) -> None:
         """Verify a local connection failure suggests starting Docker without exposing credentials."""
 
-        def fail_to_connect(database_url: str) -> None:
+        def fail_to_connect(database_url: str, **kwargs) -> None:
             raise psycopg.OperationalError("connection timeout expired")
 
         monkeypatch.setattr(psycopg, "connect", fail_to_connect)
@@ -30,7 +30,7 @@ class TestRetrievalRepository:
     ) -> None:
         """Verify remote database failures direct the user to connection settings instead."""
 
-        def fail_to_connect(database_url: str) -> None:
+        def fail_to_connect(database_url: str, **kwargs) -> None:
             raise psycopg.OperationalError("connection timeout expired")
 
         monkeypatch.setattr(psycopg, "connect", fail_to_connect)
@@ -53,7 +53,7 @@ class TestRetrievalRepository:
     ) -> None:
         """Verify the operator sees which local port failed, with 5432 as the default."""
 
-        def fail_to_connect(database_url: str) -> None:
+        def fail_to_connect(database_url: str, **kwargs) -> None:
             raise psycopg.OperationalError("connection refused")
 
         monkeypatch.setattr(psycopg, "connect", fail_to_connect)
@@ -73,11 +73,32 @@ class TestRetrievalRepository:
 
         connection = object()
         registered: list[object] = []
-        monkeypatch.setattr(psycopg, "connect", lambda database_url: connection)
+        monkeypatch.setattr(psycopg, "connect", lambda database_url, **kwargs: connection)
         monkeypatch.setattr(pgvector.psycopg, "register_vector", registered.append)
 
         assert RetrievalRepository("postgresql://localhost/pismak").connect() is connection
         assert registered == [connection]
+
+    def test_connect__limits_how_long_an_unreachable_database_can_block_a_case(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify a wrong address fails after the connect timeout instead of hanging for minutes."""
+        import pgvector.psycopg
+
+        calls: list[dict[str, object]] = []
+
+        def fake_connect(database_url: str, **kwargs: object) -> object:
+            calls.append({"database_url": database_url, **kwargs})
+            return object()
+
+        monkeypatch.setattr(psycopg, "connect", fake_connect)
+        monkeypatch.setattr(pgvector.psycopg, "register_vector", lambda conn: None)
+
+        RetrievalRepository("postgresql://app@127.0.0.1/pismak").connect()
+
+        assert calls == [
+            {"database_url": "postgresql://app@127.0.0.1/pismak", "connect_timeout": 10}
+        ]
 
 
 class TestCounts:

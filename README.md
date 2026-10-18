@@ -1,247 +1,29 @@
 # Pismak
 
-Pismak jest pomocnikiem aktywisty: aplikacją AI do przygotowywania pism i
-wniosków do instytucji publicznych.
-
-Sprawa użytkownika przechodzi przez następujące etapy:
-
-1. użytkownik opisuje problem,
-2. Dopytywator zadaje pytania i doprecyzowuje intencje,
-3. Źródłowyszukiwacz wyszukuje odpowiednie fragmenty dokumentów,
-4. Pismogenerator tworzy projekt pisma na podstawie briefu i dowodów.
-
-Projekt jest obecnie rozwijany lokalnie na Windowsie z użyciem modeli uruchamianych przez Ollamę oraz PostgreSQL + pgvector jako bazy dla RAG.
-
----
-
-## 1. Cel projektu
-
-Celem Pismaka jest zbudowanie narzędzia typu chat, które pomaga przejść od nieuporządkowanego opisu problemu do gotowego, możliwego do wysłania pisma.
-
-Docelowy przepływ:
+Pismak pomaga przejść od opisu problemu do projektu pisma do instytucji publicznej.
+Dopytuje o sprawę, wyszukuje fragmenty dokumentów miejskich i na ich podstawie
+przygotowuje projekt wniosku z listą źródeł.
 
 ```text
-Użytkownik
-   ↓
-Dopytywator
-   ↓
-CaseBrief
-   ↓
-Źródłowyszukiwacz
-   ↓
-EvidencePack
-   ↓
-Pismogenerator
-   ↓
-DraftLetter / letter.md
-   ↓
-weryfikacja, korekta i wysyłka
+opis sprawy → Dopytywator → CaseBrief → Źródłowyszukiwacz (RAG) → EvidencePack → Pismogenerator → letter.md
 ```
 
-Najważniejsze założenia:
+- **Dopytywator** zadaje pytania pomocnicze i buduje `CaseBrief`.
+- **Źródłowyszukiwacz** planuje zapytania, łączy wyszukiwanie wektorowe i pełnotekstowe
+  (PostgreSQL + pgvector), a reranker LLM wybiera fragmenty do `EvidencePack`.
+- **Pismogenerator** pisze projekt wyłącznie na podstawie briefu, znalezionych fragmentów
+  i materiałów użytkownika; ostateczny `letter.md` składa kod.
+- **Wyświetlator** to interfejs Streamlit łączący te etapy.
 
-- system nie powinien wymyślać faktów ani źródeł,
-- każdy etap ma mieć jasno zdefiniowane wejście i wyjście,
-- docelowo lokalne modele mają być wymienne z modelami chmurowymi,
-- źródła użyte w piśmie mają być możliwe do wskazania i zweryfikowania,
-- RAG ma korzystać z miejskich strategii, polityk, programów, standardów i innych dokumentów,
-- generowanie pisma ma być oddzielone od wyszukiwania i weryfikacji źródeł.
+Modele działają lokalnie w Ollamie (PLLuM lub Bielik oraz `bge-m3` do embeddingów);
+każdy etap generatywny może zamiast tego użyć OpenRouter. Projekt jest prototypem
+rozwijanym na Windowsie. Planowane: sprawdzanie faktów, korekta językowa, wybór
+adresata i wysyłka.
 
----
+## 1. Szybki start
 
-## 2. Aktualnie zaimplementowane komponenty
-
-### Dopytywator
-
-Dopytywator prowadzi rozmowę z użytkownikiem i zbiera informacje potrzebne do opisania sprawy.
-
-Jego zadania:
-
-- zrozumienie problemu,
-- ustalenie oczekiwanego rezultatu,
-- ustalenie konkretnych postulatów,
-- zebranie informacji o miejscu i czasie,
-- zebranie informacji o dowodach,
-- zebranie informacji o wcześniejszych działaniach,
-- rozpoznanie brakujących informacji,
-- oddzielenie twierdzeń, opinii i przypuszczeń.
-
-Wynikiem jest obiekt:
-
-```python
-CaseBrief
-```
-
-Dopytywator zadaje najwyżej tyle pytań pomocniczych, ile ustawisz w polu „Max pytań”
-w interfejsie: domyślnie 1, maksymalnie 12 (`MAX_INTERVIEW_QUESTIONS` w
-`src/Wyswietlator/services.py`). Może skończyć wcześniej, gdy uzna, że ma komplet
-informacji.
-
-### Pismogenerator
-
-Pismogenerator otrzymuje zaakceptowany `CaseBrief` oraz `EvidencePack` i generuje
-projekt pisma. `EvidencePack` zawiera dokładne fragmenty źródeł znalezione przez
-Źródłowyszukiwacz; generator nie ma bezpośredniego dostępu do bazy RAG.
-
-W polu `DraftLetter.sources` zapisywane są wyłącznie identyfikatory dozwolonych
-materiałów: `E1`, `E2` itd. dla EvidencePack oraz `U1`, `U2` itd. dla materiałów
-podanych przez użytkownika. Renderer rozwija te identyfikatory do czytelnej listy
-źródeł w `letter.md`.
-
-W Phase 0 obowiązuje stała struktura:
-
-```text
-1. Adresat
-2. Nadawca
-3. Podsumowanie: „Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o ...”
-4. Typ pisma: WNIOSEK
-5. Rozwinięcie i argumentacja
-6. Podpis
-7. Źródła
-8. Sekcja kontrolna
-```
-
-W Phase 0:
-
-- typ pisma jest zawsze `WNIOSEK`,
-- Pismogenerator nie wybiera podstawy prawnej,
-- nie dodaje art. 241 KPA ani ustawy o dostępie do informacji publicznej,
-- nie może wymyślać faktów ani źródeł,
-- finalny Markdown jest składany deterministycznie przez kod.
-
-Wynikiem jest:
-
-```python
-DraftLetter
-```
-
-oraz finalny plik:
-
-```text
-letter.md
-```
-
-### Źródłowyszukiwacz — RAG
-
-RAG jest podzielony na dwie części.
-
-#### `rag_ingestion`
-
-Część uruchamiana przy dodawaniu lub aktualizowaniu dokumentu.
-
-Pipeline:
-
-```text
-PDF
- ↓
-ekstrakcja tekstu
- ↓
-czyszczenie
- ↓
-wykrywanie sekcji
- ↓
-chunking
- ↓
-metadata
- ↓
-embedding
- ↓
-PostgreSQL + pgvector
-```
-
-Każdy chunk zachowuje m.in.:
-
-- `document_id`,
-- tytuł dokumentu,
-- rodzaj dokumentu,
-- rangę w hierarchii,
-- formę prawną,
-- numer strony,
-- ścieżkę sekcji,
-- tekst,
-- hash treści,
-- embedding,
-- metadata JSON.
-
-Hierarchia merytoryczna dokumentów:
-
-```text
-Strategia             100
-Polityka                80
-Program / Plan          70
-Standard                60
-Procedura / instrukcja  50
-Inne                    40
-```
-
-Forma prawna jest przechowywana oddzielnie, np.:
-
-```text
-uchwała
-zarządzenie
-załącznik
-raport
-dokument samodzielny
-```
-
-Dzięki temu np. standard może być dokumentem typu `standard`, ale jednocześnie zostać wprowadzony zarządzeniem.
-
-#### `rag_retrieval` / `brief_to_evidence`
-
-Ta część działa jako etap wykonywany przy każdej sprawie:
-
-```text
-CaseBrief
- ↓
-ResearchPlan
- ↓
-hybrid search
- ↓
-reranking
- ↓
-EvidencePack
-```
-
-Wyszukiwanie obejmuje:
-
-- semantic / vector search,
-- full-text / keyword search,
-- filtrowanie po metadata,
-- RRF dla połączenia wyników,
-- opcjonalny reranking LLM,
-- wybór ograniczonej liczby fragmentów do `EvidencePack`.
-
-Każdy element `EvidencePack` zawiera m.in. dokładny fragment tekstu, identyfikator
-dokumentu i chunka, tytuł dokumentu, strony, ścieżkę sekcji, uzasadnienie trafności
-oraz opcjonalny URL. Pismogenerator otrzymuje gotowy pakiet dowodów i nie łączy się
-bezpośrednio z bazą RAG.
-
-### Lokalne modele
-
-Modele są uruchamiane przez Ollamę.
-
-Planowane / używane role:
-
-```text
-PLLuM / Bielik
-→ generowanie i analiza tekstu
-
-BGE-M3
-→ embeddings dla RAG
-```
-
-Kod komunikuje się z modelami przez HTTP API, dzięki czemu później można zastąpić lokalny model modelem chmurowym bez przebudowy całej aplikacji.
-
----
-
-## 3. Konfiguracja projektu (Windows)
-
-### Szybki start
-
-Kolejność kroków na czystym komputerze; szczegóły każdego są w dalszych punktach.
-
-1. Zainstaluj narzędzia z punktu 3.1.
-2. Pobierz kod i zależności (3.2–3.5):
+1. Zainstaluj narzędzia z rozdziału 2.
+2. Pobierz kod i zależności:
 
    ```cmd
    git clone <URL_REPOZYTORIUM>
@@ -251,135 +33,44 @@ Kolejność kroków na czystym komputerze; szczegóły każdego są w dalszych p
    uv pip install -r requirements.txt
    ```
 
-3. Utwórz konfigurację i uruchom bazę (5.2–5.3):
+3. Utwórz konfigurację i uruchom bazę (rozdział 4):
 
    ```cmd
    copy .env_template .env
    docker compose up -d
    ```
 
-4. Przygotuj modele (4.2–4.3): `ollama pull bge-m3`, a potem pobierz i zarejestruj
-   co najmniej jeden model generatywny.
-5. Wczytaj do bazy dwa dokumenty dołączone do repozytorium (6.1).
-6. Uruchom interfejs: `run_pismak.bat` i otwórz `http://localhost:8501`.
+4. Przygotuj modele (rozdział 3): `ollama pull bge-m3` oraz co najmniej jeden model
+   generatywny.
+5. Wczytaj do bazy dwa dołączone dokumenty (punkt 5.1).
+6. Uruchom `run_pismak.bat` i otwórz `http://localhost:8501`.
 
-### 3.1. Wymagania
+## 2. Instalacja
 
-Potrzebne są:
-
-- Git,
-- Python 3.11 lub nowszy,
-- `uv`,
-- Docker Desktop,
-- Ollama,
-- klient PostgreSQL z biblioteką `libpq` (patrz 3.5).
-
-Zależności Pythona są przypięte do konkretnych wersji: bezpośrednie w
-`requirements.in`, a pełna blokada (także zależności pośrednie) w `requirements.txt`.
-
-### 3.2. Sklonuj repozytorium
-
-```cmd
-git clone <URL_REPOZYTORIUM>
-cd Pismak
-```
-
-### 3.3. Zainstaluj `uv`
+Potrzebne są: Git, Python 3.11 lub nowszy, `uv`, Docker Desktop, Ollama dla Windows
+(ollama.com) oraz klient PostgreSQL z biblioteką `libpq`.
 
 ```cmd
 winget install --id=astral-sh.uv -e
+winget install -e --id Docker.DockerDesktop
 ```
 
-Po instalacji zamknij terminal i otwórz go ponownie.
+- `requirements.txt` to pełna blokada wersji (także zależności pośrednich) dla
+  Pythona 3.11+ i wszystkich systemów; instaluj z niego, nie edytuj ręcznie.
+- Jeśli `uv` zgłasza `invalid peer certificate: UnknownIssuer` (firmowe proxy,
+  antywirus sprawdzający HTTPS), dodaj `--native-tls`.
+- `psycopg` korzysta z systemowej `libpq` (bez wariantu `[binary]`). Zainstaluj
+  klienta PostgreSQL, dodaj jego katalog `bin` (np. `C:\Program Files\PostgreSQL\17\bin`)
+  do `PATH` i uruchom ponownie VS Code/Jupyter.
 
+## 3. Modele (Ollama)
 
-### 3.4. Utwórz środowisko Python
+### 3.1. PLLuM i Bielik
 
-W katalogu projektu:
-
-```cmd
-uv venv
-```
-
-Powstanie:
-
-```text
-.venv/
-```
-
-Aktywacja w CMD:
-
-```cmd
-.venv\Scripts\activate
-```
-
-Po aktywacji:
-
-```text
-(.venv) C:\...\Pismak>
-```
-
-### 3.5. Zainstaluj zależności
-
-```cmd
-uv pip install -r requirements.txt
-```
-
-Jeśli `uv` zgłasza błąd certyfikatu (`invalid peer certificate: UnknownIssuer`),
-co zdarza się za firmowym proxy lub przy programie antywirusowym sprawdzającym
-ruch HTTPS, dodaj do polecenia `--native-tls`.
-
-`requirements.txt` to plik blokady wygenerowany z `requirements.in`; nie edytuj go
-ręcznie. Blokada jest wspólna dla Pythona 3.11 i nowszych oraz dla wszystkich
-systemów; pakiety zależne od wersji Pythona lub systemu mają w niej markery. Aby zmienić lub podnieść wersję zależności, zmień `requirements.in` i odtwórz
-blokadę:
-
-```cmd
-uv pip compile --universal --python-version 3.11 requirements.in -o requirements.txt
-```
-
-Wersję ruff w `.pre-commit-config.yaml` trzymaj równą wersji z `requirements.in`.
-
-`psycopg` używa systemowej biblioteki klienta PostgreSQL `libpq` (bez wariantu
-`[binary]`). Na Windowsie zainstaluj klienta PostgreSQL i dodaj jego katalog `bin`
-(np. `C:\Program Files\PostgreSQL\17\bin`) do zmiennej `PATH`. Następnie uruchom
-ponownie VS Code/Jupyter, aby kernel zobaczył `libpq.dll`.
-
-Testy uruchom:
-
-```cmd
-python -m pytest
-```
-
-Testy end-to-end na prawdziwych modelach i bazie uruchamia się tylko ręcznie
-(`PISMAK_E2E=1`), zob. `tests/e2e/README.md`.
-
-
-## 4. Ollama i modele lokalne
-
-### 4.1. Zainstaluj Ollamę
-
-Pobierz i zainstaluj Ollamę dla Windows.
-
-Po instalacji sprawdź:
-
-```cmd
-ollama --version
-```
-
-Lista modeli:
-
-```cmd
-ollama list
-```
-
-### 4.2. PLLuM i Bielik
-
-Pismak był rozwijany z dwoma modelami generatywnymi w formacie GGUF. Repozytorium
-zawiera ich pliki `Modelfile` (szablon rozmowy i okno kontekstu); same modele
+Repozytorium zawiera pliki `Modelfile` (szablon rozmowy i okno kontekstu); same modele
 pobierz do tych samych katalogów:
 
-| Model w Ollamie | Plik (rozmiar) | Repozytorium na Hugging Face |
+| Model w Ollamie | Plik (rozmiar) | Źródło na Hugging Face |
 |---|---|---|
 | `pismak-pllum` | `modele\pllum\pllum-4b-chat-2512-q4_k_m.gguf` (2,5 GB) | `Jerzman/PLLuM-4B-chat-2512-Q4_K_M-GGUF` |
 | `pismak-bielik` | `modele\bielik\Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf` (2,9 GB) | `second-state/Bielik-4.5B-v3.0-Instruct-GGUF` |
@@ -387,704 +78,239 @@ pobierz do tych samych katalogów:
 ```cmd
 curl -L -o modele\pllum\pllum-4b-chat-2512-q4_k_m.gguf https://huggingface.co/Jerzman/PLLuM-4B-chat-2512-Q4_K_M-GGUF/resolve/main/pllum-4b-chat-2512-q4_k_m.gguf
 curl -L -o modele\bielik\Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf https://huggingface.co/second-state/Bielik-4.5B-v3.0-Instruct-GGUF/resolve/main/Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf
-```
-
-Następnie zarejestruj modele w Ollamie:
-
-```cmd
 ollama create pismak-pllum -f modele\pllum\Modelfile
 ollama create pismak-bielik -f modele\bielik\Modelfile
 ```
 
-Oba pliki to kwantyzacje przygotowane przez osoby trzecie na podstawie modeli
-`CYFRAGOVPL/PLLuM-4B-chat-2512` i `speakleash/Bielik-4.5B-v3.0-Instruct`. Przed
-użyciem sprawdź ich licencje na stronach modeli.
+Wystarczy jeden model; interfejs pokazuje wszystkie modele generatywne z Ollamy. Jeśli
+wszystkie etapy mają używać OpenRouter, wystarczy `bge-m3`. Oba pliki GGUF to
+kwantyzacje osób trzecich modeli `CYFRAGOVPL/PLLuM-4B-chat-2512` i
+`speakleash/Bielik-4.5B-v3.0-Instruct` — sprawdź ich licencje. PLLuM zarejestrowany
+dawniej z szablonem `{{ .Prompt }}` zaktualizujesz tym samym `ollama create`.
 
-Plik GGUF PLLuM nie zawiera szablonu rozmowy, więc `modele\pllum\Modelfile` podaje
-szablon z modelu źródłowego (`[INST]prompt systemowy + wiadomość[/INST]`). Model
-zarejestrowany przed tą zmianą (z szablonem `{{ .Prompt }}`) zaktualizujesz tym
-samym poleceniem `ollama create`; wagi pozostają te same.
-
-Wystarczy jeden z nich. Nazwy też nie są wymagane: interfejs pokazuje wszystkie
-modele generatywne dostępne w Ollamie. Modeli lokalnych nie potrzebujesz wcale,
-jeśli wszystkie etapy mają korzystać z OpenRouter (punkt 8) — wtedy wystarczy
-`bge-m3` z punktu 4.3.
-
-### 4.3. Model embeddingowy
-
-Dla RAG używany jest lokalny model embeddingowy:
+### 3.2. Embeddingi
 
 ```cmd
 ollama pull bge-m3
 ```
 
-Sprawdź:
+### 3.3. Okno kontekstu
 
-```cmd
-ollama list
-```
+Pismak dopasowuje prompt i odpowiedź do okna wybranego modelu: dla Ollamy pyta serwer,
+z jakim oknem załadował model; dla OpenRouter korzysta z publicznej listy modeli
+(`openrouter/free`: najmniejsze okno wśród darmowych). Gdy danych jest za dużo, skraca
+fragmenty źródeł, a zbyt długą rozmowę zgłasza w interfejsie.
 
-### 4.4. Okno kontekstu
+Okno modelu lokalnego ustala Ollama, a jej wartość domyślna bywa mała (np. 4096).
+Dlatego `Modelfile` ustawia pełne okno: `num_ctx` 8192 dla Bielika i 131 072 dla PLLuM.
+Zmiana: popraw tę linię i ponów `ollama create`; bieżące okno pokazuje `ollama ps`.
+Większe okno to więcej pamięci i dłuższe odpowiedzi — na CPU pełny prompt potrafi
+liczyć się kilkanaście minut, stąd limit 15 minut na żądanie. Opcjonalny górny limit
+okna ustawisz w `.env`: `PISMAK_CONTEXT_TOKENS` (Ollama),
+`PISMAK_OPENROUTER_CONTEXT_TOKENS` (OpenRouter).
 
-Pismak mieści prompt i odpowiedź modelu w oknie kontekstu tego modelu, który
-wybrano w interfejsie. Rozmiar okna ustala sam, osobno dla każdego etapu:
+## 4. Baza danych
 
-- **Ollama:** pyta serwer, z jakim oknem faktycznie załadował model. Przy
-  pierwszym użyciu modelu najpierw go ładuje, więc pierwsze zapytanie zaczyna się
-  z kilkusekundowym opóźnieniem.
-- **OpenRouter:** pobiera publiczną listę modeli. Dla routera `openrouter/free`
-  przyjmuje najmniejsze okno wśród darmowych modeli, bo router sam wybiera model.
-
-Gdy danych jest więcej, niż mieści okno, aplikacja skraca fragmenty źródeł
-wysyłane do modelu i obniża limit długości odpowiedzi, a zbyt długą rozmowę
-zgłasza w interfejsie. Model z większym oknem dostaje więc więcej źródeł.
-
-O tym, jakie okno dostaje model lokalny, decyduje Ollama, nie Pismak. Jej wartość
-domyślna bywa dużo mniejsza niż maksimum modelu (np. 4096). Pliki `Modelfile` z
-repozytorium ustawiają dlatego pełne okno obu modeli:
-
-```text
-PARAMETER num_ctx 8192      (modele\bielik\Modelfile)
-PARAMETER num_ctx 131072    (modele\pllum\Modelfile)
-```
-
-Żeby zmienić okno, popraw tę linię i ponownie wykonaj `ollama create`. Dla modeli
-bez własnego ustawienia okno wyznacza zmienna środowiskowa
-`OLLAMA_CONTEXT_LENGTH` (wymaga ponownego uruchomienia Ollamy). Bieżącą wartość
-pokazuje kolumna `CONTEXT`:
-
-```cmd
-ollama ps
-```
-
-Większe okno zwiększa zużycie pamięci i wydłuża odpowiedź. Na komputerze bez GPU
-pełny prompt potrafi być przetwarzany kilkanaście minut, dlatego żądanie do
-modelu lokalnego ma limit 15 minut.
-
-Jeśli chcesz ograniczyć okno mimo większych możliwości modelu, ustaw w `.env`
-górny limit: `PISMAK_CONTEXT_TOKENS` dla Ollamy albo
-`PISMAK_OPENROUTER_CONTEXT_TOKENS` dla OpenRouter. Domyślnie limitu nie ma.
-
----
-
-## 5. Docker i baza danych
-
-Pismak używa PostgreSQL + pgvector.
-
-Na obecnym etapie:
-
-```text
-Python / src / Jupyter → .venv
-Ollama                  → Windows
-PostgreSQL + pgvector   → Docker
-```
-
-### 5.1. Zainstaluj Docker Desktop
-
-```cmd
-winget install -e --id Docker.DockerDesktop
-```
-
-Po instalacji uruchom Docker Desktop.
-
-Sprawdź:
-
-```cmd
-docker --version
-```
-
-oraz:
-
-```cmd
-docker compose version
-```
-
-### 5.2. `.env`
-
-Utwórz lokalny plik konfiguracyjny na podstawie szablonu:
+### 4.1. `.env` i role
 
 ```cmd
 copy .env_template .env
 ```
 
-Wartości z szablonu wystarczą do pracy lokalnej. Zrób to przed pierwszym
-uruchomieniem bazy: hasła są zapisywane w bazie przy jej pierwszym starcie, a
-późniejsza zmiana samego pliku `.env` już ich nie zmieni. Hasła z szablonu są
-publiczne, więc zmień je, zanim udostępnisz komukolwiek aplikację.
-
-Baza ma trzy role, każda z własnym hasłem:
+Zrób to przed pierwszym uruchomieniem bazy: hasła są zapisywane przy pierwszym starcie
+i późniejsza zmiana `.env` ich nie zmieni. Hasła z szablonu są publiczne — zmień je,
+zanim komukolwiek udostępnisz aplikację.
 
 | Rola | Hasło w `.env` | Do czego | Adres w `.env` |
 |---|---|---|---|
 | `pismak` (superuser) | `POSTGRES_PASSWORD` | administracja bazą | — |
-| `pismak_ingest` | `PISMAK_INGEST_DB_PASSWORD` | wczytywanie dokumentów (punkt 6), właściciel tabel | `RAG_INGESTION_DATABASE_URL` |
+| `pismak_ingest` | `PISMAK_INGEST_DB_PASSWORD` | wczytywanie dokumentów, właściciel tabel | `RAG_INGESTION_DATABASE_URL` |
 | `pismak_app` | `PISMAK_APP_DB_PASSWORD` | interfejs i wyszukiwanie; tylko odczyt | `DATABASE_URL` |
 
-Zmieniając hasło roli, wpisz je także w odpowiadający jej adres.
+Zmieniając hasło roli, wpisz je też w jej adres. Zmienne ustawione w systemie mają
+pierwszeństwo przed `.env`. `OPENROUTER_KEY` jest potrzebny tylko do OpenRouter.
+Nie dodawaj `.env` do repozytorium.
 
-Zmienne ustawione w systemie albo w konsoli mają pierwszeństwo przed `.env`.
-`OPENROUTER_KEY` uzupełnij tylko wtedy, gdy chcesz korzystać z OpenRouter.
-Pliku `.env` nie dodawaj do repozytorium.
-
-### 5.3. `docker-compose.yaml`
-
-Konfiguracja znajduje się już w repozytorium. Uruchom bazę poleceniem:
+### 4.2. Uruchomienie bazy
 
 ```cmd
 docker compose up -d
 ```
 
-Sprawdź stan kontenera:
+Kontener `pismak-postgres` (PostgreSQL 17 + pgvector) nasłuchuje tylko na
+`127.0.0.1:5432`. Przy pierwszym starcie, na pustym wolumenie, wykonują się
+`docker/postgres/init/001_extensions.sql` (rozszerzenie `vector`) i
+`docker/postgres/init/002_roles.sql` (role z punktu 4.1).
+
+Baza utworzona przed rozdzieleniem ról: dopisz do `.env` nowe zmienne z szablonu
+(`DATABASE_URL` przestaw na `pismak_app`), odtwórz kontener i uruchom skrypt ról — można
+go powtarzać, a istniejące tabele przekaże roli `pismak_ingest`:
 
 ```cmd
-docker ps
+docker compose up -d
+docker exec pismak-postgres psql -U pismak -d pismak -f /docker-entrypoint-initdb.d/002_roles.sql
 ```
 
-Rozszerzenie `pgvector` jest włączane przez skrypt:
+Nie używaj `docker compose down -v` — usuwa wolumen z bazą.
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
+## 5. Dokumenty (RAG)
 
-zapisany w `docker/postgres/init/001_extensions.sql`. Drugi skrypt,
-`docker/postgres/init/002_roles.sql`, tworzy role `pismak_ingest` i `pismak_app`
-z hasłami z `.env` (punkt 5.2) i nadaje im uprawnienia. Oba wykonują się tylko
-przy pierwszym starcie, na pustym wolumenie.
+### 5.1. Dokumenty z repozytorium
 
-Baza utworzona przed rozdzieleniem ról (aplikacja łączyła się jako `pismak`):
-
-1. Dopisz do `.env` z szablonu `PISMAK_INGEST_DB_PASSWORD`, `PISMAK_APP_DB_PASSWORD`
-   i `RAG_INGESTION_DATABASE_URL`, a `DATABASE_URL` zmień na rolę `pismak_app`.
-2. Odtwórz kontener, żeby dostał nowe zmienne. Wolumen z danymi zostaje; nie używaj
-   `docker compose down -v`, bo usuwa bazę.
-
-   ```cmd
-   docker compose up -d
-   ```
-
-3. Wykonaj skrypt ról. Można go uruchamiać wielokrotnie; przekazuje też istniejące
-   tabele roli `pismak_ingest`.
-
-   ```cmd
-   docker exec pismak-postgres psql -U pismak -d pismak -f /docker-entrypoint-initdb.d/002_roles.sql
-   ```
-
-### 5.4. Uruchom bazę
-
-Powinien działać kontener:
-
-```text
-pismak-postgres
-```
-
-### 5.5. Sprawdź PostgreSQL
-
-```cmd
-docker exec -it pismak-postgres psql -U pismak -d pismak
-```
-
-Następnie:
-
-```sql
-SELECT version();
-```
-
-Sprawdź pgvector:
-
-```sql
-SELECT extname, extversion
-FROM pg_extension
-WHERE extname = 'vector';
-```
-
-Wyjście:
-
-```text
-\q
-```
-
-### 5.6. Utwórz schema RAG
-
-Polecenie z punktu 6.1 tworzy tabele samo. Poniższy przykład jest potrzebny tylko
-wtedy, gdy chcesz utworzyć je osobno, np. z notebooka.
-
-Kod `rag_ingestion` zawiera:
-
-```python
-PgVectorRepository
-```
-
-Przykład:
-
-```python
-import os
-
-from dotenv import load_dotenv
-
-from src.Zrodlowyszukiwator.rag_ingestion.repository import (
-    PgVectorRepository,
-)
-
-load_dotenv()
-
-repo = PgVectorRepository(
-    os.environ["RAG_INGESTION_DATABASE_URL"],
-    embedding_dim=1024,
-)
-
-repo.ensure_schema()
-```
-
-Tworzone są m.in.:
-
-```text
-rag_documents
-rag_chunks
-```
-
----
-
-## 6. Dokumenty w RAG
-
-```text
-PDF
- ↓
-rag_ingestion
- ↓
-PostgreSQL / pgvector
-```
-
-### 6.1. Dokumenty dołączone do repozytorium
-
-W katalogu `src/Zrodlowyszukiwator/RAG/RAW/` są dwa dokumenty źródłowe:
-
-- `01_Polityka-rowerowa-wroclawia.pdf` — Polityka Rowerowa Wrocławia,
-- `01_Wroclawska_polityka_mobilnosci.pdf` — Wrocławska polityka mobilności.
-
-Wczytaj je do bazy. Baza musi działać, a Ollama mieć model `bge-m3`:
+Repozytorium zawiera dwa dokumenty: Politykę Rowerową Wrocławia i Wrocławską politykę
+mobilności. Przy działającej bazie i `bge-m3` w Ollamie:
 
 ```cmd
 python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\01_Polityka-rowerowa-wroclawia.pdf
 python -m src.Zrodlowyszukiwator.rag_ingestion.cli --file src\Zrodlowyszukiwator\RAG\RAW\01_Wroclawska_polityka_mobilnosci.pdf
 ```
 
-Polecenie łączy się jako rola `pismak_ingest` (`RAG_INGESTION_DATABASE_URL`), tworzy
-tabele `rag_documents` i `rag_chunks`, jeśli ich jeszcze nie ma, i wypisuje liczbę
-stron oraz fragmentów. To wystarcza do uruchomienia dema. Bez
-`RAG_INGESTION_DATABASE_URL` polecenie kończy się błędem i niczego nie zapisuje: rola
-aplikacji z `DATABASE_URL` nie ma prawa zapisu.
+Polecenie łączy się jako `pismak_ingest` (`RAG_INGESTION_DATABASE_URL`; bez tej zmiennej
+kończy się błędem), w razie potrzeby tworzy tabele `rag_documents` i `rag_chunks` i
+wypisuje liczbę stron oraz fragmentów. To wystarcza do uruchomienia dema.
 
-### 6.2. Własne dokumenty
+### 5.2. Własne dokumenty
 
-Metadane dokumentów są w `src/Zrodlowyszukiwator/RAG/document_catalog.json`;
-kluczem wpisu jest nazwa pliku PDF. Katalog zawiera też wpisy czterech dokumentów,
-których plików nie ma w repozytorium — zadziałają dopiero wtedy, gdy umieścisz
-PDF o tej samej nazwie w katalogu `RAW/`.
-
-Żeby dodać dokument:
-
-1. Skopiuj PDF do `src/Zrodlowyszukiwator/RAG/RAW/` (pliki w tym katalogu poza
-   dwoma wymienionymi wyżej nie trafiają do repozytorium).
-2. Dopisz jego metadane do katalogu.
-3. Uruchom to samo polecenie z `--file`. Inny katalog metadanych wskażesz
+1. Skopiuj PDF do `src/Zrodlowyszukiwator/RAG/RAW/` (poza dwoma powyższymi pliki z tego
+   katalogu nie trafiają do repozytorium).
+2. Dopisz metadane do `src/Zrodlowyszukiwator/RAG/document_catalog.json` (kluczem jest
+   nazwa pliku; katalog ma już wpisy czterech dokumentów spoza repozytorium).
+3. Uruchom polecenie z punktu 5.1 z nazwą swojego pliku; inny katalog wskażesz
    parametrem `--catalog`.
 
-Gdy SHA-256 pliku się nie zmienił, ponowne uruchomienie nie dzieli go i nie liczy
-embeddingów od nowa, ale zapisuje w bazie bieżące metadane z katalogu. Poprawkę
-statusu, numeru aktu czy adresu wystarczy więc wprowadzić w katalogu i uruchomić
-polecenie jeszcze raz. Zmiana tytułu, typu dokumentu albo miasta powoduje pełne
-przetworzenie, bo te pola są częścią embeddingów. Dokument zapisany starszą wersją
-przetwarzania tekstu jest przetwarzany od nowa automatycznie; `--force` wymusza
-pełne przetworzenie zawsze.
+Niezmieniony plik nie jest przetwarzany ponownie — odświeżane są tylko metadane z
+katalogu. Zmiana tytułu, typu dokumentu albo miasta, nowsza wersja przetwarzania po
+aktualizacji kodu lub `--force` powodują pełne przetworzenie z embeddingami. Po
+aktualizacji kodu uruchom polecenie przynajmniej raz. O użyciu dokumentu decydują pola
+katalogu: `is_active: false` — dokument nieobowiązujący, nie trafia do pism;
+`retrieval_enabled: false` — pomijany w każdym wyszukiwaniu.
 
-O tym, czy dokument trafia do pism, decydują dwa pola katalogu:
-
-- `is_active: false` — dokument nieobowiązujący (np. zastąpiony nowszym). Zostaje w
-  bazie, ale nie jest używany jako źródło pisma. `lifecycle_status: "superseded"`
-  wymaga tej wartości.
-- `retrieval_enabled: false` — dokument jest pomijany przez każde wyszukiwanie.
-
-Po aktualizacji kodu uruchom polecenie z `--file` przynajmniej raz: dodaje ono do
-istniejącej bazy kolumny, z których korzysta wyszukiwanie.
-
----
-
-## 7. Notebooki i uruchomienie pipeline'u
-
-Na obecnym etapie projekt jest rozwijany eksperymentalnie przez Jupyter.
-
-Uruchom:
-
-```cmd
-jupyter lab
-```
-
-Główny notebook demonstracyjny znajduje się w `src/main.ipynb`. Pokazuje przepływ:
-
-```text
-Dopytywator → CaseBrief → EvidencePack → DraftLetter → letter.md
-```
-
-Notebooki do ingestion znajdują się w
-`src/Zrodlowyszukiwator/rag_ingestion/notebooks/`. Mają na początku zmienną
-`PROJECT_ROOT` ze ścieżką z komputera autora — przed uruchomieniem ustaw ją na
-katalog swojego klonu. Do zwykłego wczytania dokumentów wystarczy polecenie z
-punktu 6.1.
-
----
-
-## 8. Wyświetlator — interfejs Streamlit
-
-Wyświetlator jest prostym interfejsem POC napisanym w Pythonie i Streamlit.
-Nie dodaje osobnego backendu ani własnej logiki domenowej; korzysta z istniejących
-modułów Dopytywatora, Źródłowyszukiwatora i Pismogeneratora.
-
-### Uruchomienie
-
-Z katalogu głównego repozytorium:
-
-```cmd
-streamlit run src\Wyswietlator\app.py
-```
-
-Interfejs powinien być dostępny pod adresem `http://localhost:8501`. Przeglądarka
-nie otwiera się sama (`server.headless` w `.streamlit/config.toml`) — wpisz adres
-ręcznie.
-
-W UI można:
-
-- wybrać dla każdego etapu (Dopytywator, Źródłowyszukiwator, Pismogenerator)
-  dostawcę — lokalną Ollamę albo OpenRouter — i model,
-- ustawić maksymalną liczbę pytań,
-- przeprowadzić rozmowę w chacie,
-- zobaczyć `CaseBrief` i znalezione dowody,
-- wygenerować oraz pobrać `letter.md`.
-
-Przepływ UI:
-
-```text
-chat → CaseBrief → EvidencePack → DraftLetter → letter.md
-```
-
-Wyniki są zapisywane lokalnie w katalogu `outputs/YYYYMMDD_HHMMSS_<id>_ui/`:
-
-```text
-conversation.json
-brief.json
-evidence.json
-draft.json
-letter.md
-```
-
-Logi aplikacji są zapisywane osobno dla każdej sprawy w katalogu `logs/`,
-pod nazwami `pismak_<timestamp>.log`. Po wybraniu „Nowa sprawa” powstaje
-nowy plik, a logi równoległych sesji nie są mieszane.
-Jeśli odpowiedź modelu jest niepoprawna albo ucięta, log zawiera jej treść
-(maksymalnie 20 000 znaków, zapisaną jako JSON-escaped tekst). Może ona zawierać
-dane sprawy, dlatego logi należy chronić tak samo jak pozostałe dane lokalne.
-
-W razie błędu interfejs pokazuje tylko ogólny komunikat. Typ błędu, miejsce w
-kodzie, treść i ślad stosu zapisuje log sprawy (zdarzenia `interview_failed`,
-`pipeline_failed`, `model_list_failed`). Błędy, których aplikacja nie obsłużyła,
-trafiają do wspólnego pliku `logs/app_errors.log`, a przeglądarka pokazuje wtedy
-ogólny komunikat Streamlita. Odpowiada za to `.streamlit/config.toml`, wczytywany
-z katalogu, z którego startuje aplikacja — uruchamiaj ją więc z katalogu głównego
-repozytorium.
-
-Do `logs/app_errors.log` trafiają też wpisy, których nie da się przypisać do
-żadnej sprawy. Aplikacja nie trzyma plików logów otwartych, więc można je usuwać
-lub przenosić także w trakcie jej działania.
-
-Wyświetlator wymaga działającej Ollamy, PostgreSQL z tabelami `rag_documents` i
-`rag_chunks` oraz zainstalowanego `bge-m3`. Przy pustej bazie RAG najpierw trzeba
-wykonać ingestion dokumentów (punkt 6.1).
-
-### OpenRouter (opcjonalnie)
-
-Każdy etap generatywny może zamiast lokalnego modelu użyć darmowego routera
-OpenRouter (`openrouter/free`). Wpisz własny klucz jako `OPENROUTER_KEY` w `.env`,
-uruchom aplikację ponownie i wybierz dostawcę w interfejsie.
-
-Treść zapytań trafia wtedy do usługi zewnętrznej, dlatego interfejs wymaga
-zaznaczenia zgody przed wysłaniem. Embeddingi (`bge-m3`) i baza dokumentów
-zostają lokalne. Szczegóły i test połączenia opisuje
-`src/Wyswietlator/README.md`.
-
-
-### Retencja i usuwanie danych
-
-Pismak zapisuje na komputerze, na którym działa Streamlit, pełną rozmowę oraz
-brief, znalezione dowody, draft i wyrenderowane pismo. Dane pozostają w katalogu
-danego uruchomienia pod `outputs/` jako niezaszyfrowane pliki, bez
-automatycznego terminu usunięcia. Logi w `logs/` również nie są szyfrowane;
-niepoprawne lub ucięte odpowiedzi modelu mogą być w nich zapisane do 20 000
-znaków. Osoby z dostępem do systemu plików serwera, w tym jego administrator,
-mogą odczytać te dane. UI wymaga potwierdzenia zapoznania się z tą informacją
-przed przetwarzaniem sprawy. Nie ma funkcji kasowania spraw; operator usuwa
-katalog uruchomienia i odpowiadający mu log ręcznie po zakończeniu pracy lub
-testów. Przy zdalnym udostępnieniu aplikacji dane nadal są przechowywane na
-hoście właściciela. Nie umieszczaj w sprawach danych osobowych, które nie są
-konieczne, i nie publikuj zawartości `outputs/` ani `logs/`.
-
-Sprawa jest pamiętana tylko w otwartej karcie przeglądarki: odświeżenie strony
-rozpoczyna nową sprawę, a poprzednia zostaje wyłącznie w `outputs/`. Interfejs
-pokazuje treść od modelu bez aktywnych linków i obrazów; pobrany `pismo.md` jest
-niezmieniony.
-
-### Struktura UI
-
-- `src/Wyswietlator/app.py` — komponenty Streamlit, stan sesji, chat i widoki;
-- `src/Wyswietlator/services.py` — cienkie adaptery infrastruktury, konfiguracja
-   RAG, renderer i zapis wyników;
-- zależności interfejsu są zapisane w głównym `requirements.in` i zablokowane
-   w `requirements.txt`.
-
-### Lokalny serwer i publikacja POC
-
-PostgreSQL jest publikowany wyłącznie na loopback (`127.0.0.1:5432`). Po zmianie
-konfiguracji odtwórz kontener i sprawdź wynik:
-
-```cmd
-docker compose up -d
-docker compose config
-```
-
-Ollama powinna nadal używać `OLLAMA_URL=http://127.0.0.1:11434`. Uruchom lokalnie
-Streamlit z ograniczonym adresem nasłuchu:
+## 6. Interfejs
 
 ```cmd
 run_pismak.bat
 ```
 
-Albo bez skryptu:
+Skrypt uruchamia Streamlit tylko na `127.0.0.1:8501`. Bez skryptu, z katalogu głównego
+repozytorium (stąd wczytywany jest `.streamlit/config.toml`):
 
 ```cmd
 .venv\Scripts\python.exe -m streamlit run src\Wyswietlator\app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Nie zmieniaj `--server.address` na `0.0.0.0` i nie przekierowuj portów routera.
-Tunel Cloudflare ma kierować wyłącznie do `http://127.0.0.1:8501`; nie twórz
-publicznych tras dla portów Ollamy (`11434`), PostgreSQL (`5432`), Docker API ani
-katalogu `outputs/`.
+Przeglądarka nie otwiera się sama — wejdź na `http://localhost:8501`. Interfejs wymaga
+działającej Ollamy z `bge-m3` i bazy z wczytanymi dokumentami.
 
-#### Stały Cloudflare Tunnel
+- Dla każdego etapu wybierasz dostawcę (Ollama albo OpenRouter) i model oraz limit
+  pytań Dopytywatora (domyślnie 1, najwyżej 12).
+- Po rozmowie widzisz brief, znalezione źródła i projekt pisma do pobrania jako
+  `pismo.md`.
+- Pismo ma stałą strukturę: adresat, formuła „Jako wieloletni mieszkaniec naszego
+  kochanego miasta, wnioskuję o …”, typ `WNIOSEK`, argumentacja z przypisami, podpis do
+  uzupełnienia, lista źródeł i sekcja kontrolna z informacjami do weryfikacji. Model ma
+  polecenie nie dodawać podstawy prawnej, ale aplikacja tego nie sprawdza — przeczytaj
+  pismo przed wysłaniem.
+- Ollama obsługuje jedno żądanie naraz: kolejne sprawy czekają z komunikatem, a po
+  15 minutach oczekiwania dostają prośbę o ponowienie. Żądania do OpenRouter nie czekają.
 
-Pismak korzysta z tunelu zarządzanego zdalnie: `cloudflared` działa jako usługa
-Windows i uwierzytelnia się tokenem, a trasy i zasady dostępu ustawia się w panelu
-Cloudflare Zero Trust, nie w pliku na dysku. Wymagana jest domena zarządzana przez
-Cloudflare. W przykładach `<NAZWA_HOSTA>` oznacza adres w tej domenie, np.
-`pismak.example.com`.
+### OpenRouter (opcjonalnie)
 
-Kolejność ma znaczenie: trasa dodana bez aplikacji Access jest od razu publiczna.
+Każdy etap generatywny może użyć darmowego routera `openrouter/free`. Wpisz klucz jako
+`OPENROUTER_KEY` w `.env`, uruchom aplikację ponownie i wybierz dostawcę w interfejsie.
+Treść zapytań trafia wtedy do usługi zewnętrznej, więc interfejs wymaga zgody;
+embeddingi i baza zostają lokalne. Szczegóły i test połączenia:
+`src/Wyswietlator/README.md`.
 
-1. Utwórz tunel w panelu Zero Trust i zainstaluj usługę poleceniem, które panel
-   wyświetli:
+### Dane, logi i prywatność
 
-   ```cmd
-   cloudflared service install <TOKEN>
-   ```
+- Każda sprawa jest zapisywana w `outputs/<data>_<id>_ui/` (rozmowa, brief, źródła,
+  draft, pismo, użyte modele), a jej log w `logs/pismak_<czas>.log`. Błędy bez
+  przypisanej sprawy trafiają do `logs/app_errors.log`.
+- Pliki nie są szyfrowane i nie mają terminu usunięcia; ma do nich dostęp każdy z
+  dostępem do dysku serwera. Logi mogą zawierać niepoprawne lub ucięte odpowiedzi modelu
+  (do 20 000 znaków), czyli dane sprawy. Interfejs wymaga potwierdzenia tej informacji.
+  Usuwaj stare sprawy ręcznie, nie wpisuj zbędnych danych osobowych i nie publikuj
+  `outputs/` ani `logs/`.
+- Przy błędzie interfejs pokazuje ogólny komunikat; szczegóły i ślad stosu są w logu.
+- Sprawa żyje tylko w otwartej karcie: odświeżenie strony zaczyna nową (poprzednia
+  zostaje w `outputs/`).
+- Linki i obrazy z treści modelu są pokazywane jako tekst; pobrane pismo jest
+  niezmienione.
 
-2. Dodaj aplikację Access typu Self-hosted dla `<NAZWA_HOSTA>` z polityką
-   dopuszczającą wyłącznie wskazane adresy e-mail.
-3. Dopiero teraz dodaj w konfiguracji tunelu trasę publiczną `<NAZWA_HOSTA>` →
-   `http://127.0.0.1:8501`.
+## 7. Udostępnianie przez Cloudflare Tunnel
 
-Sprawdź trasy, które usługa faktycznie otrzymała. `cloudflared` udostępnia je
-lokalnie na porcie metryk (domyślnie `20241`):
+Streamlit nasłuchuje tylko na `127.0.0.1` — nie zmieniaj tego na `0.0.0.0` i nie
+przekierowuj portów routera. Tunel ma prowadzić wyłącznie do `http://127.0.0.1:8501`;
+nigdy do Ollamy (`11434`), PostgreSQL (`5432`), Docker API ani `outputs/`.
+
+Pismak używa tunelu zarządzanego zdalnie (usługa Windows `cloudflared`, trasy i dostęp w
+panelu Cloudflare Zero Trust; potrzebna domena w Cloudflare). Kolejność ma znaczenie —
+trasa bez Access jest od razu publiczna:
+
+1. Utwórz tunel w panelu i zainstaluj usługę poleceniem z panelu:
+   `cloudflared service install <TOKEN>`.
+2. Dodaj aplikację Access typu Self-hosted dla `<NAZWA_HOSTA>` z polityką dla
+   wybranych adresów e-mail.
+3. Dopiero wtedy dodaj trasę `<NAZWA_HOSTA>` → `http://127.0.0.1:8501`.
+
+Sprawdzenie:
 
 ```cmd
 curl http://127.0.0.1:20241/config
-```
-
-Lista `ingress` ma zawierać tylko `<NAZWA_HOSTA>` z usługą `http://127.0.0.1:8501`
-oraz regułę domyślną. Sama reguła `http_status:503` oznacza, że tunel nie publikuje
-żadnej usługi.
-
-Sprawdź ochronę z zewnątrz, bez logowania:
-
-```cmd
 curl -I https://<NAZWA_HOSTA>
 ```
 
-Poprawna odpowiedź to przekierowanie `302` na adres w domenie `cloudflareaccess.com`.
-Każda inna odpowiedź oznacza, że Access nie chroni aplikacji — usuń trasę i popraw
-konfigurację. Sprawdź też logowanie kontem z listy i odmowę dla konta spoza listy,
-zanim przekażesz adres testerom.
+Pierwsze polecenie ma pokazać tylko trasę do `http://127.0.0.1:8501` i regułę domyślną
+(sama reguła `http_status:503` oznacza, że tunel niczego nie publikuje). Drugie, bez
+logowania, ma zwrócić `302` do domeny `cloudflareaccess.com` — każda inna odpowiedź
+oznacza brak ochrony: usuń trasę. Sprawdź też logowanie kontem z listy i odmowę dla
+konta spoza niej. Quick Tunnel (`cloudflared tunnel --url …`) nie daje ochrony Access —
+tylko do krótkich prób bez danych osobowych.
 
-Usługa `cloudflared` startuje razem z systemem; aplikację uruchamiasz osobno
-poleceniem `run_pismak.bat`. Nie umieszczaj tokenu tunelu ani `.env` w repozytorium.
+Przed każdym udostępnieniem: baza tylko na `127.0.0.1` (`docker compose config`),
+`DATABASE_URL` wskazuje `pismak_app`, działają dwie niezależne sesje, kolejka generacji
+i komunikaty przy wyłączonej Ollamie lub bazie, a tunel przechodzi oba powyższe
+sprawdzenia. Token tunelu i `.env` nie trafiają do repozytorium.
 
-Quick Tunnel (`cloudflared tunnel --url http://127.0.0.1:8501`) nie zapewnia tu
-warstwy Cloudflare Access. Traktuj go jako krótką próbę techniczną bez danych
-osobowych i nie udostępniaj jego adresu testerom przed skonfigurowaniem ochrony
-Access na własnej domenie.
+## 8. Rozwój
 
-#### Kontrole przed każdym udostępnieniem
-
-- Uruchom `docker compose config` i sprawdź, że PostgreSQL nasłuchuje wyłącznie na `127.0.0.1`.
-- Sprawdź, że `DATABASE_URL` w `.env` wskazuje rolę `pismak_app` (tylko odczyt), a nie `pismak` (punkt 5.2).
-- Ruff sprawdza w CI także formatowanie; przed pushem uruchom `ruff format .` albo `pre-commit run --all-files`.
-- Sprawdź lokalnie UI, Ollamę oraz działanie dwóch niezależnych sesji.
-- Sprawdź kolejkę równoczesnych generacji i komunikaty przy niedostępności Ollamy lub bazy.
-- Przed udostępnieniem zdalnym sprawdź trasy tunelu (`curl http://127.0.0.1:20241/config`) i ochronę Access (`curl -I https://<NAZWA_HOSTA>` zwraca przekierowanie do logowania), w tym odmowę dostępu dla nieuprawnionego konta.
-- Automatyczne `pytest` i Ruff są uruchamiane w GitHub Actions przy pushu i pull requeście.
-
----
-
-## 9. Przykładowa struktura projektu
-
-```text
-Pismak/
-├── .env_template
-├── README.md
-├── requirements.in
-├── requirements.txt
-├── pyproject.toml
-├── .pre-commit-config.yaml
-├── docker-compose.yaml
-├── run_pismak.bat
-├── .streamlit/config.toml
-├── docker/postgres/init/
-│   ├── 001_extensions.sql
-│   └── 002_roles.sql
-├── modele/
-│   ├── bielik/Modelfile
-│   └── pllum/Modelfile
-├── scripts/test_openrouter.py
-├── src/
-│   ├── main.ipynb
-│   ├── _shared/
-│   ├── Dopytywator/
-│   ├── Pismogenerator/
-│   ├── Wyswietlator/
-│   │   ├── app.py
-│   │   └── services.py
-│   └── Zrodlowyszukiwator/
-│       ├── RAG/
-│       │   ├── document_catalog.json
-│       │   └── RAW/                (dwa dokumenty PDF)
-│       ├── rag_ingestion/
-│       ├── rag_retrieval/
-│       └── brief_to_evidence/
-├── tests/
-└── .venv/                          (lokalnie, poza repozytorium)
+```cmd
+python -m pytest
+python -m ruff check .
+python -m ruff format .
 ```
 
----
+- GitHub Actions uruchamia testy, `ruff check` i `ruff format --check` na Pythonie 3.11
+  i 3.14; `pre-commit` uruchamia Ruff lokalnie przed commitem.
+- Testy end-to-end na prawdziwych modelach i bazie uruchamia się ręcznie
+  (`PISMAK_E2E=1`), zob. `tests/e2e/README.md`.
+- Zależności zmieniasz w `requirements.in`, po czym odtwarzasz blokadę; wersję ruff w
+  `.pre-commit-config.yaml` trzymaj równą tej z `requirements.in`:
 
-## 10. Docelowy przepływ
+  ```cmd
+  uv pip compile --universal --python-version 3.11 requirements.in -o requirements.txt
+  ```
 
-```text
-Użytkownik
-   ↓
-Dopytywator
-   ↓
-CaseBrief
-   ↓
-Źródłowyszukiwacz
-   │
-   ├── planowanie wyszukiwania
-   ├── vector search
-   ├── keyword search
-   ├── metadata filtering
-   └── reranking
-   ↓
-EvidencePack
-   ↓
-Pismogenerator
-   ↓
-DraftLetter
-   ↓
-Faktosprawdzanie
-   ↓
-Korekta językowa
-   ↓
-Analiza możliwej odpowiedzi urzędu
-   ↓
-finalne pismo
-   ↓
-wybór adresata
-   ↓
-wysyłka / zapis
-```
+- `jupyter lab`: `src/main.ipynb` pokazuje cały przepływ, notebooki ingestion są w
+  `src/Zrodlowyszukiwator/rag_ingestion/notebooks/`. Same znajdują katalog projektu.
 
----
-
-## 11. Cel końcowy
-
-Docelowo Pismak ma działać jako jeden spójny interfejs chatowy.
-
-Użytkownik powinien móc napisać np.:
-
-```text
-Chcę, żeby miasto poprawiło bezpieczeństwo pieszych
-na skrzyżowaniu obok szkoły.
-```
-
-System powinien następnie:
-
-1. dopytać o istotne informacje,
-2. zbudować `CaseBrief`,
-3. znaleźć odpowiednie polityki, strategie, standardy i dokumenty miejskie,
-4. znaleźć podobne rozwiązania z innych miast,
-5. stworzyć argumentację opartą na źródłach,
-6. wygenerować projekt pisma,
-7. oznaczyć twierdzenia wymagające weryfikacji,
-8. sprawdzić język i styl,
-9. przewidzieć możliwe kontrargumenty i odpowiedź urzędu,
-10. pomóc wybrać właściwego adresata,
-11. zapisać lub wysłać pismo.
-
-Docelowo lokalne modele powinny być traktowane jako wymienne komponenty:
-
-```text
-lokalny PLLuM / Bielik
-        ↕
-model chmurowy
-```
-
-bez konieczności przebudowy logiki Pismaka.
-
----
-
-## Status projektu
-
-Aktualnie:
-
-```text
-Dopytywator           ✅
-Pismogenerator        ✅
-lokalne LLM / Ollama  ✅
-rag_ingestion         ✅ / rozwijane
-PostgreSQL + pgvector 🟡 konfiguracja
-rag_retrieval         ✅ / rozwijane
-brief_to_evidence     ✅ / rozwijane
-reranking             ✅ / rozwijane
-faktosprawdzanie      ⬜
-wysyłka               ⬜
-```
-
-Projekt jest obecnie w fazie prototypowania architektury i pipeline'u RAG.
-
----
+Struktura: `src/Dopytywator/`, `src/Zrodlowyszukiwator/` (`rag_ingestion`,
+`rag_retrieval`, `brief_to_evidence`, katalog i PDF-y w `RAG/`), `src/Pismogenerator/`,
+`src/Wyswietlator/` (`app.py` — interfejs, `services.py` — adaptery i zapis wyników),
+`src/_shared/` (klient LLM, kolejka modelu, budżet kontekstu), `modele/`,
+`docker/postgres/init/`, `tests/`.
 
 ## Licencja
 
 Copyright (C) 2026 Pismak contributors
 
-Pismak jest wolnym oprogramowaniem: możesz go rozpowszechniać i modyfikować na
-warunkach GNU Affero General Public License opublikowanej przez Free Software
-Foundation, w wersji 3 albo (według uznania) dowolnej późniejszej
-(`AGPL-3.0-or-later`). Program jest rozpowszechniany bez jakiejkolwiek gwarancji.
-Pełny tekst licencji jest w pliku [`LICENSE`](LICENSE).
+Pismak jest wolnym oprogramowaniem na licencji GNU Affero General Public License w
+wersji 3 albo (według uznania) dowolnej późniejszej (`AGPL-3.0-or-later`), bez
+jakiejkolwiek gwarancji. Pełny tekst: [`LICENSE`](LICENSE). Do odczytu PDF projekt
+używa PyMuPDF (AGPL-3.0 albo licencja komercyjna Artifex).
 
-Projekt używa PyMuPDF do odczytu plików PDF w `rag_ingestion`. PyMuPDF jest
-dostępny na licencji AGPL-3.0 albo na płatnej licencji komercyjnej Artifex.
-
-Jeśli udostępniasz zmodyfikowaną wersję Pismaka przez sieć (np. interfejs
-Streamlit przez tunel), sekcja 13 licencji wymaga, by jej użytkownicy mogli pobrać
-kod źródłowy tej wersji, np. przez link do repozytorium widoczny w interfejsie.
-
-Licencja obejmuje kod Pismaka. Nie obejmuje modeli językowych (PLLuM i Bielik mają
-własne licencje) ani dokumentów źródłowych w `src/Zrodlowyszukiwator/RAG/RAW/`,
-które pozostają na warunkach ich wydawców.
+Jeśli udostępniasz zmodyfikowaną wersję przez sieć (np. Streamlit przez tunel), sekcja
+13 licencji wymaga, by użytkownicy mogli pobrać jej kod źródłowy, np. przez link do
+repozytorium w interfejsie. Licencja nie obejmuje modeli językowych (PLLuM i Bielik mają
+własne) ani dokumentów w `src/Zrodlowyszukiwator/RAG/RAW/`, które pozostają na
+warunkach wydawców.

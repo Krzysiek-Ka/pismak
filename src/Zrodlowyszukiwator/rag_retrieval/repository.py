@@ -19,6 +19,9 @@ STOPWORDS = frozenset(
     """.split()
 )
 MAX_LEXICAL_TERMS = 16
+# Bez limitu błędny adres (np. `localhost`, gdy baza słucha tylko na 127.0.0.1) wstrzymywał
+# każde połączenie na ponad 2 minuty. Wyszukiwanie otwiera kilka połączeń na sprawę.
+CONNECT_TIMEOUT_SECONDS = 10
 
 
 def lexical_tsquery(text: str) -> str:
@@ -60,7 +63,7 @@ class RetrievalRepository:
             ) from exc
 
         try:
-            conn = psycopg.connect(self.database_url)
+            conn = psycopg.connect(self.database_url, connect_timeout=CONNECT_TIMEOUT_SECONDS)
         except psycopg.OperationalError as exc:
             conninfo = conninfo_to_dict(self.database_url)
             host = conninfo.get("host", "")

@@ -9,7 +9,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, Field, ValidationError
 
 from src._shared.context_budget import fit_output_tokens, input_char_budget, usage_summary
-from src._shared.llm_runtime import llm_generation_lock
+from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
 from src._shared.serwer import (
     COMPACT_OUTPUT_INSTRUCTION,
     REPAIR_PROMPT,
@@ -179,6 +179,7 @@ Zasady:
                     self.on_wait,
                     stage="reranking",
                     session_id=self.session_id,
+                    provider=self.provider,
                 ):
                     response = self.client.chat.completions.create(
                         model=self.model,
@@ -394,6 +395,9 @@ Zasady:
 
         try:
             result = self._structured(user_prompt, RerankResult)
+        except LLMBusyError:
+            # Zajęty model to brak kolejki, nie słaba odpowiedź: bez cichego zastępstwa.
+            raise
         except Exception:
             if not self.allow_fallback:
                 raise

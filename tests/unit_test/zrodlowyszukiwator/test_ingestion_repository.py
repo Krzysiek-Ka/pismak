@@ -110,6 +110,28 @@ class TestConnect:
         assert "[binary]" not in str(error.value)
         assert isinstance(error.value.__cause__, ImportError)
 
+    def test_connect__limits_how_long_an_unreachable_database_can_block_ingestion(
+        self, monkeypatch
+    ) -> None:
+        """Verify a wrong address fails after the connect timeout instead of hanging for minutes."""
+        import pgvector.psycopg
+        import psycopg
+
+        calls: list[dict[str, object]] = []
+
+        def fake_connect(database_url: str, **kwargs: object) -> FakeConnection:
+            calls.append({"database_url": database_url, **kwargs})
+            return FakeConnection()
+
+        monkeypatch.setattr(psycopg, "connect", fake_connect)
+        monkeypatch.setattr(pgvector.psycopg, "register_vector", lambda conn: None)
+
+        PgVectorRepository("postgresql://ingest@127.0.0.1/pismak").connect()
+
+        assert calls == [
+            {"database_url": "postgresql://ingest@127.0.0.1/pismak", "connect_timeout": 10}
+        ]
+
 
 class TestEnsureSchema:
     def test_ensure_schema__sizes_the_vector_column_for_the_configured_embedding_model(

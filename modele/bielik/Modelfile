@@ -1,6 +1,6 @@
 # Bielik 4.5B v3.0 Instruct (Q4_K_M) dla Pismaka.
 # Plik GGUF pobierz do tego katalogu, potem: ollama create pismak-bielik -f modele\bielik\Modelfile
-# Szczegóły: README, sekcja 4.2.
+# Szczegóły: README, punkt 3.1.
 FROM ./Bielik-4.5B-v3.0-Instruct-Q4_K_M.gguf
 TEMPLATE "{{- range .Messages }}<|im_start|>{{ .Role }}
 {{ .Content }}<|im_end|>

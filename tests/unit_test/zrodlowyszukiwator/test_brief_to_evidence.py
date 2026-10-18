@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from threading import Event, Thread
 
-from src._shared.llm_runtime import llm_generation_lock
+import pytest
+
+from src._shared import llm_runtime
+from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
 from src.Zrodlowyszukiwator.brief_to_evidence.formatting import (
     _truncate_at_boundary,
     evidence_pack_to_markdown,
@@ -147,6 +150,34 @@ class TestLLMQueryPlanner:
 
         assert len(result.intents) == 3
         assert result.case_summary == "Bezpieczne przejście"
+
+    def test_plan__busy_local_model_is_reported_instead_of_using_the_fallback(
+        self, monkeypatch
+    ) -> None:
+        """Verify a case that waited too long is told to retry, not given a fallback plan."""
+        monkeypatch.setattr(llm_runtime, "LLM_LOCK_WAIT_TIMEOUT_SECONDS", 0.05)
+        planner = LLMQueryPlanner(client=FailingClient(), model="test")
+
+        with llm_generation_lock():
+            with pytest.raises(LLMBusyError):
+                planner.plan({"problem_description": "Brak przejścia"})
+
+    def test_plan__openrouter_does_not_wait_for_the_local_model(self) -> None:
+        """Verify an OpenRouter planner runs at once while Ollama serves another case."""
+        notified = Event()
+        planner = LLMQueryPlanner(
+            client=EmptyPlanClient(),
+            model="test",
+            on_wait=notified.set,
+            provider="openrouter",
+            allow_fallback=True,
+        )
+
+        with llm_generation_lock():
+            result = planner.plan({"problem_description": "Brak przejścia"})
+
+        assert not notified.is_set()
+        assert result.intents
 
     def test_plan__uses_fallback_when_llm_returns_empty_intents(self) -> None:
         """Verify an empty structured response does not erase useful fallback queries."""

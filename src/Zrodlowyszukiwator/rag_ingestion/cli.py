@@ -39,7 +39,7 @@ def main() -> None:
     if not database_url:
         raise SystemExit(
             "Brak RAG_INGESTION_DATABASE_URL w .env. Ingestion łączy się jako rola "
-            "pismak_ingest; rola z DATABASE_URL ma tylko prawo odczytu (README, punkt 5.2)."
+            "pismak_ingest; rola z DATABASE_URL ma tylko prawo odczytu (README, punkt 4.1)."
         )
     embedding_model = os.getenv("RAG_EMBEDDING_MODEL", "bge-m3")
     ollama_url = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")

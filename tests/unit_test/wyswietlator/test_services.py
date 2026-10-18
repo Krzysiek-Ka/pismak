@@ -25,6 +25,7 @@ from openai import (
 from pydantic import ValidationError
 
 from src._shared.context_budget import LLMInputLimitError
+from src._shared.llm_runtime import LLMBusyError
 from src._shared.serwer import LLMConfigurationError, LLMResponseError
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator.pismogenerator import DraftValidationError
@@ -757,6 +758,16 @@ class TestLlmErrorMessageForProviderErrors:
         assert expected in message
         assert "sk-or-v1" not in message
         assert "upstream" not in message
+
+    def test_llm_error_message__busy_local_model_suggests_retrying_or_openrouter(self) -> None:
+        """Verify a case that waited too long learns the model is busy, not that it failed."""
+        message = services.llm_error_message(
+            LLMBusyError("Lokalny model był zajęty dłużej niż 900 s.")
+        )
+
+        assert "zajęty obsługą innych spraw" in message
+        assert "OpenRouter" in message
+        assert "900" not in message
 
     def test_llm_error_message__does_not_call_a_timeout_a_connection_failure(self) -> None:
         """Verify a slow model is not reported as unreachable, though it subclasses that error."""

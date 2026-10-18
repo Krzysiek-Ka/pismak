@@ -1,10 +1,10 @@
 # PLLuM 4B chat 2512 (Q4_K_M) dla Pismaka.
 # Plik GGUF pobierz do tego katalogu, potem: ollama create pismak-pllum -f modele\pllum\Modelfile
-# Szczegóły: README, sekcja 4.2.
+# Szczegóły: README, punkt 3.1.
 FROM ./pllum-4b-chat-2512-q4_k_m.gguf
 # Szablon rozmowy z CYFRAGOVPL/PLLuM-4B-chat-2512 (chat_template.jinja): prompt systemowy
 # poprzedza pierwszą wiadomość użytkownika w [INST]…[/INST], odpowiedź kończy <eos>.
-# Plik GGUF nie zawiera szablonu, a sam {{ .Prompt }} pomijał prompt systemowy.
+# Plik GGUF nie zawiera szablonu, a {{ .Prompt }} nie dawał modelowi tego formatu rozmowy.
 TEMPLATE """{{- $system := "" }}
 {{- range .Messages }}
 {{- if eq .Role "system" }}{{ $system = .Content }}

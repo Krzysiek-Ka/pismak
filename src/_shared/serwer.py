@@ -230,6 +230,7 @@ class LLMClient:
                 self.on_wait,
                 stage=self.stage,
                 session_id=self.session_id,
+                provider=self.provider,
             ):
                 completion = self.client.chat.completions.create(
                     model=self.model_name,

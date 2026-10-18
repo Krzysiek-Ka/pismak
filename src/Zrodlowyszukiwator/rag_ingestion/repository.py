@@ -6,6 +6,9 @@ import numpy as np
 
 from .models import ChunkRecord, DocumentMetadata
 
+# Błędny adres bazy kończy się błędem po tym czasie zamiast wielominutowego zawieszenia.
+CONNECT_TIMEOUT_SECONDS = 10
+
 
 class PgVectorRepository:
     def __init__(self, database_url: str, *, embedding_dim: int = 1024) -> None:
@@ -25,7 +28,7 @@ class PgVectorRepository:
                 "jest dostępna w PATH."
             ) from exc
 
-        conn = psycopg.connect(self.database_url)
+        conn = psycopg.connect(self.database_url, connect_timeout=CONNECT_TIMEOUT_SECONDS)
         conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         conn.commit()
         register_vector(conn)

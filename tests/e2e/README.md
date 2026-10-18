@@ -13,10 +13,25 @@ aplikacji; Źródłowyszukiwacz obejmuje planner i reranker, embeddingi zawsze l
 
 ```python
 URUCHOMIENIA = [
-    {"nazwa": "bielik", "dopytywator": "bielik", "zrodlowyszukiwacz": "bielik", "pismogenerator": "bielik"},
-    {"nazwa": "pllum_or", "dopytywator": "pllum", "zrodlowyszukiwacz": "openrouter", "pismogenerator": "bielik"},
-    {"nazwa": "qwen_buspas", "dopytywator": "qwen2.5:7b", "zrodlowyszukiwacz": "bielik",
-     "pismogenerator": "openrouter:meta-llama/llama-3.3-70b-instruct:free", "sprawy": ["buspas"]},
+    {
+        "nazwa": "bielik",
+        "dopytywator": "bielik",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "bielik",
+    },
+    {
+        "nazwa": "pllum_or",
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "openrouter",
+        "pismogenerator": "bielik",
+    },
+    {
+        "nazwa": "qwen_buspas",
+        "dopytywator": "qwen2.5:7b",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "openrouter:meta-llama/llama-3.3-70b-instruct:free",
+        "sprawy": ["buspas"],
+    },
 ]
 ```
 

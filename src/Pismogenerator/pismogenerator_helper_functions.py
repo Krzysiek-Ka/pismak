@@ -34,16 +34,10 @@ def validate_draft(
             "request_summary nie powinno zaczynać się od 'o' — renderer dodaje 'wnioskuję o'"
         )
 
-    forbidden_legal_phrases = [
-        "art.",
-        " kpa",
-        "kodeks postępowania administracyjnego",
-        "dostęp do informacji publicznej",
-        "ustawa o dostępie do informacji publicznej",
-        "działając w trybie",
-    ]
-
-    # Phase 0 nie ustala podstaw prawnych; te zwroty mogłyby sugerować niezweryfikowaną podstawę.
+    # Phase 0 nie ustala podstaw prawnych; zakazuje tego prompt Pismogeneratora. Kontrola
+    # zwrotów jest wyłączona decyzją właściciela (2026-10-18): szukanie podciągów („art.”)
+    # odrzucało poprawne pisma („na start.”). Zwrot wpisany na listę znów odrzuci projekt.
+    forbidden_legal_phrases: list[str] = []
     combined_main_text = (draft.request_summary + "\n" + draft.argumentation_markdown).lower()
 
     for phrase in forbidden_legal_phrases:
