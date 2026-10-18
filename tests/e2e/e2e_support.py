@@ -1017,9 +1017,18 @@ def secret_values() -> list[str]:
     key = os.getenv("OPENROUTER_KEY", "").strip()
     if key and key != OPENROUTER_KEY_PLACEHOLDER:
         values.append(key)
-    password = urlsplit(os.getenv("DATABASE_URL", "")).password
-    if password and len(password) >= 6:
-        values.append(password)
+    # Hasła wszystkich trzech ról bazy: aplikacji, ingestion i superusera.
+    passwords = [
+        urlsplit(os.getenv(name, "")).password
+        for name in ("DATABASE_URL", "RAG_INGESTION_DATABASE_URL")
+    ]
+    passwords += [
+        os.getenv(name, "").strip()
+        for name in ("POSTGRES_PASSWORD", "PISMAK_INGEST_DB_PASSWORD", "PISMAK_APP_DB_PASSWORD")
+    ]
+    for password in passwords:
+        if password and len(password) >= 6 and password not in values:
+            values.append(password)
     return values
 
 

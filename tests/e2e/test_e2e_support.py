@@ -27,6 +27,7 @@ from e2e_support import (
     new_result,
     repeated_questions,
     scrub_secrets,
+    secret_values,
     text_summary,
     unknown_numbers,
     words_outside,
@@ -217,6 +218,25 @@ def test_scrub_secrets_redacts_keys_in_written_files(tmp_path) -> None:
 
     assert leaked == [log]
     assert log.read_text("utf-8") == f"klucz={REDACTED} haslo={REDACTED}"
+
+
+def test_secret_values_cover_the_passwords_of_every_database_role(monkeypatch) -> None:
+    """The report must not leak the ingestion or superuser password, not only the app one."""
+    monkeypatch.setenv("OPENROUTER_KEY", "sk-or-v1-klucz-do-ukrycia")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://pismak_app:haslo_aplikacji@127.0.0.1/p")
+    monkeypatch.setenv(
+        "RAG_INGESTION_DATABASE_URL", "postgresql://pismak_ingest:haslo_ingestion@127.0.0.1/p"
+    )
+    monkeypatch.setenv("POSTGRES_PASSWORD", "haslo_superusera")
+    monkeypatch.setenv("PISMAK_INGEST_DB_PASSWORD", "haslo_ingestion")
+    monkeypatch.setenv("PISMAK_APP_DB_PASSWORD", "haslo_aplikacji")
+
+    assert secret_values() == [
+        "sk-or-v1-klucz-do-ukrycia",
+        "haslo_aplikacji",
+        "haslo_ingestion",
+        "haslo_superusera",
+    ]
 
 
 def test_summary_table_shows_each_stage_model_and_why_runs_did_not_pass() -> None:

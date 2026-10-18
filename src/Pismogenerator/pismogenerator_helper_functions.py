@@ -5,6 +5,11 @@ from src.Pismogenerator.structures import DraftLetter
 from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack
 
 
+def normalize_user_evidence(values: list[str] | None) -> list[str]:
+    """Return the user's materials as numbered for U1, U2…: trimmed, without blank entries."""
+    return [str(value).strip() for value in values or [] if str(value).strip()]
+
+
 def validate_draft(
     draft: DraftLetter,
     case_brief: CaseBrief,

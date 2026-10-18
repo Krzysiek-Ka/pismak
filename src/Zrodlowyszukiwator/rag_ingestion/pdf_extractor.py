@@ -6,7 +6,7 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf
 
 from .models import ExtractedPage
 
@@ -136,8 +136,9 @@ def extract_pdf_pages(pdf_path: str | Path) -> list[ExtractedPage]:
     if not pdf_path.exists():
         raise FileNotFoundError(pdf_path)
 
-    doc = fitz.open(pdf_path)
-    raw_pages = [page.get_text("text") for page in doc]
+    # Plik zamykamy od razu po odczycie: na Windows otwarty PDF jest zablokowany do zapisu.
+    with pymupdf.open(pdf_path) as doc:
+        raw_pages = [page.get_text("text") for page in doc]
     # Wzorzec fontu dotyczy całego dokumentu: „ś” w wersalikach naprawiamy także na
     # stronach, na których akurat nie ma „Ŝ”.
     legacy_glyphs = any(_LEGACY_SMALL_Z_DOT in raw for raw in raw_pages)

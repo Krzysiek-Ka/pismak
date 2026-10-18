@@ -79,7 +79,7 @@ Nie zwracaj pełnego letter.md. Końcowy dokument składa kod.
 """.strip()
 
 
-def drafr_user_prompt(
+def draft_user_prompt(
     case_brief: CaseBrief,
     evidence_pack: EvidencePack,
     user_evidence: list[str],

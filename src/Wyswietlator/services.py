@@ -351,13 +351,10 @@ def render_letter(
     user_evidence: list[str] | None = None,
 ) -> str:
     """Render a draft using the evidence and user materials that produced it."""
-    normalized_user_evidence = [
-        evidence.strip() for evidence in user_evidence or [] if evidence.strip()
-    ]
     return pismogenerator_helper_functions.render_letter(
         draft=draft,
         evidence_pack=evidence_pack,
-        user_evidence=normalized_user_evidence,
+        user_evidence=pismogenerator_helper_functions.normalize_user_evidence(user_evidence),
     )
 
 

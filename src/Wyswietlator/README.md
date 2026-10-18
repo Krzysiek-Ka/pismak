@@ -20,13 +20,18 @@ pliku `.env`; nie dodawaj prawdziwego klucza do repozytorium.
 Przy wyborze OpenRouter UI wymaga potwierdzenia przed wysłaniem danych
 poza aplikację. OpenRouter wybiera dostępny model, którego rzeczywista
 nazwa jest pokazywana po odpowiedzi i zapisywana w `models.json` danego
-uruchomienia. Klient nie wykonuje automatycznego fallbacku ani retry
-żądań OpenRouter.
+uruchomienia. Żądania mają ustawione `require_parameters`, więc router
+wybiera tylko modele obsługujące odpowiedź zgodną ze schematem JSON.
+SDK nie ponawia żądań; aplikacja wysyła jedno dodatkowe żądanie tylko
+wtedy, gdy odpowiedź nie spełnia schematu albo została ucięta. Planner
+i reranker na OpenRouter nie mają planu zapasowego — błąd jest pokazywany
+w interfejsie.
 
 Przed przetwarzaniem sprawy UI wymaga również potwierdzenia informacji o
 zapisie danych. Rozmowa i artefakty sprawy są przechowywane na serwerze
 aplikacji jako niezaszyfrowane pliki, dostępne dla administratora serwera,
-bez automatycznego terminu usunięcia. Logi mogą zawierać odpowiedzi modelu
+bez automatycznego terminu usunięcia. Logi mogą zawierać niepoprawne lub
+ucięte odpowiedzi modelu (do 20 000 znaków), a więc także dane sprawy.
 
 Ręczny test po skonfigurowaniu `.env`:
 

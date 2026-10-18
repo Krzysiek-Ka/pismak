@@ -93,6 +93,7 @@ Zasady:
         finish_reason: str | None,
         content: str | None,
         started: float,
+        max_tokens: int,
     ) -> None:
         """Log why a planner request failed, with the rejected response when there is one."""
         LOGGER.error(
@@ -102,7 +103,7 @@ Zasady:
             self.session_id or "-",
             self.provider,
             self.last_model or self.model,
-            ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+            max_tokens,
             attempt,
             str(retry_scheduled).lower(),
             finish_reason or "-",
@@ -128,6 +129,7 @@ Zasady:
         content: str | None = None
         finish_reason: str | None = None
         attempt = 1
+        max_tokens = ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS
         try:
             for attempt in (1, 2):
                 # Log błędu tej próby nie może pokazać odpowiedzi z poprzedniej.
@@ -171,7 +173,7 @@ Zasady:
                         self.session_id or "-",
                         self.provider,
                         self.last_model or self.model,
-                        ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                        max_tokens,
                         attempt,
                         str(attempt == 1).lower(),
                         extra={"session_id": self.session_id},
@@ -218,6 +220,7 @@ Zasady:
                         finish_reason=finish_reason,
                         content=content,
                         started=started,
+                        max_tokens=max_tokens,
                     )
                     user_prompt += "\n\n" + REPAIR_PROMPT.format(validation_errors=detail)
                     continue
@@ -231,7 +234,7 @@ Zasady:
                 self.session_id or "-",
                 self.provider,
                 self.last_model or self.model,
-                ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+                max_tokens,
                 perf_counter() - started,
                 extra={"session_id": self.session_id},
             )
@@ -253,6 +256,7 @@ Zasady:
                 finish_reason=finish_reason,
                 content=content,
                 started=started,
+                max_tokens=max_tokens,
             )
             raise
         self.last_model = getattr(response, "model", None)

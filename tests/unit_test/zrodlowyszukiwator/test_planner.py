@@ -432,3 +432,26 @@ class TestPlannerRequest:
             "provider": {"require_parameters": True}
         }
         assert "extra_body" not in ollama.chat.completions.calls[0]
+
+
+class TestPlannerLogs:
+    def test_llm_plan__logs_the_output_limit_actually_sent_after_fitting_the_window(
+        self, pismak_log, monkeypatch
+    ) -> None:
+        """Verify a truncation log shows the fitted limit, not the 4096 upper bound."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        client = _FinishingClient(('{"case_summary": "uci', "length"), ('{"case_summ', "length"))
+        planner = LLMQueryPlanner(
+            client=client, model="m", allow_fallback=False, context_tokens=2048
+        )
+
+        with pytest.raises(LLMOutputLimitError):
+            planner.plan(BRIEF)
+
+        first, second = (call["max_tokens"] for call in client.chat.completions.calls)
+        assert first < ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS
+        messages = [record.getMessage() for record in pismak_log.records]
+        attempt_1 = next(m for m in messages if "llm_output_truncated" in m and "attempt=1" in m)
+        final = next(m for m in messages if m.startswith("llm_output_limit"))
+        assert f"max_output_tokens={first} " in attempt_1
+        assert f"max_output_tokens={second} " in final

@@ -46,7 +46,7 @@ def fit_draft_user_prompt(
     ) - len(prompts.PISMOGENERATOR_SYSTEM_PROMPT)
     excerpt_chars = EVIDENCE_MAX_CHARS
     while True:
-        user_prompt = prompts.drafr_user_prompt(
+        user_prompt = prompts.draft_user_prompt(
             case_brief=case_brief,
             evidence_pack=evidence_pack,
             user_evidence=user_evidence,
@@ -75,9 +75,9 @@ def build_draft(
     llm_temperature: float = 0.2,
 ) -> structures.DraftLetter:
     """Generate and validate a draft letter from a brief and EvidencePack."""
-    user_evidence = [
-        str(value).strip() for value in case_brief.available_evidence if str(value).strip()
-    ]
+    user_evidence = pismogenerator_helper_functions.normalize_user_evidence(
+        case_brief.available_evidence
+    )
     allowed_source_ids = [evidence.evidence_id for evidence in evidence_pack.evidence] + [
         f"U{index}" for index in range(1, len(user_evidence) + 1)
     ]
@@ -114,8 +114,10 @@ def build_letter(
     user_evidence: list[str] | None = None,
 ) -> str:
     """Render a final letter text from the validated draft structure."""
+    # Te same reguły co w build_draft: inaczej numeracja U# w piśmie rozjechałaby się
+    # z tą, której użył model, gdy wśród materiałów jest pusty wpis.
     return pismogenerator_helper_functions.render_letter(
         draft=draft,
         evidence_pack=evidence_pack,
-        user_evidence=user_evidence or [],
+        user_evidence=pismogenerator_helper_functions.normalize_user_evidence(user_evidence),
     )

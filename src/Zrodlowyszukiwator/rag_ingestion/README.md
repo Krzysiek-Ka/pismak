@@ -28,7 +28,7 @@ czy `standard`.
 5. Procedura / instrukcja — 50
 6. Inne — 40
 
-`hierarchy_rank` będzie później pomocniczym sygnałem w retrieval/rerankingu.
+`hierarchy_rank` rozstrzyga remisy w rankingu wyszukiwania (`src/Zrodlowyszukiwator/rag_retrieval/hybrid.py`).
 Nie jest oceną mocy prawnej.
 
 ### Forma prawna / publikacyjna
@@ -55,9 +55,10 @@ a standardem.
 
 ## Przygotowanie lokalne
 
-1. PostgreSQL z rozszerzeniem pgvector.
-2. Ollama.
-3. Model embeddingowy:
+1. PostgreSQL z rozszerzeniem pgvector (`docker compose up -d`, główne README, rozdział 4).
+2. `RAG_INGESTION_DATABASE_URL` w `.env` — adres roli `pismak_ingest`, która jest
+   właścicielem tabel. Rola z `DATABASE_URL` ma tylko prawo odczytu i nie wczyta dokumentu.
+3. Ollama z modelem embeddingowym:
 
 ```bash
 ollama pull bge-m3
@@ -132,7 +133,7 @@ Każdy chunk zachowuje:
 - SHA-256,
 - embedding,
 - metadata JSONB,
-- `tsvector` do późniejszego hybrid search.
+- `tsvector` do wyszukiwania pełnotekstowego.
 
-Dzięki temu `rag_retrieval` będzie mógł robić vector search + lexical search,
-a wynik nadal będzie miał precyzyjne cytowanie strony i dokumentu.
+Dzięki temu `rag_retrieval` łączy wyszukiwanie wektorowe i pełnotekstowe, a każdy
+znaleziony fragment ma precyzyjne odwołanie do strony i dokumentu.

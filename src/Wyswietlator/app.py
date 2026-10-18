@@ -627,7 +627,7 @@ if st.session_state.case_brief is not None:
             st.button(
                 "Znajdź źródła i wygeneruj pismo",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
             and require_server_storage_consent()
             and require_external_processing_consent((zrodla_provider, pismo_provider))
@@ -822,5 +822,5 @@ if st.session_state.letter_markdown is not None:
             file_name="pismo.md",
             mime="text/markdown",
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )

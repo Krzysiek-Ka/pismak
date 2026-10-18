@@ -6,7 +6,7 @@ from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, Resear
 
 
 class TestDraftUserPrompt:
-    def test_drafr_user_prompt__contains_case_brief_and_allowed_sources(self) -> None:
+    def test_draft_user_prompt__contains_case_brief_and_allowed_sources(self) -> None:
         """Verify the draft prompt packages the brief and explicit source list for the model."""
         brief = CaseBrief(
             title="Brak dostępu",
@@ -19,7 +19,7 @@ class TestDraftUserPrompt:
             query_summary="Sprawa",
             research_plan=ResearchPlan(case_summary="Sprawa", intents=[]),
         )
-        prompt = prompts.drafr_user_prompt(brief, pack, ["Dokument 1"])
+        prompt = prompts.draft_user_prompt(brief, pack, ["Dokument 1"])
 
         assert "CASE BRIEF:" in prompt
         assert "DOZWOLONE IDENTYFIKATORY ŹRÓDEŁ:" in prompt

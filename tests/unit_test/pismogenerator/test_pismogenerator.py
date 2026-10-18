@@ -12,7 +12,7 @@ from src.Pismogenerator.constants import (
     PISMOGENERATOR_RESERVED_OUTPUT_TOKENS,
 )
 from src.Pismogenerator.pismogenerator import DraftValidationError
-from src.Pismogenerator.prompts import PISMOGENERATOR_SYSTEM_PROMPT, drafr_user_prompt
+from src.Pismogenerator.prompts import PISMOGENERATOR_SYSTEM_PROMPT, draft_user_prompt
 from src.Pismogenerator.structures import DraftLetter
 from src.Zrodlowyszukiwator.brief_to_evidence.models import Evidence, EvidencePack, ResearchPlan
 
@@ -122,7 +122,7 @@ class TestFitDraftUserPrompt:
 
         prompt = pismogenerator.fit_draft_user_prompt(make_brief(), pack, [], "ollama", 131072)
 
-        assert prompt == drafr_user_prompt(make_brief(), pack, [])
+        assert prompt == draft_user_prompt(make_brief(), pack, [])
 
 
 class TestBuildDraft:
@@ -253,7 +253,7 @@ class TestBuildDraft:
 
         pismogenerator.build_draft(make_brief(), pack, FakeLLM())
 
-        assert captured["user_prompt"] == drafr_user_prompt(make_brief(), pack, [])
+        assert captured["user_prompt"] == draft_user_prompt(make_brief(), pack, [])
 
     def test_build_draft__includes_validation_details_in_exception(self, monkeypatch) -> None:
         """Verify rejected model sources are preserved for the UI and diagnostic log."""
@@ -370,3 +370,18 @@ class TestDraftLetterModel:
         assert schema["properties"]["sources"]["items"]["enum"] == ["E1", "U1"]
         assert type(result) is DraftLetter
         assert result.sources == ["E1", "U1"]
+
+
+class TestBuildLetterUserEvidence:
+    def test_build_letter__numbers_user_materials_like_build_draft(self) -> None:
+        """Verify a blank material does not shift U1 to the wrong text in the notebook path."""
+        draft = DraftLetter(
+            recipient="Urząd",
+            request_summary="dostęp do dokumentacji",
+            argumentation_markdown="A" * 200,
+            sources=["U1"],
+        )
+
+        letter = pismogenerator.build_letter(draft, make_evidence_pack(), ["  ", " Zdjęcie "])
+
+        assert "- [1] U1: Zdjęcie" in letter

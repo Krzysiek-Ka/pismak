@@ -1,7 +1,7 @@
+# Unit tests
 
-# unit tests
-- always use pytest
-- place unit tests in tests\unit_test\<module_name>\test_<file_name>.py
-- group test for same function in class. name it test_<function_name>
-sub test name test_<function_name>__<test_case_description>
-- for each subtest add short docstring on what esge scanario it test and why
+- Always use pytest.
+- Place unit tests in `tests\unit_test\<module_name>\test_<file_name>.py`.
+- Group the tests of one function in a class named `Test<FunctionName>`.
+- Name each test `test_<function_name>__<test_case_description>`.
+- Give each test a short docstring saying which edge scenario it tests and why.

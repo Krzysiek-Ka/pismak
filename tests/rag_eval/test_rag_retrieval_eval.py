@@ -17,7 +17,7 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
-import fitz  # PyMuPDF
+import pymupdf
 import pytest
 from dotenv import load_dotenv
 from rag_eval_support import (
@@ -353,7 +353,7 @@ def run_evaluation(
     page_counts = {}
     for document_id, (filename, _) in catalog.items():
         if (RAW_DIR / filename).exists():
-            with fitz.open(RAW_DIR / filename) as doc:
+            with pymupdf.open(RAW_DIR / filename) as doc:
                 page_counts[document_id] = len(doc)
     questions_by_id = {q.id: q for q in QUESTIONS}
     meta_problems: list[str] = []
