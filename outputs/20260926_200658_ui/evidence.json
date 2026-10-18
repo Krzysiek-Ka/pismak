@@ -6,18 +6,18 @@
       {
         "semantic_query": "Wzmocnienie działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego",
         "lexical_query": "Straż Miejska we Wrocławiu, wzmocnienie działań, egzekwowanie przepisów, ruch drogowy",
-        "purpose": "Zidentyfikowanie istniejących strategii i polityk dotyczących działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego.",
+        "purpose": "Zidentyfikowanie istniejących strategii i polityk dotyczących egzekwowania przepisów ruchu drogowego przez Straż Miejską we Wrocławiu.",
         "priority": 1
       },
       {
         "semantic_query": "Analiza zakresu uprawnień Straży Miejskiej we Wrocławiu do blokowania i holowania pojazdów",
         "lexical_query": "uprawnienia Straży Miejskiej, blokowanie, holowanie, przepisy ruchu drogowego",
-        "purpose": "Zweryfikowanie, czy Straż Miejska we Wrocławiu ma prawne podstawy do podejmowania działań w zakresie blokowania i holowania pojazdów.",
+        "purpose": "Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
         "priority": 2
       },
       {
         "semantic_query": "Ocena skuteczności szkoleń funkcjonariuszy Straży Miejskiej we Wrocławiu w zakresie ruchu drogowego",
-        "lexical_query": "szkolenia Straży Miejskiej, ruch drogowy, skuteczność",
+        "lexical_query": "szkolenia funkcjonariuszy, ruch drogowy, skuteczność",
         "purpose": "Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego.",
         "priority": 3
       }
@@ -26,88 +26,7 @@
   "evidence": [
     {
       "evidence_id": "E1",
-      "chunk_id": "wroclaw-strategy-2050-2025:00361:e76f04f89291",
-      "document_id": "wroclaw-strategy-2050-2025",
-      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
-      "document_kind": "strategy",
-      "hierarchy_rank": 100,
-      "legal_form": "resolution",
-      "adoption_act_number": "XXIV/463/25",
-      "adoption_date": "2025-10-20",
-      "is_active": true,
-      "page_start": 187,
-      "page_end": 187,
-      "section_path": [
-        "m. Martwi nas, że rośnie liczba samochodów we Wrocławiu. W 2023 roku było ich już",
-        "Grupa białoruska:"
-      ],
-      "excerpt": "• polityka na rzecz integracji uchodźców wojennych i migrantów – 30,5%, • polityka społeczna i sprawy socjalne mieszkańców – 27,1%, • zwiększanie dostępności mieszkań na wynajem oferowanych przez gminę i firmy prywatne – 25,4%, • zwiększanie atrakcyjności inwestycyjnej Wrocławia – 19,8%, • odnowienie zdegradowanych obszarów miasta – 16,9%.\n\n• odnowienie zdegradowanych obszarów miasta – 34,3%, • zapobieganie negatywnym zmianom klimatycznym – 29,1%, • polityka na rzecz integracji uchodźców wojennych i migrantów – 24,6%, • zwiększanie atrakcyjności inwestycyjnej Wrocławia – 24,6%, • zwiększanie dostępności mieszkań na wynajem oferowanych przez gminę i firmy prywatne – 24%.",
-      "source_url": null,
-      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
-      "retrieval_score": 0.016216216216216217,
-      "rerank_score": null,
-      "relevance_reason": "No matching text found.",
-      "matched_intents": [
-        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
-      ]
-    },
-    {
-      "evidence_id": "E2",
-      "chunk_id": "wroclaw-strategy-2050-2025:00129:293b6ac2adb5",
-      "document_id": "wroclaw-strategy-2050-2025",
-      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
-      "document_kind": "strategy",
-      "hierarchy_rank": 100,
-      "legal_form": "resolution",
-      "adoption_act_number": "XXIV/463/25",
-      "adoption_date": "2025-10-20",
-      "is_active": true,
-      "page_start": 64,
-      "page_end": 64,
-      "section_path": [
-        "EKOSYSTEM",
-        "Straty wody z sieci"
-      ],
-      "excerpt": "z ruchem pojazdów na drogach publicznych, w wyniku którego nastąpiły śmierć lub uszkodzenie ciała osób. Za śmiertelną ofiarę wypadku drogowego uznaje się osobę zmarłą w wyniku doznanych obrażeń na miejscu lub w ciągu 30 dni. Dążenie do wartości 0 ofiar śmiertelnych rocznie we Wrocławiu\n\nwodociągowej dm3 spadek",
-      "source_url": null,
-      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
-      "retrieval_score": 0.01764705882352941,
-      "rerank_score": null,
-      "relevance_reason": "No matching text found.",
-      "matched_intents": [
-        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
-      ]
-    },
-    {
-      "evidence_id": "E3",
-      "chunk_id": "wroclaw-strategy-2050-2025:00367:7d1d8af55067",
-      "document_id": "wroclaw-strategy-2050-2025",
-      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
-      "document_kind": "strategy",
-      "hierarchy_rank": 100,
-      "legal_form": "resolution",
-      "adoption_act_number": "XXIV/463/25",
-      "adoption_date": "2025-10-20",
-      "is_active": true,
-      "page_start": 191,
-      "page_end": 195,
-      "section_path": [
-        "m. Martwi nas, że rośnie liczba samochodów we Wrocławiu. W 2023 roku było ich już",
-        "Wnioski z diagnoz i badań"
-      ],
-      "excerpt": "• Cenią Wrocław, ale obawiają się o przyszłość rynku pracy, dostępność mieszkań oraz wystarczający poziom kompetencji i profesjonalizmu lokalnej administracji, zwłaszcza w radzeniu sobie z poważnymi wyzwaniami. • Są raczej obojętni na skalę sublokalną, osiedlową. Myślą i żyją w skali całego miasta. Najchętniej spędzają czas na Starym Mieście i na Wielkiej Wyspie (Pergola, Hala Stulecia). • Ideałem dla nich jest miasto ekologiczne i zielone, ze sprawną komunikacją miejską. Ale nie są zgodni w kwestii skali ograniczania ruchu samochodowego. • Nie mają tożsamości lokalnej. Bycie Wrocławianką czy Wrocławianinem nie ma dla nich większego znaczenia. • Wolą aktywność indywidualną i dbałość o własne emocje niż aktywność społeczną, obywatelską. • Sprawnie łączą aktywność w rzeczywistości cyfrowej z tą prowadzoną w przestrzeni miejskiej.\n\nPojawiły się też sygnały ostrzegawcze. Młodzież woli działania indywidualne, własne. Nie ufa instytucjom. Obojętnie traktuje więzi sąsiedzkie, osiedlowe, choć jest otwarta na obcokrajowców. Jednocześnie może w każdej chwili opuścić Wrocław, jeśli miasto nie poradzi sobie z głównymi wyzwaniami, takimi jak zmiana klimatu, zanieczyszczenie powietrza, hałas, przestępczość czy jakość transportu zbiorowego. Dystans młodzieży wobec osiedlowego, sąsiedzkiego wymiaru życia uwrażliwia nas na jeszcze jedną kwestię. Osiedle i miejsce zamieszkania wraz z najbliższym otoczeniem nie jest głównym punktem czy przejawem życia miasta. Są inne, przynajmniej równie ważne – to miejsca i aktywności ważne dla całego Wrocławia, a czasem też dla regionu, kraju czy Europy. Ważniejsze od fizycznego sąsiedztwa mogą być rozległe terytorialnie sieci kontaktów, dla których głównym kanałem komunikacji jest internet. Miarą atrakcyjności miasta zaś nie jest wyłącznie atrakcyjność miejsc zamieszkiwania. Dlatego, nie lekceważąc wymiaru osiedlowego, musimy pamiętać, że przynajmniej równie ważne są działania w skali ogólnomiejskiej.\n\n7.2.4.",
-      "source_url": null,
-      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
-      "retrieval_score": 0.01791044776119403,
-      "rerank_score": null,
-      "relevance_reason": "No matching text found.",
-      "matched_intents": [
-        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
-      ]
-    },
-    {
-      "evidence_id": "E4",
-      "chunk_id": "wroclaw-mobility-policy-2013:00020:f830b1b6199d",
+      "chunk_id": "wroclaw-mobility-policy-2013:00011:4fcdee200cf4",
       "document_id": "wroclaw-mobility-policy-2013",
       "document_title": "Wrocławska polityka mobilności",
       "document_kind": "policy",
@@ -115,32 +34,175 @@
       "legal_form": "annex",
       "adoption_act_number": "XLVIII/1169/13",
       "adoption_date": "2013-09-19",
-      "is_active": null,
-      "page_start": 16,
-      "page_end": 16,
+      "is_active": true,
+      "lifecycle_status": "current_reference",
+      "page_start": 11,
+      "page_end": 12,
       "section_path": [
-        "MONITOROWANIE REALIZACJI WROCŁAWSKIEJ POLITYKI MOBILNOŚCI",
-        "Pozytywny > 70% i"
+        "OBSZAR:"
       ],
-      "excerpt": "stycji Liczba zakładów pracy, dla których opracowano i wdrożono plan mobil- ności\n\ndów pracy\n\nnia w ruchu samochodów osobo- wych, szczególnie w centrum\n\n% mieszkańców popierają- cych ograniczenia w ruchu samochodów osobowych\n\nwzrost w następnych latach",
-      "source_url": null,
+      "excerpt": "9)\n\nOBSZAR:\n\ntransport samochodowy osobowy (indywidualny) – jest jednym z podstawowych systemów transportu w mieście. Zaletą jego jest dobra dostępność, a podstawową wadą nieefektywność wykorzystania przestrzeni, energochłonność i szkodliwy wpływ na środowisko miejskie. Istniejąca w mieście bogata sieć ulic uzasadnia założenie, że przy zachowaniu roli transportu samochodowego, jego dalsze usprawnianie będzie w mniejszym stopniu oparte na nowych inwestycjach drogowych, natomiast w większym – na działaniach organizacyjnych na rzecz efektywnego wykorzystywania istniejącej infrastruktury. Wskaźnik motoryzacji nie będzie stanowił podstawy wymiarowania i dostosowywania rozwiązań drogowych do rosnących potrzeb zmotoryzowanych. Przewiduje się ograniczanie roli samochodu, szczególnie w centrum miasta.\n\nW obszarze transportu samochodowego osobowego za najistotniejsze środki realizacji celów przyjmuje się: - zapewnienie spójności funkcjonalnej i przestrzennej systemu transportu samochodowego na poziomie miejskim, metropolitalnym, regionalnym, krajowym i międzynarodowym, - optymalne wykorzystanie potencjału istniejącej infrastruktury transportu samochodowego, - kształtowanie zróżnicowanego stopnia dostępności samochodem z uwzględnieniem specyfiki obszaru miasta, - planowanie inwestycji drogowych o parametrach uwzględniających stopień dostępności samochodem do danego obszaru miasta, - zapewnienie właściwego stanu technicznego infrastruktury, - realizację prac remontowych i utrzymaniowych na poziomie gwarantującym optymalną eksploatację infrastruktury, - stosowanie efektywnych systemów zarządzania i sterowania ruchem z uwzględnieniem priorytetu dla komunikacji zbiorowej, - wstrzymanie się od powiększania przepustowości ulic wprowadzających ruch do obszaru śródmiejskiego oraz stopniowe zmniejszanie przepustowości ulic wprowadzających ruch do centrum, - konsekwentne przekształcanie struktury sieci drogowej na promienisto-obwodnicową, - budowę lub rozbudowę układu drogowego wyłącznie w celu: usprawnienia funkcjonowania transportu zbiorowego, zapewnienia obsługi nowych terenów inwestycyjnych, poprawy funkcjonowania i spójności sieci ulic obwodowych, uwolnienia obszarów wrażliwych od ruchu tranzytowego i powiązania układu miejskiego z siecią ulic o charakterze tranzytowym, - dbałość o ulice jako integralne elementy przestrzeni publicznej, w których należy racjonalnie dzielić przestrzeń pomiędzy jej różnych użytkowników, stosować wysokiej jakości rozwiązania inżynierskie, wprowadzać zieleń i elementy małej architektury, - stwarzanie warunków i promowanie podróży w systemie Park&Ride (Parkuj i Jedź), - promowanie innowacyjnych rozwiązań technicznych w projektach drogowych, - promowanie systemu grupowego korzystania z samochodu tzw. carpooling, - stwarzanie warunków i promocję korzystania z pojazdów z silnikami ekologicznymi, w tym wspieranie budowy systemu wypożyczalni elektrycznych samochodów miejskich wraz z infrastrukturą do ich zasilania, - rozwijanie systemu informowania uczestników ruchu o warunkach panujących w sieci drogowo-ulicznej oraz o dostępności parkingów.\n\n10) OBSZAR: transport ładunków – jest nieodzowną częścią funkcjonowania miasta i otoczenia, ponieważ działalność gospodarcza prowadzona przez podmioty funkcjonujące w mieście wymaga regularnych dostaw i obsługi towarowej.",
+      "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
       "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
-      "retrieval_score": 0.01643835616438356,
+      "retrieval_score": 0.06274940045431848,
       "rerank_score": null,
-      "relevance_reason": "No matching text found.",
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
       "matched_intents": [
+        "Q1: Zidentyfikowanie istniejących strategii i polityk dotyczących egzekwowania przepisów ruchu drogowego przez Straż Miejską we Wrocławiu.",
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E2",
+      "chunk_id": "wroclaw-mobility-policy-2013:00008:f4079360d668",
+      "document_id": "wroclaw-mobility-policy-2013",
+      "document_title": "Wrocławska polityka mobilności",
+      "document_kind": "policy",
+      "hierarchy_rank": 80,
+      "legal_form": "annex",
+      "adoption_act_number": "XLVIII/1169/13",
+      "adoption_date": "2013-09-19",
+      "is_active": true,
+      "lifecycle_status": "current_reference",
+      "page_start": 8,
+      "page_end": 9,
+      "section_path": [
+        "ŚRODKI REALIZACJI CELÓW PODSTAWOWYCH"
+      ],
+      "excerpt": "4) OBSZAR: bezpieczeństwo przemieszczania się – bezpieczeństwo, a właściwie jego poprawa uznana jest przez Unię Europejską za priorytetowy cel we wszelkich działaniach związanych z transportem. Prawo do swobodnego poruszania się jest nieodłącznie związane z prawem do bezpieczeństwa użytkowników systemu transportowego. Traktowane jest ono przez ludzi jako jedno z ważniejszych kryteriów oceny jakości życia. Dlatego też jako kierunkowe założenie przyjmuje się wizję „zero śmiertelnych ofiar wypadków we Wrocławiu”.\n\nW obszarze bezpieczeństwa przemieszczania się za najistotniejsze środki realizacji celów przyjmuje się: - prowadzenie badań i analiz wypadków z udziałem uczestników ruchu drogowego, - projektowanie inwestycji transportowych w sposób zapewniający bezpieczeństwo wszystkim uczestnikom ruchu, w szczególności pieszym i rowerzystom, - rozszerzanie obszaru miasta objętego strefami ruchu uspokojonego, - poszerzanie przestrzeni publicznych bez samochodu, - wprowadzanie rozwiązań technicznych na rzecz poprawy bezpieczeństwa ruchu drogowego, - promowanie wysokiej kultury jazdy, - rozwój systemu monitorującego stan bezpieczeństwa osobistego użytkowników transportu zbiorowego i niezmotoryzowanego.\n\n5) OBSZAR: dialog społeczny – to obszar, który dotyczy najważniejszego adresata polityki mobilności, tj. mieszkańca, odbiorcy działań we wszystkich jej przejawach. To od codziennych decyzji każdego z nas zależy, jak danego dnia przedstawia się sytuacja komunikacyjna w mieście. Dlatego też szczególnie ważne jest kształtowanie społecznej odpowiedzialności za miasto poprzez włączenie mieszkańców, organizacji społecznych i grup zainteresowań w tworzenie zrównoważonej mobilności w mieście.\n\nW obszarze dialog społeczny za najistotniejsze środki realizacji celów przyjmuje się: - współpracę z mieszkańcami w procesie projektowania rozwiązań - umożliwienie zgłaszania propozycji wyprzedzająco w stosunku do całego procesu inwestycyjnego, - informowanie mieszkańców o prowadzonych inwestycjach transportowych, - stworzenie platformy dialogu społecznego, - konsultowanie z mieszkańcami osiedli rozwiązań transportowych planowanych w ich sąsiedztwie, - projektowanie rozwiązań transportowych przy współpracy grup zainteresowań, - organizowanie seminariów i dyskusji publicznych.\n\n- promowanie poprzez edukację społeczną oraz kampanie informacyjno-reklamowe „nowoczesnej kultury mobilności”, czyli korzystania z niezmotoryzowanego sposobu przemieszczania się – pieszo, rowerem oraz komunikacją zbiorową.\n\n6) OBSZAR: ruch pieszych i osób o ograniczonej sprawności, a w szczególności jego funkcjonowanie, ma znaczący wpływ na ocenę jakości życia w mieście. Dobra infrastruktura dla pieszych jest podstawą wysokiej jakości przestrzeni publicznych. Miasta, które oferują rozwiązania przyjazne dla pieszych i osób o ograniczonej sprawności, są wysoko oceniane przez ich mieszkańców i gości oraz wskazywane są jako warte zamieszkania.",
+      "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
+      "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+      "retrieval_score": 0.06222985347985348,
+      "rerank_score": null,
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
+      "matched_intents": [
+        "Q1: Zidentyfikowanie istniejących strategii i polityk dotyczących egzekwowania przepisów ruchu drogowego przez Straż Miejską we Wrocławiu.",
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E3",
+      "chunk_id": "wroclaw-mobility-policy-2013:00015:fe0b24a32551",
+      "document_id": "wroclaw-mobility-policy-2013",
+      "document_title": "Wrocławska polityka mobilności",
+      "document_kind": "policy",
+      "hierarchy_rank": 80,
+      "legal_form": "annex",
+      "adoption_act_number": "XLVIII/1169/13",
+      "adoption_date": "2013-09-19",
+      "is_active": true,
+      "lifecycle_status": "current_reference",
+      "page_start": 14,
+      "page_end": 14,
+      "section_path": [
+        "OBSZAR:"
+      ],
+      "excerpt": "W obszarze monitorowanie i modelowanie zachowań komunikacyjnych za najistotniejsze środki realizacji celów przyjmuje się: - bieżące monitorowanie ruchu w mieście, w tym badanie potoków pasażerskich w komunikacji miejskiej, - rozwój automatycznego systemu badania liczby pasażerów w pojazdach komunikacji miejskiej, - cykliczne analizowanie przyczyn zmian warunków ruchu oraz zmian zachowań komunikacyjnych mieszkańców, - prowadzenie modelowania zachowań komunikacyjnych z uwzględnieniem strategicznych założeń kształtowania mobilności w mieście, - doskonalenie metodyki modelowania.\n\nW dalszej perspektywie - w zależności od potrzeb – tworzone będą odpowiednie programy i plany, których celem będzie doprecyzowanie zadań w danym obszarze działań. Dla sprecyzowania i dostosowania środków realizacji celów do specyfiki Wrocławia planuje się, na kolejnym etapie realizacji polityki, określenie stref miasta wraz z charakterystycznymi cechami i przypisanymi im środkami realizacji celów. Strefy te uwzględniać będą m.in. usytuowanie na mapie miasta, sposób zagospodarowania oraz funkcję obszaru, a także relacje z systemem transportowym.\n\nV.",
+      "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
+      "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+      "retrieval_score": 0.04609243927846922,
+      "rerank_score": null,
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
+      "matched_intents": [
+        "Q1: Zidentyfikowanie istniejących strategii i polityk dotyczących egzekwowania przepisów ruchu drogowego przez Straż Miejską we Wrocławiu.",
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E4",
+      "chunk_id": "wroclaw-strategy-2050-2025:00271:aa39fdc6b5ae",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 122,
+      "page_end": 122,
+      "section_path": [
+        "6. STREFA CENTRALNA"
+      ],
+      "excerpt": "• Obowiązuje planowanie dróg dla pieszych wzdłuż głównych ulic miasta w sposób zapewniający bezpieczeństwo pieszych. • W obszarach mieszkaniowych zaleca się wydzielać strefy piesze, np. w formie przestrzeni współdzielonych lub woonerfów (podwórców miejskich).\n\n6. STREFA CENTRALNA\n\n• W strefie centralnej należy dążyć do uspokojenia ruchu samochodowego. • Należy strefować dostępność strefy centralnej dla ruchu samochodowego poprzez wprowadzanie rozwiązań uspokajających ruch, np. ulic jednokierunkowych z możliwością parkowania aut i rowerów, wprowadzanie w przestrzeń uliczną nowych nasadzeń drzew, elementów błękitno-zielonej infrastruktury, dodatkowych ogródków gastronomicznych lub innych elementów małej architektury. Dopuszczenie wyłącznie obsługi dla mieszkańców. • Należy przekształcać ulice będące atrakcyjnymi korytarzami poruszania się pieszych w przestrzenie spacerowe. • Należy dążyć do wprowadzania atrakcyjnych ciągów pieszych w reprezentacyjnych częściach miasta, nawiązujących do istniejących założeń historycznych Wrocławia. • Należy dążyć do pełnego odrestaurowania promenady wzdłuż Fosy Miejskiej i wzbogacenia jej o elementy związane z wypoczynkiem. • Należy wzbogacać strefę centralną o dodatkowe kładki przez fosę z uwzględnieniem walorów przyrodniczych i kulturowych. • Należy przeciwdziałać prowadzeniu usług transportowych z użyciem samochodu niemal pod same drzwi i dążyć do zmiany zasad obsługi towarowej przez stwarzanie warunków do rozwijania tzw. zielonych dostaw ostatniej mili, a więc przy użyciu zeroemisyjnych pojazdów. • Należy optymalizować dostawy w strefie centralnej poprzez tworzenie specjalnych miejsc, które uporządkują przestrzeń i pozwolą przeciwdziałać niekontrolowanemu zajmowaniu infrastruktury pieszej czy rowerowej oraz degradacji zieleni. • Należy racjonalizować zakres dostępności samochodowej strefy centralnej dla ruchu turystycznego poprzez zapewnienie dostępu do parkingów kubaturowych usytuowanych na obrzeżach centrum oraz wyznaczonych miejsc do parkowania autokarów. • Postuluje się każdorazowe rozważenie wprowadzenia ograniczeń ilościowych i przestrzennych dla parkingów dopuszczanych w planach miejscowych, szczególnie w historycznym centrum, przy założeniu, że najcenniejsza jest przestrzeń miejska przyjazna pieszym i rowerzystom.",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.03745943061011554,
+      "rerank_score": null,
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
+      "matched_intents": [
+        "Q1: Zidentyfikowanie istniejących strategii i polityk dotyczących egzekwowania przepisów ruchu drogowego przez Straż Miejską we Wrocławiu.",
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań."
+      ]
+    },
+    {
+      "evidence_id": "E5",
+      "chunk_id": "wroclaw-strategy-2050-2025:00254:2f09307fa20c",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 114,
+      "page_end": 115,
+      "section_path": [
+        "2. ZASADY KSZTAŁTOWANIA SYSTEMU GŁÓWNYCH KORYTARZY DROGOWYCH"
+      ],
+      "excerpt": "• Należy wzmacniać powiązania zewnętrzne i dążyć do ich rozwijania poprzez korytarze tranzytowe, które stanowią: autostrada A4 w nowym przebiegu wraz z jej obecnym korytarzem w randze co najmniej drogi krajowej i A8 (Autostradowa Obwodnica Wrocławia), drogi ekspresowe S5 i S8, droga krajowa nr 5 i 94 oraz Wschodnia Obwodnica Wrocławia dopełniona o połączenie drogowe po stronie zachodniej pomiędzy Portem Lotniczym Wrocław a autostradą A4. • Należy rozwijać układ powiązań wewnątrzmiejskich poprzez korytarze powiązań międzyosiedlowych, które umożliwiają ominięcie obszarów o największej gęstości zabudowy mieszkaniowej. • Należy przyjąć strefowanie dostępności komunikacyjnej miasta zgodnie z zasadą wyciszania ruchu samochodowego na rzecz wzmacniania komunikacji zbiorowej, pieszej i rowerowej w obszarze wewnątrz powiązań międzyosiedlowych. • Przy kształtowaniu ulic należy szczególnie dbać o ich jakość oraz wyposażenie przyjazne dla użytkowników. • Należy uzupełniać ulice i przestrzenie publiczne o rozwiązania z zakresu błękitno-zielonej infrastruktury. • Należy dążyć do pełnego zintegrowania transportu zbiorowego na poziomie aglomeracyjnym pod względem przestrzennym, funkcjonalnym i organizacyjnym. • Należy wspierać rozwój i rozbudowę Wrocławskiego Węzła Kolejowego. • System kolejowy należy włączać do obsługi podróży wewnątrzmiejskich poprzez rozwój infrastruktury przystankowej oraz torowej w mieście. • Należy kształtować miejski transport zbiorowy w sposób umożliwiający osiągnięcie konkurencyjności czasowej w stosunku do podróży samochodowych poprzez budowę odpowiedniej infrastruktury, w tym organizację węzłów przesiadkowych, uprzywilejowanie w ruchu oraz zapewnienie wysokiego priorytetu na skrzyżowaniach. • Należy polepszać dostępność transportu zbiorowego dla wszystkich użytkowników, w tym osób z ograniczoną mobilnością. • Należy kształtować sieć odseparowanych od ruchu samochodowego korytarzy pieszych i rowerowych. • Należy tworzyć spójny system pieszy i rowerowy zapewniający wysoką jakość infrastruktury i ciągłość powiązań. • Należy zabezpieczać w planach miejscowych korytarze umożliwiające rozwój systemu transportowego miasta. • Zagospodarowywanie terenów, szczególnie o funkcji mieszkaniowej, należy planować w lokalizacjach z zapewnioną dobrą dostępnością do infrastruktury komunikacyjnej ze szczególnym nastawieniem na transport zbiorowy. Tam, gdzie go nie ma, należy dążyć do dobudowania go wyprzedzająco w stosunku do zabudowy.\n\n2. ZASADY KSZTAŁTOWANIA SYSTEMU GŁÓWNYCH KORYTARZY DROGOWYCH\n\n• Obowiązuje utrzymanie rezerw planistycznych dla brakujących elementów głównych korytarzy drogowych. • Przebieg dróg krajowych dopuszcza się wyłącznie w ramach głównych korytarzy drogowych. • Drogi krajowe oraz wojewódzkie w granicach miasta, ze względu na zasadę ograniczonej dostępności, powinny być prowadzone poza obszarami, w których przeważającą funkcją otoczenia jest zabudowa mieszkaniowa. • Nowe główne korytarze drogowe należy prowadzić w sposób bezkolizyjny na przecięciach z systemem kolejowym. • Powiązania międzyosiedlowe należy kształtować w sposób umożliwiający sprawny dojazd do węzłów przesiadkowych. • Powiązania drogowe na styku z gminami sąsiednimi powinny być kształtowane z zachowaniem zasad dobrej współpracy międzygminnej, spójnej polityki przestrzennej i wspólnych działań w kierunku kształtowania zrównoważonej mobilności.",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.03497983870967742,
+      "rerank_score": null,
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
+      "matched_intents": [
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
+        "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
+      ]
+    },
+    {
+      "evidence_id": "E6",
+      "chunk_id": "wroclaw-strategy-2050-2025:00253:4c8f534a4eb9",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 113,
+      "page_end": 114,
+      "section_path": [
+        "1. ZASADY KSZTAŁTOWANIA SPÓJNEGO SYSTEMU TRANSPORTOWEGO"
+      ],
+      "excerpt": "SZCZEGÓŁOWE USTALENIA I REKOMENDACJE\n\n1. ZASADY KSZTAŁTOWANIA SPÓJNEGO SYSTEMU TRANSPORTOWEGO\n\n• Należy dążyć do zapewnienia właściwych powiązań funkcjonalnych z elementami sieci TEN-T. • Należy przyjąć Dworzec Wrocław Główny oraz Port Lotniczy Wrocław za dwa podstawowe porty komunikacyjne miejskiego węzła, jakim jest Wrocław w sieci TEN-T. • Należy zapewnić sprawne powiązania z podstawowymi portami komunikacyjnymi. • Należy uwzględnić przebieg przez Wrocław Kolei Dużych Prędkości – zarówno w kierunku Warszawy, jak i perspektywicznie do Pragi – jako element sieci bazowej TEN-T. • Należy zachować rezerwę dla planowanego portu rzecznego, który zintegrowany z siecią drogową i kolejową o znaczeniu międzynarodowym może zyskać pozycję ważnego terminalu transportowego. • Należy dążyć do dopełniania promienisto-obwodnicowej struktury geometrycznej sieci drogowej, na którą składają się korytarze tranzytowe i międzyosiedlowe.\n\n• Należy wzmacniać powiązania zewnętrzne i dążyć do ich rozwijania poprzez korytarze tranzytowe, które stanowią: autostrada A4 w nowym przebiegu wraz z jej obecnym korytarzem w randze co najmniej drogi krajowej i A8 (Autostradowa Obwodnica Wrocławia), drogi ekspresowe S5 i S8, droga krajowa nr 5 i 94 oraz Wschodnia Obwodnica Wrocławia dopełniona o połączenie drogowe po stronie zachodniej pomiędzy Portem Lotniczym Wrocław a autostradą A4. • Należy rozwijać układ powiązań wewnątrzmiejskich poprzez korytarze powiązań międzyosiedlowych, które umożliwiają ominięcie obszarów o największej gęstości zabudowy mieszkaniowej. • Należy przyjąć strefowanie dostępności komunikacyjnej miasta zgodnie z zasadą wyciszania ruchu samochodowego na rzecz wzmacniania komunikacji zbiorowej, pieszej i rowerowej w obszarze wewnątrz powiązań międzyosiedlowych. • Przy kształtowaniu ulic należy szczególnie dbać o ich jakość oraz wyposażenie przyjazne dla użytkowników. • Należy uzupełniać ulice i przestrzenie publiczne o rozwiązania z zakresu błękitno-zielonej infrastruktury. • Należy dążyć do pełnego zintegrowania transportu zbiorowego na poziomie aglomeracyjnym pod względem przestrzennym, funkcjonalnym i organizacyjnym. • Należy wspierać rozwój i rozbudowę Wrocławskiego Węzła Kolejowego. • System kolejowy należy włączać do obsługi podróży wewnątrzmiejskich poprzez rozwój infrastruktury przystankowej oraz torowej w mieście. • Należy kształtować miejski transport zbiorowy w sposób umożliwiający osiągnięcie konkurencyjności czasowej w stosunku do podróży samochodowych poprzez budowę odpowiedniej infrastruktury, w tym organizację węzłów przesiadkowych, uprzywilejowanie w ruchu oraz zapewnienie wysokiego priorytetu na skrzyżowaniach. • Należy polepszać dostępność transportu zbiorowego dla wszystkich użytkowników, w tym osób z ograniczoną mobilnością. • Należy kształtować sieć odseparowanych od ruchu samochodowego korytarzy pieszych i rowerowych. • Należy tworzyć spójny system pieszy i rowerowy zapewniający wysoką jakość infrastruktury i ciągłość powiązań. • Należy zabezpieczać w planach miejscowych korytarze umożliwiające rozwój systemu transportowego miasta. • Zagospodarowywanie terenów, szczególnie o funkcji mieszkaniowej, należy planować w lokalizacjach z zapewnioną dobrą dostępnością do infrastruktury komunikacyjnej ze szczególnym nastawieniem na transport zbiorowy. Tam, gdzie go nie ma, należy dążyć do dobudowania go wyprzedzająco w stosunku do zabudowy.",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.0330316742081448,
+      "rerank_score": null,
+      "relevance_reason": "Wybrano przez fallback hybrid ranking.",
+      "matched_intents": [
+        "Q2: Określenie, czy Straż Miejska we Wrocławiu ma prawne podstawy do wykonywania tych działań.",
         "Q3: Zbadanie, czy funkcjonariusze Straży Miejskiej we Wrocławiu są odpowiednio przygotowani do egzekwowania przepisów ruchu drogowego."
       ]
     }
   ],
-  "unsupported_topics": [
-    "Zidentyfikowanie istniejących strategii i polityk dotyczących działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego.",
-    "Zweryfikowanie, czy Straż Miejska we Wrocławiu ma prawne podstawy do podejmowania działań w zakresie blokowania i holowania pojazdów."
-  ],
+  "evidence_status": "unverified",
+  "unsupported_topics": [],
   "search_notes": [
     "Liczba zapytań: 3",
     "Kandydaci po hybrid retrieval: 20",
-    "Źródła w EvidencePack: 4",
+    "Źródła w EvidencePack: 6",
+    "Ocena wsparcia źródeł: unverified",
     "hierarchy_rank jest metadanym/tie-breakerem, a nie oceną mocy prawnej."
   ]
 }

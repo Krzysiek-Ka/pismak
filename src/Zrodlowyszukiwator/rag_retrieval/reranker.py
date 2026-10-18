@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, TypeVar
 
+from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, Field, ValidationError
 
 from src._shared.context_budget import fit_output_tokens, input_char_budget, usage_summary
@@ -17,6 +18,7 @@ from src._shared.serwer import (
     LLMResponseError,
     error_log_detail,
     log_model_response,
+    provider_request_options,
     recover_partial_structured_response,
     structured_output_error_detail,
 )
@@ -156,7 +158,6 @@ Zasady:
 
     def _structured(self, user_prompt: str, response_model: type[T]) -> T:
         """Request and validate one structured reranking response from the model."""
-        schema = response_model.model_json_schema()
         started = perf_counter()
         prompt = user_prompt
         content: str | None = None
@@ -189,14 +190,11 @@ Zasady:
                         ],
                         temperature=0.0,
                         max_tokens=max_tokens,
-                        response_format={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": response_model.__name__,
-                                "strict": True,
-                                "schema": schema,
-                            },
-                        },
+                        # Schemat zgodny z trybem strict. Z model_json_schema() pole selected
+                        # nie było wymagane, więc pusty obiekt {} przechodził jako „nic nie
+                        # wspiera sprawy”.
+                        response_format=type_to_response_format_param(response_model),
+                        **provider_request_options(self.provider),
                     )
                 self.last_model = getattr(response, "model", None)
                 choice = response.choices[0]

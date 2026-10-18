@@ -1,7 +1,7 @@
 # 3. Modele danych Phase 0
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -59,6 +59,26 @@ class InterviewTurnResult(BaseModel):
     reason_for_question: str | None
     missing_topics: list[str] = Field(default_factory=list)
     ready_to_build_brief: bool
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_question_state(cls, data: Any) -> Any:
+        """Resolve the contradictions small models often return instead of asking them again."""
+        # Schemat JSON nie wyraża zależności między polami, więc gramatyka modelu jej nie
+        # wymusi. Każde ponowne zapytanie to na CPU kolejne pół minuty.
+        if not isinstance(data, dict):
+            return data
+        question = data.get("next_question")
+        if isinstance(question, str) and question.strip():
+            return data
+        data = dict(data)
+        if data.get("ready_to_build_brief") is False:
+            # Model nie ma o co zapytać, więc wywiad może się zakończyć.
+            data["ready_to_build_brief"] = True
+        if data.get("ready_to_build_brief") is True:
+            # Pusty tekst zamiast null przy zakończonym wywiadzie.
+            data["next_question"] = None
+        return data
 
     @model_validator(mode="after")
     def validate_question_state(self) -> "InterviewTurnResult":

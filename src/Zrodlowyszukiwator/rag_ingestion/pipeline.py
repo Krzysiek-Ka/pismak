@@ -14,7 +14,8 @@ from .repository import PgVectorRepository
 # 0.2: nagłówki zostają w treści, sklejone przeniesienia, naprawa „Ŝ” → „ż”.
 # 0.3: bez znaków sterujących i bez powtórzeń nagłówków/stopek stron.
 # 0.4: zakładka nie przekracza max_chars i nie tworzy osobnego fragmentu.
-INGESTION_VERSION = "0.4"
+# 0.5: linia z samą liczbą jest usuwana jako numer strony tylko na brzegu strony.
+INGESTION_VERSION = "0.5"
 
 
 def file_sha256(path: str | Path) -> str:
@@ -86,15 +87,12 @@ def ingest_pdf(
 
     embeddings = embedder.embed([c.embedding_text for c in chunks])
 
-    repository.upsert_document(
+    # Jedna transakcja: po błędzie nie zostaje nowy hash dokumentu przy starych fragmentach.
+    repository.store_document(
         metadata,
         source_filename=pdf_path.name,
         content_sha256=digest,
         ingestion_version=INGESTION_VERSION,
-    )
-    repository.replace_chunks(
-        document_id=metadata.document_id,
-        hierarchy_rank=metadata.hierarchy_rank,
         chunks=chunks,
         embeddings=embeddings,
     )

@@ -74,7 +74,7 @@ def validate(
 
 class TestValidateDraft:
     def test_validate_draft__returns_errors_for_invalid_draft(self) -> None:
-        """Verify the validator catches empty recipient, short argumentation, and illegal sources."""
+        """Verify the validator catches short argumentation and illegal sources."""
         draft = structures.DraftLetter(
             recipient="",
             sender="",
@@ -100,7 +100,7 @@ class TestValidateDraft:
             user_evidence=[],
         )
 
-        assert any("adresata" in error.lower() for error in errors)
+        assert not any("adresata" in error.lower() for error in errors)
         assert any("krótka" in error.lower() for error in errors)
         assert any("niedozwolone" in error.lower() for error in errors)
 
@@ -233,7 +233,7 @@ class TestRenderListAndSources:
                 make_evidence_pack(),
                 ["Zdjęcie"],
             )
-            == "[1] E1: Raport miejski, s. 4-5\n[2] U1: Zdjęcie"
+            == "- [1] E1: Raport miejski, s. 4-5\n- [2] U1: Zdjęcie"
         )
 
     def test_render_sources__returns_fallback_for_empty_sources(self) -> None:
@@ -255,7 +255,7 @@ class TestRenderListAndSources:
                 make_evidence_pack(),
                 ["Zdjęcie"],
             )
-            == "[1] U99\n[2] Ubad"
+            == "- [1] U99\n- [2] Ubad"
         )
 
     def test_render_sources__adds_the_document_address_and_a_single_page(self) -> None:
@@ -266,7 +266,7 @@ class TestRenderListAndSources:
         )
 
         assert pismogenerator_helper_functions.render_sources(["E1"], pack, []) == (
-            "[1] E1: Raport miejski, s. 4, https://bip.um.wroc.pl/dokument.pdf"
+            "- [1] E1: Raport miejski, s. 4, https://bip.um.wroc.pl/dokument.pdf"
         )
 
     def test_render_sources__treats_u0_as_unknown_instead_of_the_last_material(self) -> None:
@@ -275,7 +275,7 @@ class TestRenderListAndSources:
             pismogenerator_helper_functions.render_sources(
                 ["U0"], make_evidence_pack(), ["Zdjęcie", "Pismo"]
             )
-            == "[1] U0"
+            == "- [1] U0"
         )
 
     def test_render_list__uses_the_placeholder_for_an_empty_section(self) -> None:
@@ -308,3 +308,33 @@ class TestRenderLetter:
         assert "## Źródła" in result
         assert "## Sekcja kontrolna" in result
         assert "### Informacje wymagające weryfikacji przed wysłaniem" in result
+
+    def test_render_letter__keeps_header_fields_and_sources_on_separate_lines_in_markdown(
+        self,
+    ) -> None:
+        """Verify Markdown viewers do not merge the header fields or the sources into one line."""
+        draft = structures.DraftLetter(
+            recipient="Urząd",
+            request_summary="dostęp do dokumentacji",
+            argumentation_markdown=ARGUMENTATION,
+            sources=["E1", "U1"],
+        )
+
+        result = pismogenerator_helper_functions.render_letter(
+            draft, make_evidence_pack(), ["Zdjęcie"]
+        )
+
+        # Pusta linia rozdziela akapity; sam znak nowej linii Markdown traktuje jak spację.
+        assert "**Adresat:** Urząd" + chr(10) * 2 + "**Nadawca:**" in result
+        sources = result.split("## Źródła")[1].split("---")[0].strip().splitlines()
+        assert sources == ["- [1] E1: Raport miejski, s. 4-5", "- [2] U1: Zdjęcie"]
+
+    def test_render_letter__marks_a_missing_recipient_for_the_user_to_fill_in(self) -> None:
+        """Verify an unknown addressee becomes a visible placeholder instead of a blank field."""
+        draft = structures.DraftLetter(
+            recipient="  ", request_summary="dostęp", argumentation_markdown=ARGUMENTATION
+        )
+
+        result = pismogenerator_helper_functions.render_letter(draft, make_evidence_pack(), [])
+
+        assert "**Adresat:** [DO UZUPEŁNIENIA: adresat]" in result

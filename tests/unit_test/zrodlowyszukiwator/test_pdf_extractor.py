@@ -22,6 +22,24 @@ class TestNormalizeText:
 
         assert result == "Ala\n\nB"
 
+    def test_normalize_text__keeps_a_number_line_inside_the_page(self) -> None:
+        """Verify a value broken onto its own line is content, not a page number."""
+        page = (
+            "Wytyczne\nSkrzydło bramki powinno otwierać się do szerokości\n110\nstopni.\n"
+            "Siła nie może przekraczać\n25\nN.\nStopka\n12"
+        )
+
+        result = normalize_text(page)
+
+        assert "szerokości\n110\nstopni." in result
+        assert "przekraczać\n25\nN." in result
+        assert not result.endswith("12")
+
+    def test_normalize_text__removes_a_page_number_at_the_top_or_bottom(self) -> None:
+        """Verify the page number is dropped whether it is printed above or below the text."""
+        assert normalize_text("7\nTreść strony\nDalsza treść") == "Treść strony\nDalsza treść"
+        assert normalize_text("Treść strony\nDalsza treść\n7") == "Treść strony\nDalsza treść"
+
     def test_normalize_text__removes_control_characters_used_as_bullets(self) -> None:
         """Verify symbol-font bullets extracted as control characters do not reach the text."""
         result = normalize_text("\x01 zmniejszenie problemów;\n\x01 udrożnienie ulic\x0c")

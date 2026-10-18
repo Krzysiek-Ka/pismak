@@ -1,67 +1,56 @@
 **Adresat:** Komendant Straży Miejskiej we Wrocławiu
+
 **Nadawca:**
 
-W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o Wnnioskuję o wzmocnienie działań Straży Miejskiej we Wrocławiu w celu skuteczniejszego egzekwowania przepisów ruchu drogowego.
+Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o Wzmocnienie działań Straży Miejskiej we Wrocławiu w celu skuteczniej egzekwowania przepisów ruchu drogowego.
 
 # WNIOSEK
 
-\
-\
-**Opis problemu**\
-\
-Użytkownik zwraca uwagę na potrzebę wzmocnienia działań Straży Miejskiej we Wrocławiu, sugerując, że funkcjonariusze powinni szukać wyroków potwierdzających ich uprawnienia do blokowania i holowania pojazdów oraz lepiej szkolić się w zakresie ruchu drogowego. Brak jest szczegółowych przepisów prawnych ani konkretnych przykładów naruszeń, ale użytkownik podkreśla, że Straż Miejska powinna skuteczniej egzekwować przepisy ruchu drogowego, aby zwiększyć bezpieczeństwo na drogach i poprawić jakość życia mieszkańców.\
-\
-**Argumentacja**\
-\
-1. **Ustalenie zakresu uprawnień Straży Miejskiej**\
-\
-Straż Miejska we Wrocławiu powinna przeanalizować swoje uprawnienia w zakresie blokowania i holowania pojazdów, aby upewnić się, że działa zgodnie z prawem.\
-\
-2. **Lepsze szkolenie funkcjonariuszy**\
-\
-Funkcjonariusze Straży Miejskiej powinni być lepiej szkoleni w zakresie ruchu drogowego, aby lepiej rozpoznawać i egzekwować przepisy.\
-\
-3. **Dostęp do sprzętu pomiarowego i narzędzi**\
-\
-Straż Miejska powinna zapewnić sobie dostęp do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń, aby skutecznie egzekwować przepisy i unikać sytuacji, w których brak sprzętu uniemożliwia interwencję.\
-\
-**Dowody**\
-\
-- **Przykład z 12 maja 2026**: Strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego ([U1]).\
-\
-**Wnioski**\
-\
-Wzmocnienie działań Straży Miejskiej we Wrocławiu w zakresie egzekwowania przepisów ruchu drogowego jest kluczowe dla zwiększenia bezpieczeństwa na drogach i poprawy jakości życia mieszkańców.\
-\
-**Źródła**\
-\
-[1] Strategia Rozwoju Wrocławia \"Wrocław 2050\" (E1, E2, E3, E4)\
-[2] Wrocławska polityka mobilności (E4)\
-[3] Przykład z 12 maja 2026 (U1)\
-\
-\
-**Podpis**\
-\
-\
-**W imieniu Towarzystwa Upiększania Miasta Wrocławia, wnioskuję o:**\
-\
-\
-\
+Szanowny Panie Komendancie,
+
+Wrocław, jako miasto dążące do poprawy bezpieczeństwa i jakości życia mieszkańców, stoi przed wyzwaniem skutecznego egzekwowania przepisów ruchu drogowego. W związku z tym, proszę o rozważenie następujących działań:
+
+1. **Przeanalizowanie możliwości prawnych Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów**.
+
+W świetle obowiązujących przepisów, Straż Miejska powinna mieć uprawnienia do egzekwowania przepisów ruchu drogowego, w tym do blokowania pojazdów i holowania ich w przypadku naruszeń.
+
+**Źródło:** [E1] Wrocławska polityka mobilności (s. 11-12)
+
+2. **Zalecanie lepszego szkolenia funkcjonariuszy w zakresie ruchu drogowego**.
+
+Aby Straż Miejska mogła skutecznie egzekwować przepisy, jej funkcjonariusze powinni być odpowiednio przeszkoleni w zakresie ruchu drogowego, w tym w zakresie identyfikacji naruszeń i stosowania odpowiednich procedur.
+
+**Źródło:** [E2] Wrocławska polityka mobilności (s. 8-9)
+
+3. **Zapewnienie funkcjonariuszom dostępu do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń**.
+
+W przypadku naruszeń przepisów ruchu drogowego, funkcjonariusze powinni mieć dostęp do odpowiedniego sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń, aby móc skutecznie egzekwować przepisy i dokumentować naruszenia.
+
+**Źródło:** [E1] Wrocławska polityka mobilności (s. 11-12)
+
+Wrocław, jako miasto dążące do poprawy bezpieczeństwa i jakości życia mieszkańców, powinno podjąć działania w celu wzmocnienia działań Straży Miejskiej.
+
+**Źródło:** [U1] Przykład z 12 maja 2026, kiedy strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego.
+
+Z wyrazami szacunku,
+
+[Imię i Nazwisko]
 
 Z poważaniem,
 
 [imię i nazwisko]
-Towarzystwo Upiększania Miasta Wrocławia
 
 ---
 
 ## Źródła
 
-[1] E1: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 187
-[2] E2: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 64
-[3] E3: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 191-195
-[4] E4: Wrocławska polityka mobilności, s. 16
-[5] U1: Przykład z 12 maja 2026, kiedy strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego.
+- [1] E1: Wrocławska polityka mobilności, s. 11-12, https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf
+- [2] E2: Wrocławska polityka mobilności, s. 8-9, https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf
+- [3] E3: Wrocławska polityka mobilności, s. 14, https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf
+- [4] E4: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 122, https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf
+- [5] E5: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 114-115, https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf
+- [6] E6: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 113-114, https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf
+- [7] U1: Przykład z 12 maja 2026, kiedy strażnik miejski na ulicy Kazimierza Wielkiego nie podjął interwencji z powodu braku sprzętu pomiarowego.
 
 ---
 
@@ -69,9 +58,9 @@ Towarzystwo Upiększania Miasta Wrocławia
 
 ### Informacje wymagające weryfikacji przed wysłaniem
 
-- Ustalenie zakresu uprawnień Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów.
+- Ustalnienie zakresu uprawnień Straży Miejskiej we Wrocławiu w zakresie blokowania i holowania pojazdów.
 - Ocena skuteczności szkoleń funkcjonariuszy w zakresie ruchu drogowego.
-- Analiza dostępności sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń w Straży Miejskiej we Wrocławiu.
+- Analiza dostępu do sprzętu pomiarowego i narzędzi do dokumentowania zdarzeń w Straży Miejskiej we Wrocławiu.
 
 ### Brakujące pola
 

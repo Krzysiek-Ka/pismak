@@ -54,8 +54,9 @@ class FakeRepository:
         self.calls.append("refresh_chunk_metadata")
         self.chunk_metadata = kwargs["metadata"]
 
-    def replace_chunks(self, **kwargs: object) -> None:
-        self.calls.append("replace_chunks")
+    def store_document(self, metadata: DocumentMetadata, **kwargs: object) -> None:
+        self.calls.append("store_document")
+        self.stored_chunks = kwargs["chunks"]
 
 
 class FakeEmbedder:
@@ -115,7 +116,7 @@ class TestIngestPdf:
         )
 
         assert result["status"] == "ingested"
-        assert repository.calls == ["upsert_document", "replace_chunks"]
+        assert repository.calls == ["store_document"]
         assert all(text.startswith("Dokument: Polityka Rowerowa\n") for text in embedder.embedded)
 
     def test_ingest_pdf__processes_a_document_that_is_not_in_the_database_yet(
@@ -128,7 +129,7 @@ class TestIngestPdf:
         result = pipeline.ingest_pdf(pdf, make_metadata(), repository=repository, embedder=embedder)
 
         assert result["status"] == "ingested"
-        assert "replace_chunks" in repository.calls
+        assert repository.calls == ["store_document"]
         assert len(embedder.embedded) == result["chunks"] > 0
 
     def test_ingest_pdf__reprocesses_an_unchanged_file_when_forced(self, pdf: Path) -> None:
@@ -140,7 +141,7 @@ class TestIngestPdf:
         )
 
         assert result["status"] == "ingested"
-        assert repository.calls == ["upsert_document", "replace_chunks"]
+        assert repository.calls == ["store_document"]
 
     def test_ingest_pdf__reprocesses_an_unchanged_file_stored_by_an_older_version(
         self, pdf: Path
@@ -154,5 +155,5 @@ class TestIngestPdf:
         result = pipeline.ingest_pdf(pdf, make_metadata(), repository=repository, embedder=embedder)
 
         assert result["status"] == "ingested"
-        assert repository.calls == ["upsert_document", "replace_chunks"]
+        assert repository.calls == ["store_document"]
         assert len(embedder.embedded) == result["chunks"] > 0

@@ -317,3 +317,56 @@ class TestBuildLetter:
         assert "## Źródła" in result
         assert "### Informacje wymagające weryfikacji przed wysłaniem" in result
         assert "Raport miejski" in result
+
+
+class TestDraftLetterModel:
+    def test_draft_letter_model__limits_sources_to_the_allowed_ids_in_the_schema(self) -> None:
+        """Verify the schema sent to the model lists only E#/U# IDs, so "1" cannot be produced."""
+        from openai.lib._parsing import type_to_response_format_param
+
+        model = pismogenerator.draft_letter_model(["E1", "U1"])
+        response_format = type_to_response_format_param(model)
+
+        assert response_format["json_schema"]["name"] == "DraftLetter"
+        sources = response_format["json_schema"]["schema"]["properties"]["sources"]
+        assert sources["items"]["enum"] == ["E1", "U1"]
+        with pytest.raises(ValueError):
+            model.model_validate(
+                {
+                    "recipient": "Urząd",
+                    "request_summary": "Wniosek",
+                    "argumentation_markdown": "A" * 200,
+                    "sources": ["1"],
+                }
+            )
+
+    def test_draft_letter_model__allows_no_sources_when_nothing_was_found(self) -> None:
+        """Verify a case without evidence or user materials gets an empty source list only."""
+        model = pismogenerator.draft_letter_model([])
+
+        schema = model.model_json_schema()
+
+        assert schema["properties"]["sources"]["maxItems"] == 0
+
+    def test_build_draft__asks_for_a_schema_with_the_ids_of_this_case(self) -> None:
+        """Verify build_draft passes the evidence and user-material IDs and returns DraftLetter."""
+        captured: dict[str, object] = {}
+
+        class FakeLLM:
+            def generate_structured(self, **kwargs):
+                captured.update(kwargs)
+                return kwargs["response_model"](
+                    recipient="Urząd",
+                    request_summary="dostęp do dokumentacji",
+                    argumentation_markdown="A" * 200,
+                    sources=["E1", "U1"],
+                )
+
+        brief = make_brief().model_copy(update={"available_evidence": ["Zdjęcie", "  "]})
+
+        result = pismogenerator.build_draft(brief, make_evidence_pack(), FakeLLM())
+
+        schema = captured["response_model"].model_json_schema()
+        assert schema["properties"]["sources"]["items"]["enum"] == ["E1", "U1"]
+        assert type(result) is DraftLetter
+        assert result.sources == ["E1", "U1"]

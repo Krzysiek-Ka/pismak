@@ -3,7 +3,7 @@ import logging
 import os
 from collections.abc import Callable
 from time import perf_counter
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from openai import OpenAI
 from openai.lib._parsing import type_to_response_format_param
@@ -20,6 +20,9 @@ OLLAMA_REQUEST_TIMEOUT_SECONDS = 900.0
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_MODEL = "openrouter/free"
 OPENROUTER_KEY_PLACEHOLDER = "sk-or-v1-WSTAW_TUTAJ_SWÓJ_KLUCZ"
+# Router openrouter/free wybierał też modele, które ignorują response_format. Z tym ustawieniem
+# OpenRouter kieruje żądanie tylko do dostawców obsługujących wszystkie jego parametry.
+OPENROUTER_ROUTING = {"provider": {"require_parameters": True}}
 ProviderName = Literal["ollama", "openrouter"]
 LOGGER = logging.getLogger("pismak")
 MAX_LOGGED_MODEL_RESPONSE_CHARS = 20_000
@@ -105,6 +108,13 @@ Zwróć ponownie pełny obiekt zgodny ze schematem. Bez komentarza i bez Markdow
 
 class LLMConfigurationError(RuntimeError):
     """Raised when the selected LLM provider is not configured."""
+
+
+def provider_request_options(provider: str) -> dict[str, Any]:
+    """Return the extra arguments a provider's chat request needs for structured output."""
+    if provider == "openrouter":
+        return {"extra_body": OPENROUTER_ROUTING}
+    return {}
 
 
 def set_up_client(type: Literal["local"] | ProviderName = "local") -> OpenAI:
@@ -216,6 +226,8 @@ class LLMClient:
         """Call the model with a structured response schema and return the parsed object."""
         started = perf_counter()
         response_content: str | None = None
+        finish_reason: str | None = None
+        completion: Any = None
         try:
             # Limit wyjścia jest zmniejszany, gdy prompt zajmuje większą część okna kontekstu.
             max_output_tokens = fit_output_tokens(
@@ -241,11 +253,13 @@ class LLMClient:
                     response_format=type_to_response_format_param(response_model),
                     temperature=temperature,
                     max_tokens=max_output_tokens,
+                    **provider_request_options(self.provider),
                 )
             self.last_model = getattr(completion, "model", None)
             choice = completion.choices[0]
             response_content = choice.message.content
-            if getattr(choice, "finish_reason", None) == "length":
+            finish_reason = getattr(choice, "finish_reason", None)
+            if finish_reason == "length":
                 raise LLMOutputLimitError(
                     "Model przekroczył limit tokenów odpowiedzi.",
                     partial_response=response_content,
@@ -283,11 +297,13 @@ class LLMClient:
             raise
         except Exception as exc:
             retry_scheduled = attempt == 1 and isinstance(exc, (ValidationError, LLMResponseError))
+            # finish_reason=stop przy uciętym JSON-ie wskazuje na przerwanie po stronie serwera
+            # modelu (np. brak pamięci), a nie na limit odpowiedzi.
             LOGGER.error(
                 "llm_request_failed stage=%s session_id=%s provider=%s model=%s "
                 "response_model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s "
-                "error_type=%s error_detail=%s "
-                "elapsed_seconds=%.3f",
+                "finish_reason=%s error_type=%s error_detail=%s "
+                "elapsed_seconds=%.3f %s",
                 self.stage,
                 self.session_id or "-",
                 self.provider,
@@ -296,9 +312,11 @@ class LLMClient:
                 max_output_tokens,
                 attempt,
                 str(retry_scheduled).lower(),
+                finish_reason or "-",
                 type(exc).__name__,
                 error_log_detail(exc),
                 perf_counter() - started,
+                usage_summary(completion),
                 extra={"session_id": self.session_id},
             )
             log_model_response(

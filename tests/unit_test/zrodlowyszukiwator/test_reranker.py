@@ -417,3 +417,28 @@ class TestStructuredOutputLimit:
 
         assert [score for _, _, score in result.selected] == [90]
         assert "score" in client.chat.completions.calls[1]["messages"][1]["content"]
+
+
+class TestRerankerRequest:
+    def test_rerank__sends_a_schema_where_the_selection_is_required(self) -> None:
+        """Verify an empty object cannot satisfy the schema and pass as "nothing supports it"."""
+        client = _ScriptedClient('{"selected": []}')
+        reranker = LLMReranker(client=client, model="m", allow_fallback=False)
+
+        reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+
+        json_schema = client.chat.completions.calls[0]["response_format"]["json_schema"]
+        assert json_schema["strict"] is True
+        assert json_schema["schema"]["required"] == ["selected"]
+        assert json_schema["schema"]["additionalProperties"] is False
+
+    def test_rerank__asks_openrouter_for_models_that_honour_the_schema(self) -> None:
+        """Verify the OpenRouter routing option is sent with reranking requests too."""
+        client = _ScriptedClient('{"selected": []}')
+        reranker = LLMReranker(client=client, model="m", provider="openrouter")
+
+        reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+
+        assert client.chat.completions.calls[0]["extra_body"] == {
+            "provider": {"require_parameters": True}
+        }

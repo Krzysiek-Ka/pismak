@@ -150,82 +150,125 @@ class PgVectorRepository:
         ingestion_version: str,
     ) -> None:
         """Insert or update document metadata in the RAG document table."""
-        from psycopg.types.json import Jsonb
-
         with self.connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO rag_documents (
-                    document_id, title, document_kind, hierarchy_rank,
-                    city, issuer, adopting_body, legal_form,
-                    adoption_act_number, adoption_date,
-                    valid_from, valid_to, is_active,
-                    source_url, source_filename, content_sha256,
-                    language, tags, relations, notes, ingestion_version,
-                    lifecycle_status, retrieval_enabled, metadata_url, is_annex,
-                    ingested_at
-                )
-                VALUES (
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,now()
-                )
-                ON CONFLICT (document_id) DO UPDATE SET
-                    title = EXCLUDED.title,
-                    document_kind = EXCLUDED.document_kind,
-                    hierarchy_rank = EXCLUDED.hierarchy_rank,
-                    city = EXCLUDED.city,
-                    issuer = EXCLUDED.issuer,
-                    adopting_body = EXCLUDED.adopting_body,
-                    legal_form = EXCLUDED.legal_form,
-                    adoption_act_number = EXCLUDED.adoption_act_number,
-                    adoption_date = EXCLUDED.adoption_date,
-                    valid_from = EXCLUDED.valid_from,
-                    valid_to = EXCLUDED.valid_to,
-                    is_active = EXCLUDED.is_active,
-                    source_url = EXCLUDED.source_url,
-                    source_filename = EXCLUDED.source_filename,
-                    content_sha256 = EXCLUDED.content_sha256,
-                    language = EXCLUDED.language,
-                    tags = EXCLUDED.tags,
-                    relations = EXCLUDED.relations,
-                    notes = EXCLUDED.notes,
-                    ingestion_version = EXCLUDED.ingestion_version,
-                    lifecycle_status = EXCLUDED.lifecycle_status,
-                    retrieval_enabled = EXCLUDED.retrieval_enabled,
-                    metadata_url = EXCLUDED.metadata_url,
-                    is_annex = EXCLUDED.is_annex,
-                    ingested_at = now()
-                """,
-                (
-                    metadata.document_id,
-                    metadata.title,
-                    metadata.document_kind.value,
-                    metadata.hierarchy_rank,
-                    metadata.city,
-                    metadata.issuer,
-                    metadata.adopting_body,
-                    metadata.legal_form.value,
-                    metadata.adoption_act_number,
-                    metadata.adoption_date,
-                    metadata.valid_from,
-                    metadata.valid_to,
-                    metadata.is_active,
-                    metadata.source_url,
-                    source_filename,
-                    content_sha256,
-                    metadata.language,
-                    Jsonb(metadata.tags),
-                    Jsonb([x.model_dump(mode="json") for x in metadata.relations]),
-                    metadata.notes,
-                    ingestion_version,
-                    metadata.lifecycle_status.value if metadata.lifecycle_status else None,
-                    metadata.retrieval_enabled,
-                    metadata.metadata_url,
-                    metadata.is_annex,
-                ),
+            self._upsert_document(
+                conn,
+                metadata,
+                source_filename=source_filename,
+                content_sha256=content_sha256,
+                ingestion_version=ingestion_version,
             )
             conn.commit()
+
+    def store_document(
+        self,
+        metadata: DocumentMetadata,
+        *,
+        source_filename: str,
+        content_sha256: str,
+        ingestion_version: str,
+        chunks: list[ChunkRecord],
+        embeddings: list[list[float]],
+    ) -> None:
+        """Write a processed document and all its chunks in one transaction."""
+        # Osobne transakcje zostawiały po błędzie zapisu fragmentów nowy hash i wersję przy
+        # starych fragmentach, a kolejne uruchomienie uznawało dokument za aktualny.
+        rows = self._chunk_rows(metadata.hierarchy_rank, chunks, embeddings)
+        with self.connect() as conn:
+            self._upsert_document(
+                conn,
+                metadata,
+                source_filename=source_filename,
+                content_sha256=content_sha256,
+                ingestion_version=ingestion_version,
+            )
+            self._replace_chunk_rows(conn, metadata.document_id, rows)
+            conn.commit()
+
+    @staticmethod
+    def _upsert_document(
+        conn: Any,
+        metadata: DocumentMetadata,
+        *,
+        source_filename: str,
+        content_sha256: str,
+        ingestion_version: str,
+    ) -> None:
+        """Execute the document upsert on an open connection without committing."""
+        from psycopg.types.json import Jsonb
+
+        conn.execute(
+            """
+            INSERT INTO rag_documents (
+                document_id, title, document_kind, hierarchy_rank,
+                city, issuer, adopting_body, legal_form,
+                adoption_act_number, adoption_date,
+                valid_from, valid_to, is_active,
+                source_url, source_filename, content_sha256,
+                language, tags, relations, notes, ingestion_version,
+                lifecycle_status, retrieval_enabled, metadata_url, is_annex,
+                ingested_at
+            )
+            VALUES (
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                %s,%s,%s,%s,now()
+            )
+            ON CONFLICT (document_id) DO UPDATE SET
+                title = EXCLUDED.title,
+                document_kind = EXCLUDED.document_kind,
+                hierarchy_rank = EXCLUDED.hierarchy_rank,
+                city = EXCLUDED.city,
+                issuer = EXCLUDED.issuer,
+                adopting_body = EXCLUDED.adopting_body,
+                legal_form = EXCLUDED.legal_form,
+                adoption_act_number = EXCLUDED.adoption_act_number,
+                adoption_date = EXCLUDED.adoption_date,
+                valid_from = EXCLUDED.valid_from,
+                valid_to = EXCLUDED.valid_to,
+                is_active = EXCLUDED.is_active,
+                source_url = EXCLUDED.source_url,
+                source_filename = EXCLUDED.source_filename,
+                content_sha256 = EXCLUDED.content_sha256,
+                language = EXCLUDED.language,
+                tags = EXCLUDED.tags,
+                relations = EXCLUDED.relations,
+                notes = EXCLUDED.notes,
+                ingestion_version = EXCLUDED.ingestion_version,
+                lifecycle_status = EXCLUDED.lifecycle_status,
+                retrieval_enabled = EXCLUDED.retrieval_enabled,
+                metadata_url = EXCLUDED.metadata_url,
+                is_annex = EXCLUDED.is_annex,
+                ingested_at = now()
+            """,
+            (
+                metadata.document_id,
+                metadata.title,
+                metadata.document_kind.value,
+                metadata.hierarchy_rank,
+                metadata.city,
+                metadata.issuer,
+                metadata.adopting_body,
+                metadata.legal_form.value,
+                metadata.adoption_act_number,
+                metadata.adoption_date,
+                metadata.valid_from,
+                metadata.valid_to,
+                metadata.is_active,
+                metadata.source_url,
+                source_filename,
+                content_sha256,
+                metadata.language,
+                Jsonb(metadata.tags),
+                Jsonb([x.model_dump(mode="json") for x in metadata.relations]),
+                metadata.notes,
+                ingestion_version,
+                metadata.lifecycle_status.value if metadata.lifecycle_status else None,
+                metadata.retrieval_enabled,
+                metadata.metadata_url,
+                metadata.is_annex,
+            ),
+        )
 
     def ingestion_version(self, document_id: str) -> str | None:
         """Return the processing version a document was stored with, or None when it is absent."""
@@ -271,56 +314,69 @@ class PgVectorRepository:
         embeddings: list[list[float]],
     ) -> None:
         """Replace all stored chunks for a document after validating embedding dimensions."""
+        rows = self._chunk_rows(hierarchy_rank, chunks, embeddings)
+        with self.connect() as conn:
+            self._replace_chunk_rows(conn, document_id, rows)
+            conn.commit()
+
+    def _chunk_rows(
+        self,
+        hierarchy_rank: int,
+        chunks: list[ChunkRecord],
+        embeddings: list[list[float]],
+    ) -> list[tuple[Any, ...]]:
+        """Validate the embeddings and build the insert rows before anything is deleted."""
         from psycopg.types.json import Jsonb
 
         if len(chunks) != len(embeddings):
             raise ValueError("Liczba chunków i embeddingów różni się.")
 
-        with self.connect() as conn:
-            conn.execute(
-                "DELETE FROM rag_chunks WHERE document_id = %s",
-                (document_id,),
+        rows = []
+        for chunk, emb in zip(chunks, embeddings, strict=True):
+            arr = np.asarray(emb, dtype=np.float32)
+            if arr.shape != (self.embedding_dim,):
+                raise ValueError(
+                    f"Embedding ma wymiar {arr.shape}, oczekiwano ({self.embedding_dim},)"
+                )
+
+            rows.append(
+                (
+                    chunk.chunk_id,
+                    chunk.document_id,
+                    chunk.chunk_index,
+                    chunk.page_start,
+                    chunk.page_end,
+                    Jsonb(chunk.section_path),
+                    chunk.text,
+                    chunk.embedding_text,
+                    chunk.text_sha256,
+                    hierarchy_rank,
+                    Jsonb(chunk.metadata),
+                    arr,
+                )
             )
+        return rows
 
-            rows = []
-            for chunk, emb in zip(chunks, embeddings):
-                arr = np.asarray(emb, dtype=np.float32)
-                if arr.shape != (self.embedding_dim,):
-                    raise ValueError(
-                        f"Embedding ma wymiar {arr.shape}, oczekiwano ({self.embedding_dim},)"
-                    )
-
-                rows.append(
-                    (
-                        chunk.chunk_id,
-                        chunk.document_id,
-                        chunk.chunk_index,
-                        chunk.page_start,
-                        chunk.page_end,
-                        Jsonb(chunk.section_path),
-                        chunk.text,
-                        chunk.embedding_text,
-                        chunk.text_sha256,
-                        hierarchy_rank,
-                        Jsonb(chunk.metadata),
-                        arr,
-                    )
+    @staticmethod
+    def _replace_chunk_rows(conn: Any, document_id: str, rows: list[tuple[Any, ...]]) -> None:
+        """Delete a document's chunks and insert the new rows on an open connection."""
+        conn.execute(
+            "DELETE FROM rag_chunks WHERE document_id = %s",
+            (document_id,),
+        )
+        with conn.cursor() as cur:
+            cur.executemany(
+                """
+                INSERT INTO rag_chunks (
+                    chunk_id, document_id, chunk_index,
+                    page_start, page_end, section_path,
+                    text, embedding_text, text_sha256,
+                    hierarchy_rank, metadata, embedding
                 )
-
-            with conn.cursor() as cur:
-                cur.executemany(
-                    """
-                    INSERT INTO rag_chunks (
-                        chunk_id, document_id, chunk_index,
-                        page_start, page_end, section_path,
-                        text, embedding_text, text_sha256,
-                        hierarchy_rank, metadata, embedding
-                    )
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    """,
-                    rows,
-                )
-            conn.commit()
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,
+                rows,
+            )
 
     def counts(self) -> tuple[int, int]:
         """Return the number of stored documents and chunks."""

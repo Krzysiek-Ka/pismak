@@ -109,6 +109,15 @@ liczyć się kilkanaście minut, stąd limit 15 minut na żądanie. Opcjonalny g
 okna ustawisz w `.env`: `PISMAK_CONTEXT_TOKENS` (Ollama),
 `PISMAK_OPENROUTER_CONTEXT_TOKENS` (OpenRouter).
 
+### 3.4. Pamięć
+
+Ollama na CPU trzyma w pamięci do trzech modeli naraz. Ogranicz Ollamę do jednego
+modelu naraz i uruchom ją ponownie;
+
+```cmd
+setx OLLAMA_MAX_LOADED_MODELS 1
+```
+
 ## 4. Baza danych
 
 ### 4.1. `.env` i role

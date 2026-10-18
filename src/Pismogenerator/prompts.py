@@ -32,6 +32,11 @@ STAŁE PHASE 0
    "Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o ..."
 8. Końcowy renderer sam doda podpis.
 
+recipient:
+- adresat z CaseBrief (addressee, a gdy go brak — institution),
+- jeżeli CaseBrief nie wskazuje adresata, zostaw pusty ciąg znaków; końcowy renderer
+  wpisze w to miejsce [DO UZUPEŁNIENIA: adresat].
+
 request_summary:
 - ma być krótkim, konkretnym dopełnieniem zwrotu "wnioskuję o",
 - NIE zaczynaj go od słowa "o",

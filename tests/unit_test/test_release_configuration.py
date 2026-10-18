@@ -43,6 +43,8 @@ class TestMainNotebookConfiguration:
         assert "from src.Zrodlowyszukiwator.rag_ingestion.embedder import OllamaEmbedder" in source
         assert "RetrievalFilters" in source
         assert "sys.path.insert(0, str(Path.cwd().parent))" not in source
+        # Jupyter Lab, w przeciwieństwie do VS Code, nie wczytuje .env samodzielnie.
+        assert 'load_dotenv(PROJECT_ROOT / ".env")' in source
 
 
 class TestReleaseFiles:

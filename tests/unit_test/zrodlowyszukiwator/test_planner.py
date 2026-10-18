@@ -404,3 +404,31 @@ class TestFallbackPlan:
 
         assert plan.intents == []
         assert plan.case_summary == "Sprawa z CaseBrief"
+
+
+class TestPlannerRequest:
+    def test_llm_plan__sends_a_schema_that_satisfies_strict_mode(self) -> None:
+        """Verify every field is required and extra fields are forbidden, as strict mode needs."""
+        client = _ScriptedClient(VALID_PLAN)
+        planner = LLMQueryPlanner(client=client, model="m", allow_fallback=False)
+
+        planner.plan(BRIEF)
+
+        json_schema = client.chat.completions.calls[0]["response_format"]["json_schema"]
+        assert json_schema["name"] == "ResearchPlan"
+        assert json_schema["strict"] is True
+        assert json_schema["schema"]["additionalProperties"] is False
+        assert set(json_schema["schema"]["required"]) == {"case_summary", "intents"}
+
+    def test_llm_plan__asks_openrouter_for_models_that_honour_the_schema(self) -> None:
+        """Verify OpenRouter routes only to providers supporting response_format; Ollama gets none."""
+        openrouter = _ScriptedClient(VALID_PLAN)
+        ollama = _ScriptedClient(VALID_PLAN)
+
+        LLMQueryPlanner(client=openrouter, model="m", provider="openrouter").plan(BRIEF)
+        LLMQueryPlanner(client=ollama, model="m", provider="ollama").plan(BRIEF)
+
+        assert openrouter.chat.completions.calls[0]["extra_body"] == {
+            "provider": {"require_parameters": True}
+        }
+        assert "extra_body" not in ollama.chat.completions.calls[0]

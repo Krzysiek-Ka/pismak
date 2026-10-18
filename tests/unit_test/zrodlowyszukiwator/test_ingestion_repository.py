@@ -312,7 +312,7 @@ class TestReplaceChunks:
     def test_replace_chunks__keeps_the_old_chunks_when_an_embedding_has_the_wrong_size(
         self, monkeypatch
     ) -> None:
-        """Verify a bad vector aborts the transaction instead of leaving the document empty."""
+        """Verify a bad vector is rejected before any chunk of the document is deleted."""
         repository, connection = make_repository(monkeypatch)
 
         with pytest.raises(ValueError, match=r"oczekiwano \(3,\)"):
@@ -323,10 +323,8 @@ class TestReplaceChunks:
                 embeddings=[[0.1, 0.2, 0.3], [0.1, 0.2]],
             )
 
-        assert connection.statements[0][0].startswith("DELETE FROM rag_chunks")
-        assert connection.inserted_rows == []
+        assert connection.statements == []
         assert connection.commits == 0
-        assert connection.exited_with is ValueError
 
     def test_replace_chunks__deletes_then_inserts_all_chunks_in_order_in_one_commit(
         self, monkeypatch
@@ -363,3 +361,73 @@ class TestReplaceChunks:
         assert connection.statements[0][0].startswith("DELETE FROM rag_chunks")
         assert connection.inserted_rows == []
         assert connection.commits == 1
+
+
+class TestStoreDocument:
+    def test_store_document__writes_the_document_and_its_chunks_in_one_commit(
+        self, monkeypatch
+    ) -> None:
+        """Verify a new hash is never committed without the chunks that belong to it."""
+        repository, connection = make_repository(monkeypatch)
+
+        repository.store_document(
+            DocumentMetadata(document_id="doc-1", title="Dokument", document_kind="other"),
+            source_filename="polityka.pdf",
+            content_sha256="sha-nowy",
+            ingestion_version="0.5",
+            chunks=[make_chunk(0), make_chunk(1)],
+            embeddings=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+        )
+
+        statements = [sql for sql, _ in connection.statements]
+        assert statements[0].startswith("INSERT INTO rag_documents")
+        assert statements[1].startswith("DELETE FROM rag_chunks")
+        assert statements[2].startswith("INSERT INTO rag_chunks")
+        assert [row[0] for row in connection.inserted_rows] == ["doc-1:0", "doc-1:1"]
+        assert connection.commits == 1
+
+    def test_store_document__a_bad_vector_leaves_the_stored_document_untouched(
+        self, monkeypatch
+    ) -> None:
+        """Verify a failed ingestion cannot mark the document as current with stale chunks."""
+        repository, connection = make_repository(monkeypatch)
+
+        with pytest.raises(ValueError, match=r"oczekiwano \(3,\)"):
+            repository.store_document(
+                DocumentMetadata(document_id="doc-1", title="Dokument", document_kind="other"),
+                source_filename="polityka.pdf",
+                content_sha256="sha-nowy",
+                ingestion_version="0.5",
+                chunks=[make_chunk(0)],
+                embeddings=[[0.1, 0.2]],
+            )
+
+        assert connection.statements == []
+        assert connection.commits == 0
+
+    def test_store_document__a_failed_chunk_insert_rolls_back_the_document_row(
+        self, monkeypatch
+    ) -> None:
+        """Verify an error after the document upsert ends the transaction without a commit."""
+        repository, connection = make_repository(monkeypatch)
+
+        def fail_insert(sql: str, rows: list[tuple[object, ...]]) -> None:
+            raise RuntimeError("połączenie zerwane")
+
+        monkeypatch.setattr(
+            FakeCursor, "executemany", lambda self, sql, rows: fail_insert(sql, rows)
+        )
+
+        with pytest.raises(RuntimeError, match="połączenie zerwane"):
+            repository.store_document(
+                DocumentMetadata(document_id="doc-1", title="Dokument", document_kind="other"),
+                source_filename="polityka.pdf",
+                content_sha256="sha-nowy",
+                ingestion_version="0.5",
+                chunks=[make_chunk(0)],
+                embeddings=[[0.1, 0.2, 0.3]],
+            )
+
+        assert connection.statements[0][0].startswith("INSERT INTO rag_documents")
+        assert connection.commits == 0
+        assert connection.exited_with is RuntimeError

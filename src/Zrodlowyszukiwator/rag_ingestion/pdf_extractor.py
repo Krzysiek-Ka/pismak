@@ -11,6 +11,9 @@ import fitz  # PyMuPDF
 from .models import ExtractedPage
 
 _PAGE_NUMBER_RE = re.compile(r"^\s*\d+\s*(?:\|\s*S\s*t\s*r\s*o\s*n\s*a)?\s*$", re.I)
+# Numer strony stoi wśród pierwszych lub ostatnich linii strony. Linia z samą liczbą w środku
+# strony to treść — komórka tabeli albo wartość przeniesiona do nowej linii („110” stopni).
+_PAGE_NUMBER_EDGE_LINES = 2
 _MULTI_SPACE_RE = re.compile(r"[ \t]+")
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 # Znaki sterujące nie są tekstem. Punktory z fontu symbolicznego trafiają do warstwy
@@ -100,9 +103,10 @@ def remove_running_lines(page_texts: list[str]) -> list[tuple[str, list[str]]]:
 
 def normalize_text(text: str) -> str:
     """
-    Konserwatywne czyszczenie:
+    Konserwatywne czyszczenie tekstu jednej strony:
     - normalizacja Unicode,
     - usuwanie soft-hyphen i znaków sterujących,
+    - usuwanie numeru strony z brzegu strony,
     - porządkowanie białych znaków.
     Kodowania polskich znaków nie poprawiamy tutaj. Jedyny wyjątek to jednoznaczny
     wzorzec zepsutego fontu, naprawiany w extract_pdf_pages dla całego dokumentu.
@@ -112,15 +116,14 @@ def normalize_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = _CONTROL_CHARS_RE.sub(" ", text)
 
-    lines = []
-    for raw in text.splitlines():
-        line = _MULTI_SPACE_RE.sub(" ", raw).strip()
-        if not line:
-            lines.append("")
-            continue
-        if _PAGE_NUMBER_RE.match(line):
-            continue
-        lines.append(line)
+    lines = [_MULTI_SPACE_RE.sub(" ", raw).strip() for raw in text.splitlines()]
+    content = [index for index, line in enumerate(lines) if line]
+    edge = set(content[:_PAGE_NUMBER_EDGE_LINES] + content[-_PAGE_NUMBER_EDGE_LINES:])
+    lines = [
+        line
+        for index, line in enumerate(lines)
+        if not (index in edge and _PAGE_NUMBER_RE.match(line))
+    ]
 
     text = "\n".join(lines)
     text = _MULTI_NEWLINE_RE.sub("\n\n", text)

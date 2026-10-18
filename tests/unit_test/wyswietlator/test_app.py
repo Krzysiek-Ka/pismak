@@ -451,11 +451,9 @@ class TestConsent:
         monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: built.append(kw))
         app_test, _ = ui()
         app_test.run()
-        # Wybór dostawcy źródeł jest blokowany, gdy brief już istnieje.
         app_test.selectbox(key="cfg_zrodla_provider").set_value("openrouter").run()
         with_brief(app_test).run()
 
-        assert app_test.selectbox(key="cfg_zrodla_provider").disabled
         click(app_test, GENERATE_LABEL)
 
         assert "Potwierdź zgodę na przetwarzanie zewnętrzne" in shown_text(app_test)
@@ -763,10 +761,10 @@ class TestPipeline:
     def test_app__rejected_draft_is_saved_for_diagnosis_and_can_be_retried(
         self, ui, tmp_path, monkeypatch
     ) -> None:
-        """Verify a draft citing unknown sources is kept on disk, explained, and not shown."""
+        """Verify a draft failing the app checks is kept on disk, explained, and not shown."""
         pipeline = FakePipeline(make_evidence_pack())
         monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
-        app_test, _ = ui({DRAFT: [{**VALID_DRAFT, "sources": ["E9"]}]})
+        app_test, _ = ui({DRAFT: [{**VALID_DRAFT, "argumentation_markdown": "Za krótko [1]."}]})
         with_brief(app_test).run()
 
         click(app_test, GENERATE_LABEL)
@@ -776,9 +774,23 @@ class TestPipeline:
         assert GENERATE_LABEL in [b.label for b in app_test.button]
         [run_dir] = run_dirs(tmp_path)
         saved = json.loads((run_dir / "draft_with_error.json").read_text(encoding="utf-8"))
-        assert saved["draft"]["sources"] == ["E9"]
-        assert saved["validation_errors"] == ["Model dodał niedozwolone źródła: E9"]
+        assert saved["draft"]["argumentation_markdown"] == "Za krótko [1]."
+        assert saved["validation_errors"] == ["Argumentacja projektu jest podejrzanie krótka"]
         assert not (run_dir / "letter.md").exists()
+
+    def test_app__unknown_source_id_is_repaired_instead_of_rejecting_the_letter(
+        self, ui, monkeypatch
+    ) -> None:
+        """Verify a source outside the schema triggers one repair request and the letter is made."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, completions = ui({DRAFT: [{**VALID_DRAFT, "sources": ["1"]}, VALID_DRAFT]})
+        with_brief(app_test).run()
+
+        click(app_test, GENERATE_LABEL)
+
+        assert completions.calls == [DRAFT, DRAFT]
+        assert "[1] E1: Wrocławska polityka mobilności" in app_test.session_state["letter_markdown"]
 
     def test_app__retrieval_failure_still_records_the_planner_model_and_saves_the_case(
         self, ui, tmp_path, monkeypatch
@@ -797,6 +809,33 @@ class TestPipeline:
         [run_dir] = run_dirs(tmp_path)
         models = json.loads((run_dir / "models.json").read_text(encoding="utf-8"))
         assert models == {"Planner": [{"provider": "ollama", "model": "fake/planner"}]}
+
+    def test_app__after_a_failed_search_the_sources_provider_can_be_changed_and_retried(
+        self, ui, monkeypatch
+    ) -> None:
+        """Verify the advice to pick another model can be followed without losing the case."""
+        providers: list[str] = []
+        outcomes = [RuntimeError("planner zwrócił zły JSON"), make_evidence_pack()]
+
+        def build(**kwargs):
+            providers.append(kwargs["provider"])
+            return FakePipeline(outcomes.pop(0)), 2, 63
+
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", build)
+        monkeypatch.setenv("OPENROUTER_KEY", "sk-or-v1-klucz-testowy")
+        app_test, _ = ui({DRAFT: [VALID_DRAFT]})
+        app_test.session_state["cfg_external_processing_consent"] = True
+        app_test.session_state["cfg_zrodla_provider"] = "openrouter"
+        with_brief(app_test).run()
+        click(app_test, GENERATE_LABEL)
+        assert not app_test.selectbox(key="cfg_zrodla_provider").disabled
+
+        app_test.selectbox(key="cfg_zrodla_provider").set_value("ollama").run()
+        click(app_test, GENERATE_LABEL)
+
+        assert providers == ["openrouter", "ollama"]
+        assert app_test.session_state["letter_markdown"] is not None
+        assert app_test.selectbox(key="cfg_zrodla_provider").disabled
 
     def test_app__no_matching_sources_is_explained_and_the_letter_has_none(
         self, ui, monkeypatch

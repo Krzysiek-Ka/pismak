@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import Literal
+
+from pydantic import Field, create_model
+
 from src._shared.context_budget import input_char_budget
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions, prompts, structures
@@ -53,6 +57,17 @@ def fit_draft_user_prompt(
         excerpt_chars = max(EVIDENCE_MIN_CHARS, int(excerpt_chars * 0.8))
 
 
+def draft_letter_model(allowed_source_ids: list[str]) -> type[structures.DraftLetter]:
+    """Return DraftLetter whose sources field accepts only the given IDs in its JSON schema."""
+    # Schemat trafia do gramatyki modelu (Ollama) albo trybu strict (OpenRouter), więc model
+    # nie może wpisać "1" zamiast "E1" ani wymyślić źródła. Nazwa zostaje DraftLetter.
+    if allowed_source_ids:
+        sources = (list[Literal[tuple(allowed_source_ids)]], Field(default_factory=list))
+    else:
+        sources = (list[str], Field(default_factory=list, max_length=0))
+    return create_model("DraftLetter", __base__=structures.DraftLetter, sources=sources)
+
+
 def build_draft(
     case_brief: CaseBrief,
     evidence_pack: EvidencePack,
@@ -63,6 +78,9 @@ def build_draft(
     user_evidence = [
         str(value).strip() for value in case_brief.available_evidence if str(value).strip()
     ]
+    allowed_source_ids = [evidence.evidence_id for evidence in evidence_pack.evidence] + [
+        f"U{index}" for index in range(1, len(user_evidence) + 1)
+    ]
     user_prompt = fit_draft_user_prompt(
         case_brief=case_brief,
         evidence_pack=evidence_pack,
@@ -70,15 +88,15 @@ def build_draft(
         provider=getattr(llm, "provider", "ollama"),
         context_tokens=getattr(llm, "context_tokens", None),
     )
-    draft = llm.generate_structured(
+    generated = llm.generate_structured(
         system_prompt=prompts.PISMOGENERATOR_SYSTEM_PROMPT,
         user_prompt=user_prompt,
-        response_model=structures.DraftLetter,
+        response_model=draft_letter_model(allowed_source_ids),
         temperature=llm_temperature,
         max_output_tokens=PISMOGENERATOR_MAX_OUTPUT_TOKENS,
     )
     # Renderer sam dodaje formułę nadawcy i podpis w Phase 0.
-    draft = draft.model_copy(update={"sender": ""})
+    draft = structures.DraftLetter.model_validate(generated.model_dump() | {"sender": ""})
 
     draft_errors = pismogenerator_helper_functions.validate_draft(
         draft=draft, case_brief=case_brief, evidence_pack=evidence_pack, user_evidence=user_evidence

@@ -5,6 +5,7 @@ import logging
 from time import perf_counter
 from typing import Any
 
+from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, ValidationError
 
 from src._shared.context_budget import fit_output_tokens, usage_summary
@@ -16,6 +17,7 @@ from src._shared.serwer import (
     LLMResponseError,
     error_log_detail,
     log_model_response,
+    provider_request_options,
     recover_partial_structured_response,
     structured_output_error_detail,
 )
@@ -121,7 +123,6 @@ Zasady:
 
     def _llm_plan(self, brief: dict[str, Any]) -> ResearchPlan:
         """Request a structured research plan from the configured language model."""
-        schema = ResearchPlan.model_json_schema()
         started = perf_counter()
         user_prompt = json.dumps(brief, ensure_ascii=False, indent=2)
         content: str | None = None
@@ -154,14 +155,10 @@ Zasady:
                         ],
                         temperature=0.1,
                         max_tokens=max_tokens,
-                        response_format={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": "ResearchPlan",
-                                "strict": True,
-                                "schema": schema,
-                            },
-                        },
+                        # Schemat zgodny z trybem strict: wszystkie pola wymagane i bez
+                        # dodatkowych pól (model_json_schema() tego nie zapewnia).
+                        response_format=type_to_response_format_param(ResearchPlan),
+                        **provider_request_options(self.provider),
                     )
                 self.last_model = getattr(response, "model", None)
                 choice = response.choices[0]

@@ -322,7 +322,9 @@ with st.container(border=True):
             provider_options,
             format_func=provider_labels.get,
             key="cfg_zrodla_provider",
-            disabled=st.session_state.case_brief is not None,
+            # Blokada dopiero po powstaniu pisma: po nieudanym wyszukiwaniu użytkownik może
+            # zmienić dostawcę i ponowić próbę bez zaczynania sprawy od nowa.
+            disabled=st.session_state.draft is not None,
         )
 
     with provider_columns[2]:
@@ -386,7 +388,7 @@ with st.container(border=True):
             "Model — Źródłowyszukiwacz",
             zrodla_provider,
             "cfg_zrodla_model",
-            st.session_state.case_brief is not None,
+            st.session_state.draft is not None,
         )
         st.caption("Planner i reranker. Embeddings: " + os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"))
 

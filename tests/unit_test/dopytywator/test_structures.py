@@ -36,12 +36,20 @@ class TestInterviewTurnResult:
             turn(ready_to_build_brief=True)
 
     @pytest.mark.parametrize("next_question", [None, "", "   \n"])
-    def test_interview_turn_result__rejects_a_missing_or_blank_question_while_not_ready(
+    def test_interview_turn_result__ends_the_interview_when_not_ready_but_no_question(
         self, next_question: str | None
     ) -> None:
-        """Verify the UI is never asked to show an empty question to the user."""
-        with pytest.raises(ValidationError, match="next_question musi zawierać pytanie"):
-            turn(next_question=next_question)
+        """Verify an empty question ends the interview instead of costing another model call."""
+        result = turn(next_question=next_question)
+
+        assert result.ready_to_build_brief is True
+        assert result.next_question is None
+
+    def test_interview_turn_result__accepts_a_blank_question_when_ready(self) -> None:
+        """Verify "" instead of null in a finished turn is read as no question."""
+        result = turn(next_question="", ready_to_build_brief=True)
+
+        assert result.next_question is None
 
 
 class TestCaseBrief:

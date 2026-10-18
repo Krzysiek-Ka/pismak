@@ -1,0 +1,20 @@
+{
+  "Planner": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Reranker": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Pismogenerator": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ]
+}

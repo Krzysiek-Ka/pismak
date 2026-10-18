@@ -14,9 +14,7 @@ def validate_draft(
     """Validate a draft letter against the Phase 0 constraints for the app."""
     errors: list[str] = []
 
-    # Renderer nie uzupełnia adresata automatycznie, więc bez wartości list nie wskazywałby odbiorcy.
-    if not draft.recipient.strip():
-        errors.append("Projekt nie ma adresata ani oznaczenia braku")
+    # Pusty adresat nie jest błędem: renderer wpisze w jego miejsce znacznik do uzupełnienia.
 
     # Nadawcę, formułę otwierającą i podpis składa deterministycznie renderer w Phase 0.
     if draft.sender.strip():
@@ -114,7 +112,8 @@ def render_sources(
                 rendered.append(f"[{index}] {source_id}")
         else:
             rendered.append(f"[{index}] {source_id}")
-    return "\n".join(rendered)
+    # Lista punktowana: w Markdownie wiersze rozdzielone samym \n zlewają się w jeden akapit.
+    return "\n".join(f"- {line}" for line in rendered)
 
 
 def render_letter(
@@ -125,7 +124,9 @@ def render_letter(
     """Turn a DraftLetter model into a final markdown letter body."""
     recipient = draft.recipient.strip() or "[DO UZUPEŁNIENIA: adresat]"
 
+    # Pusta linia między polami nagłówka: bez niej Markdown pokazuje je w jednej linii.
     letter = f"""**Adresat:** {recipient}
+
 **Nadawca:**
 
 {PHASE0_OPENING_FORMULA} {draft.request_summary.strip()}

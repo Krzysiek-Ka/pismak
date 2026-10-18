@@ -185,6 +185,55 @@ class TestSetUpClient:
         assert calls["base_url"] == "http://ollama.test:11434/v1/"
 
 
+class TestProviderRequestOptions:
+    def test_call_structured__asks_openrouter_only_for_models_that_honour_the_schema(
+        self,
+    ) -> None:
+        """Verify OpenRouter gets require_parameters and the local Ollama request stays plain."""
+        openrouter, ollama = _Completions(), _Completions()
+
+        for completions, provider in ((openrouter, "openrouter"), (ollama, "ollama")):
+            serwer.LLMClient(_client(completions), "m", provider=provider)._call_structured(
+                system_prompt="system",
+                user_prompt="user",
+                response_model=_Answer,
+                temperature=0.0,
+                max_output_tokens=512,
+                attempt=1,
+            )
+
+        assert openrouter.calls[0]["extra_body"] == {"provider": {"require_parameters": True}}
+        assert "extra_body" not in ollama.calls[0]
+
+    def test_call_structured__logs_finish_reason_and_usage_of_an_invalid_answer(self) -> None:
+        """Verify a JSON cut off with finish_reason=stop can be told apart from a length limit."""
+
+        class CutOff:
+            def create(self, **kwargs):
+                completion = _completion('{"value": "urwa', finish_reason="stop")
+                completion.usage = SimpleNamespace(prompt_tokens=900, completion_tokens=12)
+                return completion
+
+        capture = _CaptureHandler()
+        serwer.LOGGER.addHandler(capture)
+        try:
+            with pytest.raises(serwer.ValidationError):
+                serwer.LLMClient(_client(CutOff()), "m")._call_structured(
+                    system_prompt="system",
+                    user_prompt="user",
+                    response_model=_Answer,
+                    temperature=0.0,
+                    max_output_tokens=512,
+                    attempt=1,
+                )
+        finally:
+            serwer.LOGGER.removeHandler(capture)
+
+        failed = next(m for m in capture.messages if m.startswith("llm_request_failed"))
+        assert "finish_reason=stop" in failed
+        assert "prompt_tokens=900 completion_tokens=12" in failed
+
+
 class TestCallStructuredQueue:
     def test_call_structured__openrouter_runs_while_the_local_model_is_busy(self) -> None:
         """Verify an OpenRouter stage is not queued behind a long Ollama generation."""
