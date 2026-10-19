@@ -11,3 +11,8 @@ PARAMETER stop <|im_end|>
 # Pełne okno kontekstu tego modelu. Bez tej linii Ollama użyje własnej, zwykle mniejszej
 # wartości domyślnej, a Pismak dopasowuje prompty do okna, które faktycznie dostanie.
 PARAMETER num_ctx 8192
+# Kara za powtórzenia. Pismak wysyła żądania przez endpoint zgodny z OpenAI, który jej nie
+# ustawia (w logu Ollamy: repeat_penalty = 1.000), a bez niej model potrafi powtarzać ten sam
+# fragment aż do limitu odpowiedzi. Wartość łagodna, bo w JSON-ie kara dotyczy też znaków
+# struktury (cudzysłowy, przecinki).
+PARAMETER repeat_penalty 1.1

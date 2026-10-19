@@ -31,6 +31,9 @@ COMPACT_OUTPUT_INSTRUCTION = (
     "z kompletem wymaganych pól i poprawną strukturą JSON. Skróć opisy i listy; "
     "nie dodawaj komentarzy ani tekstu poza JSON."
 )
+# Temperatura ponownego żądania. Przy 0.0 model zapętlony w pierwszej próbie powtarzał
+# w drugiej dokładnie tę samą pętlę (e2e bielik-buspas, 2026-10-18).
+RETRY_TEMPERATURE = 0.1
 
 
 def log_model_response(
@@ -374,7 +377,7 @@ class LLMClient:
                     system_prompt=system_prompt,
                     user_prompt=compact_prompt,
                     response_model=response_model,
-                    temperature=0.0,
+                    temperature=RETRY_TEMPERATURE,
                     max_output_tokens=max_output_tokens,
                     attempt=2,
                 )
@@ -409,7 +412,7 @@ class LLMClient:
                     system_prompt=system_prompt,
                     user_prompt=user_prompt + "\n\n" + repair,
                     response_model=response_model,
-                    temperature=0.0,
+                    temperature=RETRY_TEMPERATURE,
                     max_output_tokens=max_output_tokens,
                     attempt=2,
                 )
