@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.Zrodlowyszukiwator.rag_ingestion.models import DocumentMetadata
 from src.Zrodlowyszukiwator.rag_ingestion.pdf_extractor import repair_legacy_polish_glyphs
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATASET_PATH = Path(__file__).resolve().parent / "data" / "rag_eval_questions.jsonl"
 RAW_DIR = PROJECT_ROOT / "src" / "Zrodlowyszukiwator" / "RAG" / "RAW"
 REPORTS_DIR = PROJECT_ROOT / "outputs" / "rag_eval"
@@ -454,6 +454,22 @@ def summary_rows(run: EvalRun) -> dict[str, dict[str, float]]:
     return summary
 
 
+# Uśrednione metryki z początku raportu, do szybkiego porównania przebiegów. Odcięcie 6 to
+# liczba fragmentów, które pipeline przekazuje dalej (EvidencePack).
+HEADLINE_METRICS = {
+    f"precision@{EVIDENCE_K}": f"evidence_precision@{EVIDENCE_K}",
+    f"recall@{EVIDENCE_K}": f"evidence_recall@{EVIDENCE_K}",
+}
+
+
+def headline_rows(run: EvalRun) -> dict[str, dict[str, float]]:
+    """Return the averaged top-6 evidence precision and recall per configuration."""
+    return {
+        config: {name: row[key] for name, key in HEADLINE_METRICS.items()} | {"n": row["n"]}
+        for config, row in summary_rows(run).items()
+    }
+
+
 def _fmt(value: Any) -> str:
     """Format a metric value for a Markdown table."""
     if value is None:
@@ -474,6 +490,20 @@ def render_markdown(run: EvalRun) -> str:
     out: list[str] = []
     add = out.append
     add(f"# Ewaluacja retrievalu RAG — przebieg `{run.label}`\n")
+
+    add(f"## Podsumowanie — pytania z odpowiedzią, top-{EVIDENCE_K}\n")
+    names = list(HEADLINE_METRICS)
+    add("| konfiguracja | n | " + " | ".join(names) + " |")
+    add("|---|---|" + "---|" * len(names))
+    for config, row in headline_rows(run).items():
+        add(f"| `{config}` | {int(row['n'])} | " + " | ".join(_fmt(row[n]) for n in names) + " |")
+    add(
+        f"\nprecision@{EVIDENCE_K}: średni udział fragmentów top-{EVIDENCE_K}, które wspierają "
+        f"odpowiedź. recall@{EVIDENCE_K}: średni udział faktów pytania (dowodów) pokrytych przez "
+        f"top-{EVIDENCE_K}. Przebiegi porównuj przy tym samym n i zbiorze pytań.\n"
+    )
+
+    add("## Przebieg\n")
     add(f"- Start: {run.started_at}, commit: `{run.git_commit}`")
     for key, value in run.settings.items():
         add(f"- {key}: {value}")

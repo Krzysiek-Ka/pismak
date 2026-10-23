@@ -162,6 +162,52 @@
       "notes": "Załącznik do uchwały nr XLVIII/1169/13. Oficjalna strona BIP poświęcona publikacji z 2013 r. ma status archiwalny; nie oznacza to samo w sobie uchylenia uchwały. Dokument pozostaje wymieniony w Strategii Wrocław 2050. Formalny status obowiązywania wymaga osobnej weryfikacji."
     },
     {
+      "filename": "02_Plan_działań_rowerowych_do_2030_roku.pdf",
+      "document_id": "wroclaw-bicycle-action-plan-2030",
+      "title": "Plan działań rowerowych do 2030 roku",
+      "document_kind": "plan",
+      "city": "Wrocław",
+      "issuer": "Urząd Miejski Wrocławia — Biuro Zrównoważonej Mobilności, Departament Infrastruktury i Transportu",
+      "adopting_body": null,
+      "legal_form": "standalone",
+      "adoption_act_number": null,
+      "adoption_date": null,
+      "valid_from": null,
+      "valid_to": null,
+      "is_active": true,
+      "lifecycle_status": "reference",
+      "retrieval_enabled": true,
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/98067/Plan%20dzia%C5%82a%C5%84%20rowerowych%20do%202030%20roku.pdf",
+      "metadata_url": "https://www.wroclaw.pl/komunikacja/plan-dzialan-rowerowych-do-2030",
+      "language": "pl",
+      "is_annex": false,
+      "tags": [
+        "rowery",
+        "transport rowerowy",
+        "infrastruktura rowerowa",
+        "trasy rowerowe",
+        "parkingi rowerowe",
+        "Bike&Ride",
+        "Wrocławski Rower Miejski",
+        "edukacja i promocja",
+        "mobilność aktywna",
+        "plan działań"
+      ],
+      "relations": [
+        {
+          "target_document_id": "wroclaw-bicycle-policy-2010",
+          "relation": "operationalizes",
+          "note": "Cele operacyjne planu mają pomóc osiągnąć cel główny polityki rowerowej Wrocławia — 15% udziału ruchu rowerowego w modal split (PDF s. 3 i 10). Plan nie zastępuje polityki."
+        },
+        {
+          "target_document_id": "wroclaw-mobility-policy-2013",
+          "relation": "related_to",
+          "note": "Według materiałów konsultacyjnych miasta plan ma uzupełniać Wrocławską politykę mobilności (uchwała XLVIII/1169/13)."
+        }
+      ],
+      "notes": "Dokument planistyczny Biura Zrównoważonej Mobilności UMW datowany na kwiecień 2022 r. (okładka); strona wroclaw.pl z plikiem ma datę publikacji 14.03.2022 — to nie jest data przyjęcia, więc adoption_date i valid_from są puste. Nie znaleziono uchwały ani zarządzenia przyjmującego plan — traktować jako dokument kierunkowy z rekomendacjami i priorytetami inwestycyjnymi, nie jako źródło obowiązku prawnego. Horyzont realizacji: do 2030 r. Cel główny: 15% udziału ruchu rowerowego w podziale zadań przewozowych; 15 celów operacyjnych (m.in. krzyż tras w centrum, 16 nowych połączeń osiedli, modernizacja 25 km tras, 6 połączeń z gminami sąsiednimi, 20 tys. miejsc postojowych). Podstawy: Studium uwarunkowań 2018, konsultacje 22.06–13.07.2021, rekomendacje Panelu Obywatelskiego. Strony 40–45 to mapy z niewielką ilością tekstu. Nie potwierdzono, czy Strategia Wrocław 2050 wymienia plan w wykazie dokumentów wykonawczych."
+    },
+    {
       "filename": "02_Wrocławski_program_tramwajowy_2.0.pdf",
       "document_id": "wroclaw-tram-program-2-0",
       "title": "Wrocławski Program Tramwajowy 2.0 — raport",

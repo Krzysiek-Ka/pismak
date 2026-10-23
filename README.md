@@ -186,7 +186,7 @@ wypisuje liczbę stron oraz fragmentów. To wystarcza do uruchomienia dema.
 1. Skopiuj PDF do `src/Zrodlowyszukiwator/RAG/RAW/` (poza dwoma powyższymi pliki z tego
    katalogu nie trafiają do repozytorium).
 2. Dopisz metadane do `src/Zrodlowyszukiwator/RAG/document_catalog.json` (kluczem jest
-   nazwa pliku; katalog ma już wpisy czterech dokumentów spoza repozytorium).
+   nazwa pliku; katalog ma już wpisy pięciu dokumentów spoza repozytorium).
 3. Uruchom polecenie z punktu 5.1 z nazwą swojego pliku; inny katalog wskażesz
    parametrem `--catalog`.
 

@@ -1,7 +1,8 @@
 """
 Ewaluacja retrievalu na żywym indeksie RAG (PostgreSQL/pgvector + Ollama z bge-m3).
 
-Testy są pomijane bez PISMAK_RAG_EVAL=1, więc zwykłe `pytest` i CI ich nie uruchamiają.
+Złoty zbiór: tylko ręcznie, przez `-m golden_set`; zwykłe `pytest` i CI go pomijają
+(tests/golden_set/conftest.py). Bez bazy albo Ollamy testy są pomijane z powodem.
 Opcjonalnie: PISMAK_RAG_EVAL_LABEL (np. baseline/after) nazywa przebieg, a
 PISMAK_RAG_EVAL_RERANKER_MODEL (np. pismak-pllum:latest) dodaje konfigurację z rerankerem LLM.
 Raport trafia do outputs/rag_eval/<czas>_<etykieta>/ i jest zapisywany przed asercjami.
@@ -36,6 +37,7 @@ from rag_eval_support import (
     catalog_by_document_id,
     evidence_rank,
     evidence_recall,
+    headline_rows,
     hit_from_chunk,
     hit_from_evidence,
     load_questions,
@@ -63,11 +65,6 @@ from src.Zrodlowyszukiwator.rag_retrieval import (
     RetrievalRepository,
 )
 from src.Zrodlowyszukiwator.rag_retrieval.models import RetrievalFilters
-
-pytestmark = pytest.mark.skipif(
-    os.getenv("PISMAK_RAG_EVAL") != "1",
-    reason="Ewaluacja na żywym indeksie RAG: ustaw PISMAK_RAG_EVAL=1",
-)
 
 QUESTIONS = load_questions()
 ANSWERABLE = [q for q in QUESTIONS if q.answerable]
@@ -398,7 +395,7 @@ def write_report(run: EvalRun) -> Any:
     out_dir = REPORTS_DIR / f"{stamp}_{run.label}"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "report.md").write_text(render_markdown(run), encoding="utf-8")
-    payload = {
+    payload = {"headline": headline_rows(run)} | {
         key: value for key, value in run.__dict__.items() if key not in ("questions", "results")
     }
     payload["questions"] = [q.model_dump() for q in run.questions]

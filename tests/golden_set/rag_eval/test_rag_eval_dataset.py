@@ -12,11 +12,14 @@ from rag_eval_support import (
     PROJECT_ROOT,
     RAW_DIR,
     EvalQuestion,
+    EvalRun,
     Hit,
+    QuestionResult,
     catalog_by_document_id,
     evidence_precision,
     evidence_rank,
     evidence_recall,
+    headline_rows,
     load_questions,
     metadata_problems,
     normalize_for_matching,
@@ -108,18 +111,18 @@ class TestDatasetShape:
         """Verify every question can be referenced unambiguously in reports."""
         assert len({q.id for q in QUESTIONS}) == len(QUESTIONS)
 
-    def test_dataset__has_two_answerable_and_one_unanswerable_question_per_committed_document(
+    def test_dataset__covers_each_committed_document_with_answerable_and_unanswerable_questions(
         self,
     ) -> None:
-        """Verify the 3/2/1 rule for exactly the PDFs committed to the repository."""
+        """Verify >=2 answerable and >=1 unanswerable question for exactly the committed PDFs."""
         committed = committed_document_ids()
         per_document = Counter((q.document_id, q.answerable) for q in QUESTIONS)
 
         assert committed, "Brak zakomitowanych PDF-ów z wpisem w katalogu"
         assert {q.document_id for q in QUESTIONS} == committed
         for document_id in committed:
-            assert per_document[(document_id, True)] == 2, document_id
-            assert per_document[(document_id, False)] == 1, document_id
+            assert per_document[(document_id, True)] >= 2, document_id
+            assert per_document[(document_id, False)] >= 1, document_id
 
     def test_dataset__refers_only_to_catalog_documents(self) -> None:
         """Verify sources, evidence and absence checks name documents from the catalog."""
@@ -198,6 +201,27 @@ class TestEvaluationFunctions:
         assert reciprocal_rank(3) == pytest.approx(1 / 3)
         assert reciprocal_rank(None) == 0.0
         assert reciprocal_rank(25) == 0.0
+
+    def test_headline_rows__averages_top6_precision_and_recall_per_configuration(self) -> None:
+        """Verify the report headline gives comparable precision/recall and skips ASCII variants."""
+        question = make_question(["e1", "e2"])
+        hybrid = [
+            make_hit(1, "doc-a", ["e1"]),
+            make_hit(2, "doc-b"),
+            make_hit(3, "doc-a"),
+            make_hit(4, "doc-a", ["e2"]),
+        ]
+        results = [
+            QuestionResult("q", "hybrid", "Pytanie?", hits=hybrid),
+            QuestionResult("q", "hybrid-ascii", "Pytanie?", hits=hybrid[:1]),
+            QuestionResult("q", "pipeline", "Pytanie?", hits=[make_hit(1, "doc-a", ["e1"])]),
+        ]
+        run = EvalRun("t", "", "", {}, [], [question], results, {}, {}, [], 0, [], [])
+
+        assert headline_rows(run) == {
+            "hybrid": {"precision@6": 0.5, "recall@6": 1.0, "n": 1.0},
+            "pipeline": {"precision@6": 1.0, "recall@6": 0.5, "n": 1.0},
+        }
 
     def test_page_attribution_problems__reports_a_chunk_outside_the_evidence_page(self) -> None:
         """Verify evidence found on the wrong pages is reported as a metadata problem."""

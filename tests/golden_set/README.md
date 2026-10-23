@@ -25,6 +25,8 @@ Model, którego nie ma na maszynie, jest pomijany z powodem. Przebiegi OpenRoute
 
 ## Moduły
 
+**Ewaluacja RAG** (`rag_eval/`): pytania do dokumentów korpusu na żywym indeksie (PostgreSQL + Ollama z `bge-m3`). Raport zaczyna się od `precision@6` i `recall@6` na konfigurację; trafia do `outputs/rag_eval/<czas>_<etykieta>/`. Szczegóły: [rag_eval/README.md](rag_eval/README.md).
+
 **Pismopoprawiator**: dziesięć pism × tryby „całość” i „po akapitach”.
 - **Wynik testu:** test nie przechodzi tylko przy naruszeniu treści, czyli gdy zmienią się elementy chronione albo napisy z listy `chronione`. Rozwinięcie skrótu („ul.” → „ulicy”) nie jest naruszeniem.
 - **Tylko w raporcie:** naprawione błędy, poprawki nadmiarowe i odrzucenia.
