@@ -3,11 +3,11 @@ Testy E2E Pismaka: sterownik przebiegu, kontrole, analiza logu i raport.
 
 Sterownik przechodzi tę samą ścieżkę co aplikacja (src/Wyswietlator/app.py), tylko bez UI:
 wywiad przez dopytywator.interview_step, źródła przez services.build_zrodlowyszukiwator,
-pismo przez pismogenerator.build_draft. Nic nie jest zastępowane atrapą: modele, baza,
-embedder i konfiguracja z .env są prawdziwe.
+pismo przez pismogenerator.build_draft, korekta językowa przez services.run_pismopoprawiator.
+Nic nie jest zastępowane atrapą: modele, baza, embedder i konfiguracja z .env są prawdziwe.
 
-Kontrole „hard” (H1–H7) są niezmiennikami i decydują o wyniku testu. Kontrole „soft”
-(S1–S9) to heurystyczna ocena jakości: trafiają do raportu jako WARN do ręcznego przeglądu.
+Kontrole „hard” (H1–H8) są niezmiennikami i decydują o wyniku testu. Kontrole „soft”
+(S1–S10) to heurystyczna ocena jakości: trafiają do raportu jako WARN do ręcznego przeglądu.
 """
 
 from __future__ import annotations
@@ -42,6 +42,9 @@ from src.Dopytywator.structures import CaseBrief, ClaimStatus, ConversationMessa
 from src.Pismogenerator import pismogenerator
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
+from src.Pismopoprawiator.constants import POPRAWIATOR_TIMEOUT_SECONDS
+from src.Pismopoprawiator.pismopoprawiator_helper_functions import content_violations
+from src.Pismopoprawiator.structures import CorrectionResult
 from src.Wyswietlator import services
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import LLMQueryPlanner
@@ -62,6 +65,12 @@ PASS, FAIL, WARN = "PASS", "FAIL", "WARN"
 PASSED, FAILED, NOT_RUN = "ZALICZONY", "NIEUDANY", "NIEURUCHOMIONY"
 REDACTED = "***REDACTED***"
 EVIDENCE_STATUSES = ("supported", "unsupported", "unverified")
+CORRECTION_STATUSES = {
+    "corrected": "poprawiono",
+    "unchanged": "bez zmian",
+    "reverted": "wycofano",
+    "failed": "nieudana",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +224,8 @@ class RunResult:
     draft: dict[str, Any] | None = None
     draft_validation_errors: list[str] = field(default_factory=list)
     letter_chars: int | None = None
+    # Wynik Pismopoprawiatora bez treści pisma (obie wersje są w artefaktach).
+    correction: dict[str, Any] | None = None
     model_usage: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     timings: dict[str, float] = field(default_factory=dict)
     llm_calls: list[dict[str, Any]] = field(default_factory=list)
@@ -259,8 +270,8 @@ def new_result(setup: Setup, case: Case) -> RunResult:
         started_at=datetime.now().isoformat(timespec="seconds"),
         # Pełny identyfikator testu, bo `-k bielik-buspas` wybrałby też konfiguracje mieszane.
         reproduce=(
-            '$env:PISMAK_E2E="1"; .venv\\Scripts\\python.exe -m pytest '
-            f'"tests/e2e/test_pismak_e2e.py::test_pismak_end_to_end[{rid}]" -v -rA -s'
+            ".venv\\Scripts\\python.exe -m pytest "
+            f'"tests/e2e/test_pismak_e2e.py::test_pismak_end_to_end[{rid}]" -m e2e -v -rA -s'
         ),
     )
 
@@ -278,6 +289,8 @@ class _RunState:
     draft: DraftLetter | None = None
     rejected_draft: DraftLetter | None = None
     letter: str | None = None
+    letter_original: str | None = None
+    correction: CorrectionResult | None = None
 
 
 def detach_log_handler(project_root: Path) -> None:
@@ -492,6 +505,29 @@ def _write_letter(setup: Setup, case: Case, result: RunResult, state: _RunState)
     result.letter_chars = len(state.letter)
 
 
+def _correct_letter(setup: Setup, case: Case, result: RunResult, state: _RunState) -> None:
+    """Correct the letter's language the way the app does after the Pismogenerator."""
+    provider = setup.poprawiator
+    if provider is None or state.letter is None:
+        return
+    correction = services.run_pismopoprawiator(
+        state.letter,
+        provider=provider.provider,
+        model=provider.model,
+        session_id=result.session_id,
+    )
+    result.context_tokens["Pismopoprawiator"] = correction.context_tokens
+    if correction.status != "failed" and correction.model:
+        _record_model(result, "Pismopoprawiator", provider, correction.model)
+    state.correction = correction
+    state.letter_original = state.letter
+    state.letter = correction.corrected_text
+    result.letter_chars = len(state.letter)
+    result.correction = correction.model_dump(
+        mode="json", exclude={"original_text", "corrected_text"}
+    )
+
+
 def _record_error(result: RunResult, phase: str, exc: Exception) -> None:
     """Keep a phase failure with the message the UI would show and log its details."""
     message = services.llm_error_message(exc)
@@ -524,6 +560,8 @@ def _save(result: RunResult, state: _RunState, run_dir: Path) -> None:
         draft_with_error=state.rejected_draft,
         draft_validation_errors=result.draft_validation_errors or None,
         letter_markdown=state.letter,
+        letter_original_markdown=state.letter_original,
+        correction=state.correction,
         model_usage=result.model_usage,
         run_dir=artifacts,
     )
@@ -534,6 +572,7 @@ PHASES: tuple[tuple[str, Callable[[Setup, Case, RunResult, _RunState], None]], .
     ("wywiad", _interview),
     ("rag", _retrieve),
     ("pismo", _write_letter),
+    ("korekta", _correct_letter),
 )
 
 
@@ -547,7 +586,8 @@ def run_case(setup: Setup, case: Case, run_dir: Path, *, database_url: str) -> R
 
     services.configure_logging(run_dir, result.session_id)
     services.LOGGER.info(
-        "e2e_run_started session_id=%s run=%s dopytywator=%s/%s zrodla=%s/%s pismo=%s/%s",
+        "e2e_run_started session_id=%s run=%s dopytywator=%s/%s zrodla=%s/%s pismo=%s/%s "
+        "poprawiator=%s",
         result.session_id,
         result.run_id,
         setup.dopytywator.provider,
@@ -556,6 +596,7 @@ def run_case(setup: Setup, case: Case, run_dir: Path, *, database_url: str) -> R
         setup.zrodla.model,
         setup.pismo.provider,
         setup.pismo.model,
+        f"{setup.poprawiator.provider}/{setup.poprawiator.model}" if setup.poprawiator else "-",
         extra=extra,
     )
     started = perf_counter()
@@ -802,6 +843,53 @@ def draft_invariant(result: RunResult) -> None:
     _hard(result, "H6", title, problems)
 
 
+def correction_invariant(result: RunResult, state: _RunState) -> None:
+    """Add H8: the language correction did not stop the run and did not change the content."""
+    if "Pismopoprawiator" not in result.stages:
+        return
+    title = "Pismopoprawiator nie przerwał przebiegu i nie zmienił treści pisma"
+    if state.letter_original is None:
+        problems = _phase_errors(result, "korekta") or ["nie uruchomiono: brak pisma"]
+        _hard(result, "H8", title, problems)
+        return
+    problems = _phase_errors(result, "korekta")
+    status = (result.correction or {}).get("status")
+    if status not in CORRECTION_STATUSES:
+        problems.append(f"nieznany status korekty: {status}")
+    problems += content_violations(state.letter_original, state.letter or "")
+    _hard(result, "H8", title, problems)
+
+
+def correction_quality(result: RunResult) -> None:
+    """Add S10: failed or reverted corrections and corrections refused by the guards."""
+    correction = result.correction
+    if correction is None:
+        return
+    findings = []
+    if correction["status"] == "failed":
+        findings.append("korekta nie powiodła się: " + "; ".join(correction["errors"]))
+    if correction["status"] == "reverted":
+        findings.append("strażnik całości wycofał korektę: " + "; ".join(correction["errors"]))
+    reasons = Counter(
+        re.sub(r"A\d+", "A#", item["reason"].split(":")[0]) for item in correction["rejected"]
+    )
+    if reasons:
+        findings.append(
+            "odrzucone poprawki: " + ", ".join(f"{r}×{n}" for r, n in reasons.most_common())
+        )
+    _soft(
+        result,
+        "S10",
+        "Korekta językowa",
+        findings,
+        ok=(
+            f"{CORRECTION_STATUSES[correction['status']]}: zastosowane "
+            f"{len(correction['applied'])}, sugestie {len(correction['suggestions'])}, "
+            f"{correction['calls']} wywołań, {correction['elapsed_seconds']:.0f} s"
+        ),
+    )
+
+
 def interview_quality(result: RunResult, case: Case) -> None:
     """Add S1-S3: early end, repeated questions and whether ending was justified."""
     if result.end_reason is None:
@@ -997,11 +1085,13 @@ def evaluate(result: RunResult, case: Case, state: _RunState) -> None:
     brief_invariant(result)
     rag_invariant(result)
     draft_invariant(result)
+    correction_invariant(result, state)
     interview_quality(result, case)
     case_quality(result, case, state.letter or "")
     invention_quality(result, conversation, evidence_text)
     rag_quality(result, case)
     runtime_quality(result)
+    correction_quality(result)
 
 
 # ---------------------------------------------------------------------------
@@ -1101,14 +1191,18 @@ LIMITATIONS = (
     "przebieg może dać inny wynik.",
     "`openrouter/free` dobiera darmowy model przy każdym wywołaniu; kolumna „modele "
     "faktyczne” pokazuje, które odpowiedziały.",
-    "Kontrole S1–S9 są heurystyczne (słowa-klucze, liczby, wzorce) — WARN wymaga ręcznej "
+    "Kontrole S1–S10 są heurystyczne (słowa-klucze, liczby, wzorce) — WARN wymaga ręcznej "
     "oceny na podstawie pełnego briefu, dowodów i pisma.",
     "Embeddingi zawsze liczy lokalny model z Ollamy, także w przebiegach OpenRouter.",
     "Klient Ollamy ma limit 900 s, klient OpenRouter 60 s; przekroczenie kończy przebieg "
     "jako NIEUDANY z podanym powodem. Limit nie zawsze przerywa wywołanie po tym czasie — "
     "rzeczywiste czasy są w tabelach wywołań i w S9.",
     "W konfiguracjach mieszanych błąd należy do dostawcy etapu, w którym wystąpił: faza "
-    "„wywiad” to Dopytywator, „rag” — Źródłowyszukiwacz, „pismo” — Pismogenerator.",
+    "„wywiad” to Dopytywator, „rag” — Źródłowyszukiwacz, „pismo” — Pismogenerator, "
+    "„korekta” — Pismopoprawiator.",
+    f"Pismopoprawiator ma limit {POPRAWIATOR_TIMEOUT_SECONDS:.0f} s na żądanie; po błędzie "
+    "przebieg trwa dalej z pismem bez korekty (S10), a H8 sprawdza tylko, czy korekta nie "
+    "zmieniła treści.",
 )
 
 
@@ -1165,6 +1259,20 @@ def _letter_cell(result: RunResult) -> str:
     return "błąd" if any(e.phase == "pismo" for e in result.errors) else "—"
 
 
+def _correction_cell(result: RunResult) -> str:
+    if "Pismopoprawiator" not in result.stages:
+        return "wyłączona"
+    if any(e.phase == "korekta" for e in result.errors):
+        return "błąd"
+    correction = result.correction
+    if correction is None:
+        return "—"
+    return (
+        f"{CORRECTION_STATUSES[correction['status']]} "
+        f"{len(correction['applied'])}/{len(correction['rejected'])}"
+    )
+
+
 def failure_reason(result: RunResult) -> str:
     """Return why a run did not pass: the not-run reason, the first error or failed invariants."""
     if result.status == NOT_RUN:
@@ -1196,6 +1304,8 @@ def summary_rows(results: list[RunResult]) -> list[dict[str, str]]:
                 "brief": _brief_cell(result) if ran else "—",
                 "RAG": _rag_cell(result) if ran else "—",
                 "pismo": _letter_cell(result) if ran else "—",
+                # Zastosowane/odrzucone poprawki.
+                "korekta": _correction_cell(result) if ran else "—",
                 "czas": _duration(result.timings.get("razem")) if ran else "—",
                 "wynik": result.status,
                 "WARN": str(len(result.warnings())) if ran else "—",
@@ -1371,6 +1481,34 @@ def _run_section(result: RunResult, case: Case | None) -> list[str]:
             out.append(f"- Pełna treść: `{result.paths.get('artifacts')}/letter.md`")
         out.append("")
 
+    if result.correction is not None:
+        correction = result.correction
+        out.append("### Korekta językowa\n")
+        out.append(
+            f"- Status: **{CORRECTION_STATUSES[correction['status']]}**; tryb: "
+            f"{correction['mode'] or '—'}; wywołania: {correction['calls']}; czas: "
+            f"{_duration(correction['elapsed_seconds'])}; model: `{correction['model']}`"
+        )
+        for item in correction["applied"]:
+            out.append(
+                f"- Zastosowana {item['akapit']} ({item['kategoria']}): "
+                f"„{_cell(item['oryginal'], 200)}” → „{_cell(item['poprawka'], 200)}”"
+            )
+        for item in correction["rejected"]:
+            fix = item["correction"]
+            out.append(
+                f"- Odrzucona {fix['akapit']} ({fix['kategoria']}): "
+                f"„{_cell(fix['oryginal'], 200)}” → „{_cell(fix['poprawka'], 200)}” — "
+                f"{_cell(item['reason'], 200)}"
+            )
+        if correction["suggestions"]:
+            out.append(f"- Sugestie stylistyczne (niestosowane): {len(correction['suggestions'])}")
+        if correction["errors"]:
+            out.append("- Błędy: " + "; ".join(correction["errors"]))
+        out.append(
+            f"- Pismo bez korekty: `{result.paths.get('artifacts')}/letter_bez_korekty.md`\n"
+        )
+
     out.append("### Wywołania modeli\n")
     if result.llm_calls:
         out.append(
@@ -1404,8 +1542,8 @@ def render_report(
     out = [f"# Testy E2E Pismaka — przebieg `{label}`\n"]
     out += [f"- {key}: {value}" for key, value in header.items()]
     out.append(
-        "- Zasada oceny: wynik testu zależy tylko od niezmienników H1–H7 (FAIL). "
-        "S1–S9 to ocena jakości (WARN) do ręcznego przeglądu.\n"
+        "- Zasada oceny: wynik testu zależy tylko od niezmienników H1–H8 (FAIL). "
+        "S1–S10 to ocena jakości (WARN) do ręcznego przeglądu.\n"
     )
 
     out.append("## Podsumowanie\n")

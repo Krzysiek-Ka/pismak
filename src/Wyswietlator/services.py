@@ -22,6 +22,7 @@ from openai import (
     RateLimitError,
 )
 
+from src._shared import model_context
 from src._shared.context_budget import LLMInputLimitError, input_char_budget
 from src._shared.llm_runtime import LLMBusyError
 from src._shared.model_context import detect_context_tokens
@@ -31,6 +32,7 @@ from src._shared.serwer import (
     LLMConfigurationError,
     LLMOutputLimitError,
     LLMResponseError,
+    error_log_detail,
     ollama_base_url,
     set_up_client,
 )
@@ -40,6 +42,8 @@ from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator import pismogenerator_helper_functions
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
+from src.Pismopoprawiator import pismopoprawiator
+from src.Pismopoprawiator.structures import CorrectionResult
 from src.Zrodlowyszukiwator.brief_to_evidence import (
     BriefToEvidencePipeline,
     EvidencePack,
@@ -358,6 +362,49 @@ def render_letter(
     )
 
 
+def run_pismopoprawiator(
+    letter: str,
+    *,
+    provider: str,
+    model: str,
+    session_id: str | None = None,
+    on_wait: Any = None,
+    client: OpenAI | None = None,
+) -> CorrectionResult:
+    """Correct the letter's language; any failure returns the uncorrected letter instead."""
+    # Korekta nigdy nie przerywa pipeline'u, więc także brak klucza OpenRouter albo błąd
+    # przy ustalaniu okna modelu kończy się pismem bez korekty, a nie wyjątkiem.
+    try:
+        client = client or get_llm_client(provider)
+        llm = pismopoprawiator.make_llm(
+            client,
+            model,
+            provider,
+            session_id=session_id,
+            on_wait=on_wait,
+            context_tokens=model_context.detect_context_tokens(
+                provider, model, on_wait=on_wait, session_id=session_id
+            ),
+        )
+    except Exception as exc:
+        LOGGER.error(
+            "correction_setup_failed session_id=%s provider=%s model=%s error_type=%s "
+            "error_location=%s error_detail=%s",
+            session_id or "-",
+            provider,
+            model,
+            type(exc).__name__,
+            error_location(exc) or "-",
+            error_log_detail(exc),
+            exc_info=exc,
+            extra={"session_id": session_id},
+        )
+        return pismopoprawiator.failed_result(
+            letter, exc, provider=provider, model=model, session_id=session_id
+        )
+    return pismopoprawiator.correct_letter(letter, llm, session_id=session_id)
+
+
 def escape_markdown_links(text: str) -> str:
     """Show Markdown links and images from model output as plain text."""
     # Streamlit renderuje Markdown (HTML jest wyłączony). Obraz z adresu podanego przez model
@@ -377,6 +424,8 @@ def save_run(
     draft_with_error: DraftLetter | None = None,
     draft_validation_errors: list[str] | None = None,
     letter_markdown: str | None = None,
+    letter_original_markdown: str | None = None,
+    correction: CorrectionResult | None = None,
     model_usage: dict[str, list[dict[str, str]]] | None = None,
     run_dir: Path | None = None,
 ) -> Path:
@@ -427,6 +476,19 @@ def save_run(
     if letter_markdown is not None:
         (run_dir / "letter.md").write_text(
             letter_markdown,
+            encoding="utf-8",
+        )
+
+    if letter_original_markdown is not None:
+        (run_dir / "letter_bez_korekty.md").write_text(
+            letter_original_markdown,
+            encoding="utf-8",
+        )
+
+    if correction is not None:
+        # Obie wersje pisma są już w letter.md i letter_bez_korekty.md.
+        (run_dir / "korekta.json").write_text(
+            correction.model_dump_json(indent=2, exclude={"original_text", "corrected_text"}),
             encoding="utf-8",
         )
 

@@ -30,6 +30,7 @@ from src._shared.serwer import LLMConfigurationError, LLMResponseError
 from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
+from src.Pismopoprawiator.structures import Correction, CorrectionResult
 from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
 from src.Zrodlowyszukiwator.rag_retrieval import DatabaseConnectionError
 
@@ -105,6 +106,55 @@ class TestGetLlmClient:
 
         assert services.get_llm_client("openrouter") is sentinel
         assert calls == ["openrouter"]
+
+
+class TestRunPismopoprawiator:
+    def test_run_pismopoprawiator__returns_the_uncorrected_letter_without_an_openrouter_key(
+        self, monkeypatch, caplog
+    ) -> None:
+        """Verify a misconfigured provider ends the correction, not the pipeline."""
+        monkeypatch.delenv("OPENROUTER_KEY", raising=False)
+        logger = logging.getLogger("pismak")
+        logger.addHandler(caplog.handler)
+        try:
+            with caplog.at_level(logging.INFO, logger="pismak"):
+                result = services.run_pismopoprawiator(
+                    "Pismo ktore", provider="openrouter", model="openrouter/free"
+                )
+        finally:
+            logger.removeHandler(caplog.handler)
+
+        assert result.status == "failed"
+        assert result.corrected_text == "Pismo ktore"
+        assert result.errors == ["LLMConfigurationError"]
+        messages = [record.getMessage() for record in caplog.records]
+        assert any("correction_setup_failed" in message for message in messages)
+        assert any(
+            "correction_finished" in message and "status=failed" in message for message in messages
+        )
+
+    def test_run_pismopoprawiator__uses_the_window_of_the_selected_model(self, monkeypatch) -> None:
+        """Verify the correction plans its prompt for the model's real context window."""
+        seen: dict = {}
+
+        def correct(letter, llm, *, session_id=None):
+            seen.update(llm=llm, session_id=session_id)
+            return "wynik"
+
+        client = type("Client", (), {"with_options": lambda self, **kwargs: self})()
+        monkeypatch.setattr(
+            services.model_context, "detect_context_tokens", lambda *args, **kwargs: 32768
+        )
+        monkeypatch.setattr(services.pismopoprawiator, "correct_letter", correct)
+
+        result = services.run_pismopoprawiator(
+            "Pismo", provider="ollama", model="pismak-pllum", session_id="s1", client=client
+        )
+
+        assert result == "wynik"
+        assert seen["llm"].context_tokens == 32768
+        assert seen["llm"].stage == "pismopoprawiator"
+        assert seen["session_id"] == "s1"
 
 
 class TestLlmErrorMessage:
@@ -532,6 +582,39 @@ class TestSaveRun:
         ]
         assert not (run_dir / "brief.json").exists()
         assert not (run_dir / "letter.md").exists()
+
+    def test_save_run__keeps_both_letter_versions_and_the_correction_report(
+        self, tmp_path: Path
+    ) -> None:
+        """Verify a corrected run stores the uncorrected letter and every correction decision."""
+        correction = CorrectionResult(
+            original_text="Pismo ktore",
+            corrected_text="Pismo, które",
+            applied=[
+                Correction(akapit="A5", oryginal="ktore", poprawka="które", kategoria="ortografia")
+            ],
+            status="corrected",
+            provider="ollama",
+            model="pismak-bielik:latest",
+        )
+
+        run_dir = services.save_run(
+            project_root=tmp_path,
+            messages=[],
+            letter_markdown="Pismo, które",
+            letter_original_markdown="Pismo ktore",
+            correction=correction,
+            run_dir=tmp_path / "run",
+        )
+
+        assert (run_dir / "letter.md").read_text(encoding="utf-8") == "Pismo, które"
+        assert (run_dir / "letter_bez_korekty.md").read_text(encoding="utf-8") == "Pismo ktore"
+        saved = json.loads((run_dir / "korekta.json").read_text(encoding="utf-8"))
+        assert saved["status"] == "corrected"
+        assert saved["applied"][0]["poprawka"] == "które"
+        assert saved["model"] == "pismak-bielik:latest"
+        # Teksty pisma są już w dwóch plikach .md obok.
+        assert "original_text" not in saved and "corrected_text" not in saved
 
     def test_save_run__creates_unique_directories_for_runs_in_same_second(
         self, tmp_path: Path

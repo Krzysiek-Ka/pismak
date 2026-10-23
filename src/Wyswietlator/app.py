@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import logging
 import os
 import sys
@@ -35,6 +36,7 @@ from services import (
     list_generation_models,
     llm_error_message,
     render_letter,
+    run_pismopoprawiator,
     save_run,
     validate_user_message,
 )
@@ -51,9 +53,17 @@ from src.Dopytywator.dopytywator_helper_functions import validate_brief_readines
 from src.Dopytywator.structures import CaseBrief, ConversationMessage
 from src.Pismogenerator import pismogenerator
 from src.Pismogenerator.pismogenerator import DraftValidationError
+from src.Pismopoprawiator.structures import Correction, CorrectionResult
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 
 LOGGER = logging.getLogger("pismak")
+
+CORRECTION_STATUS_LABELS = {
+    "corrected": "wprowadzono poprawki",
+    "unchanged": "bez zmian",
+    "reverted": "wycofana przez kontrolę treści, pismo bez korekty",
+    "failed": "nie powiodła się, pismo bez korekty",
+}
 
 st.set_page_config(
     page_title="Pismak",
@@ -75,6 +85,8 @@ def init_state() -> None:
         "evidence_pack": None,
         "draft": None,
         "letter_markdown": None,
+        "letter_original": None,
+        "correction": None,
         "run_dir": None,
         "model_usage": {},
     }
@@ -162,6 +174,8 @@ def reset_case() -> None:
         "evidence_pack",
         "draft",
         "letter_markdown",
+        "letter_original",
+        "correction",
         "run_dir",
         "model_usage",
     ]:
@@ -184,9 +198,8 @@ def load_models() -> list[str]:
     return list_generation_models(client)
 
 
-def record_model_usage(stage: str, provider: str, configured_model: str, llm: LLMClient) -> None:
+def record_model_usage(stage: str, provider: str, model: str) -> None:
     """Keep provider and returned model identifiers in the local run metadata."""
-    model = llm.last_model or configured_model
     usage = st.session_state.model_usage
     usage.setdefault(stage, []).append({"provider": provider, "model": model})
     LOGGER.info(
@@ -286,6 +299,64 @@ def show_evidence(evidence_pack: EvidencePack) -> None:
             st.code(item.excerpt[:1200], language=None)
 
 
+def correction_summary(correction: CorrectionResult) -> str:
+    """Describe the outcome of the language correction in one line."""
+    summary = (
+        f"Korekta językowa: {CORRECTION_STATUS_LABELS[correction.status]} · "
+        f"zastosowane {len(correction.applied)}, odrzucone {len(correction.rejected)}, "
+        f"sugestie {len(correction.suggestions)}"
+    )
+    if correction.model:
+        summary += f" · {correction.provider} — {correction.model}"
+    return summary + f" · {correction.elapsed_seconds:.0f} s"
+
+
+def correction_rows(corrections: list[Correction], reasons: list[str] | None = None):
+    """Return table rows of corrections; a table shows model text as text, not Markdown."""
+    rows = [
+        {
+            "Akapit": item.akapit,
+            "Kategoria": item.kategoria,
+            "Było": item.oryginal,
+            "Jest": item.poprawka,
+            "Uzasadnienie": item.uzasadnienie,
+        }
+        for item in corrections
+    ]
+    for row, reason in zip(rows, reasons or [], strict=False):
+        row["Powód odrzucenia"] = reason
+    return rows
+
+
+def show_correction(correction: CorrectionResult) -> None:
+    """Render the applied corrections, the line diff, rejected corrections and suggestions."""
+    if correction.applied:
+        st.dataframe(correction_rows(correction.applied), hide_index=True, width="stretch")
+        diff = difflib.unified_diff(
+            correction.original_text.splitlines(),
+            correction.corrected_text.splitlines(),
+            "bez korekty",
+            "po korekcie",
+            lineterm="",
+        )
+        st.code("\n".join(diff), language="diff")
+    else:
+        st.info("Korekta językowa nie zmieniła pisma.")
+    if correction.rejected:
+        with st.expander(f"Odrzucone poprawki ({len(correction.rejected)})"):
+            st.dataframe(
+                correction_rows(
+                    [item.correction for item in correction.rejected],
+                    [item.reason for item in correction.rejected],
+                ),
+                hide_index=True,
+                width="stretch",
+            )
+    if correction.suggestions:
+        with st.expander(f"Sugestie stylistyczne — niestosowane ({len(correction.suggestions)})"):
+            st.dataframe(correction_rows(correction.suggestions), hide_index=True, width="stretch")
+
+
 # Ten kod wykonuje się przy każdym rerun, dlatego inicjalizacja musi być idempotentna.
 init_state()
 
@@ -300,7 +371,7 @@ st.caption(
 with st.container(border=True):
     st.subheader("Konfiguracja")
 
-    provider_columns = st.columns([2, 2, 2, 1])
+    provider_columns = st.columns([2, 2, 2, 2, 1])
     provider_options = ["ollama", "openrouter"]
     provider_labels = {
         "ollama": "Lokalny model (Ollama)",
@@ -337,6 +408,27 @@ with st.container(border=True):
         )
 
     with provider_columns[3]:
+        poprawiator_provider = st.selectbox(
+            "Dostawca — Pismopoprawiator",
+            provider_options,
+            format_func=provider_labels.get,
+            key="cfg_poprawiator_provider",
+            disabled=st.session_state.draft is not None,
+        )
+        # Domyślnie włączona; ustawiona tu, a nie parametrem value, bo widget z kluczem
+        # i wartością domyślną ostrzega, gdy stan nadano mu wcześniej przez session_state.
+        st.session_state.setdefault("cfg_korekta", True)
+        korekta = st.toggle(
+            "Korekta językowa",
+            key="cfg_korekta",
+            disabled=st.session_state.draft is not None,
+            help=(
+                "Po wygenerowaniu pisma model poprawia ortografię, interpunkcję, gramatykę, "
+                "literówki i spacje, bez zmiany treści. Gdy coś zmieni, pobierzesz obie wersje."
+            ),
+        )
+
+    with provider_columns[4]:
         max_questions = int(
             st.number_input(
                 "Max pytań",
@@ -348,9 +440,12 @@ with st.container(border=True):
             )
         )
 
+    korekta_providers = (poprawiator_provider,) if korekta else ()
+    selected_providers = (dopytywator_provider, zrodla_provider, pismo_provider, *korekta_providers)
+
     models: list[str] = []
     model_list_error: Exception | None = None
-    if "ollama" in (dopytywator_provider, zrodla_provider, pismo_provider):
+    if "ollama" in selected_providers:
         try:
             models = load_models()
         except Exception as exc:
@@ -361,7 +456,7 @@ with st.container(border=True):
                 extra={"session_id": st.session_state.session_id},
             )
 
-    model_columns = st.columns([2, 2, 2, 1])
+    model_columns = st.columns([2, 2, 2, 2, 1])
 
     def choose_model(label: str, provider: str, key: str, disabled: bool) -> str | None:
         if provider == "openrouter":
@@ -400,7 +495,18 @@ with st.container(border=True):
             st.session_state.draft is not None,
         )
 
-    selected_providers = (dopytywator_provider, zrodla_provider, pismo_provider)
+    with model_columns[3]:
+        if korekta:
+            poprawiator_model = choose_model(
+                "Model — Pismopoprawiator",
+                poprawiator_provider,
+                "cfg_poprawiator_model",
+                st.session_state.draft is not None,
+            )
+        else:
+            poprawiator_model = None
+            st.caption("Korekta językowa wyłączona.")
+
     if "openrouter" in selected_providers:
         st.warning(
             "OpenRouter wysyła treść zapytań do usługi zewnętrznej i dalej do dostawcy "
@@ -518,8 +624,7 @@ if st.session_state.case_brief is None:
                 after_llm_call=lambda: record_model_usage(
                     "Dopytywator",
                     dopytywator_provider,
-                    dopytywator_model,
-                    dopytywator_llm,
+                    dopytywator_llm.last_model or dopytywator_model,
                 ),
             )
 
@@ -630,10 +735,14 @@ if st.session_state.case_brief is not None:
                 width="stretch",
             )
             and require_server_storage_consent()
-            and require_external_processing_consent((zrodla_provider, pismo_provider))
+            and require_external_processing_consent(
+                (zrodla_provider, pismo_provider, *korekta_providers)
+            )
             and zrodla_model is not None
             and pismo_model is not None
+            and (not korekta or poprawiator_model is not None)
         ):
+            steps = 3 if korekta else 2
             thinking_overlay = show_thinking_overlay(
                 "Wyszukuję źródła i przygotowuję projekt pisma."
             )
@@ -646,7 +755,7 @@ if st.session_state.case_brief is not None:
                 pipeline_started = time.perf_counter()
 
                 with st.status("Uruchamiam pipeline...", expanded=True) as status:
-                    st.write("1/2 Źródłowyszukiwator")
+                    st.write(f"1/{steps} Źródłowyszukiwator")
                     LOGGER.info(
                         "rag_started session_id=%s provider=%s model=%s",
                         st.session_state.session_id,
@@ -703,7 +812,7 @@ if st.session_state.case_brief is not None:
                     st.session_state.evidence_pack = evidence_pack
                     st.write(f"Znaleziono {len(evidence_pack.evidence)} źródeł.")
 
-                    st.write("2/2 Pismogenerator")
+                    st.write(f"2/{steps} Pismogenerator")
                     pismo_client = (
                         load_client()
                         if pismo_provider == "ollama"
@@ -732,8 +841,7 @@ if st.session_state.case_brief is not None:
                     record_model_usage(
                         "Pismogenerator",
                         pismo_provider,
-                        pismo_model,
-                        pismo_llm,
+                        pismo_llm.last_model or pismo_model,
                     )
                     letter = render_letter(
                         draft,
@@ -741,8 +849,30 @@ if st.session_state.case_brief is not None:
                         st.session_state.case_brief.available_evidence,
                     )
 
+                    correction = None
+                    if korekta:
+                        st.write(f"3/{steps} Pismopoprawiator")
+                        # Nie rzuca wyjątku: po błędzie zwraca pismo bez korekty.
+                        correction = run_pismopoprawiator(
+                            letter,
+                            provider=poprawiator_provider,
+                            model=poprawiator_model,
+                            session_id=st.session_state.session_id,
+                            on_wait=notify_model_wait,
+                            client=load_client() if poprawiator_provider == "ollama" else None,
+                        )
+                        if correction.status != "failed" and correction.model:
+                            record_model_usage(
+                                "Pismopoprawiator", poprawiator_provider, correction.model
+                            )
+                        st.write(correction_summary(correction))
+
                     st.session_state.draft = draft
-                    st.session_state.letter_markdown = letter
+                    st.session_state.correction = correction
+                    st.session_state.letter_original = letter if correction else None
+                    st.session_state.letter_markdown = (
+                        correction.corrected_text if correction else letter
+                    )
                     st.session_state.stage = "DONE"
 
                     run_dir = save_run(
@@ -751,7 +881,9 @@ if st.session_state.case_brief is not None:
                         case_brief=st.session_state.case_brief,
                         evidence_pack=evidence_pack,
                         draft=draft,
-                        letter_markdown=letter,
+                        letter_markdown=st.session_state.letter_markdown,
+                        letter_original_markdown=st.session_state.letter_original,
+                        correction=correction,
                         model_usage=st.session_state.model_usage,
                         run_dir=st.session_state.run_dir,
                     )
@@ -813,14 +945,37 @@ if st.session_state.case_brief is not None:
 if st.session_state.letter_markdown is not None:
     with st.container(border=True):
         st.subheader("Projekt pisma")
+        correction = st.session_state.correction
         # Pobierany plik zachowuje Markdown modelu; na stronie linki i obrazy są tekstem.
-        st.markdown(escape_markdown_links(st.session_state.letter_markdown))
+        if correction is None:
+            st.markdown(escape_markdown_links(st.session_state.letter_markdown))
+        else:
+            st.caption(correction_summary(correction))
+            corrected_tab, original_tab, diff_tab = st.tabs(
+                ["Wersja poprawiona", "Bez korekty", "Różnice"]
+            )
+            with corrected_tab:
+                st.markdown(escape_markdown_links(st.session_state.letter_markdown))
+            with original_tab:
+                st.markdown(escape_markdown_links(st.session_state.letter_original))
+            with diff_tab:
+                show_correction(correction)
 
+        # Druga wersja do pobrania tylko wtedy, gdy korekta faktycznie zmieniła pismo.
+        corrected = correction is not None and correction.status == "corrected"
         st.download_button(
-            "Pobierz pismo.md",
+            "Pobierz pismo.md (po korekcie)" if corrected else "Pobierz pismo.md",
             data=st.session_state.letter_markdown.encode("utf-8"),
             file_name="pismo.md",
             mime="text/markdown",
             type="primary",
             width="stretch",
         )
+        if corrected:
+            st.download_button(
+                "Pobierz pismo_bez_korekty.md",
+                data=st.session_state.letter_original.encode("utf-8"),
+                file_name="pismo_bez_korekty.md",
+                mime="text/markdown",
+                width="stretch",
+            )

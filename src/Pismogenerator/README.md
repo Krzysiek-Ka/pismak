@@ -15,4 +15,8 @@ Pismogenerator przygotowuje projekt pisma na podstawie `CaseBrief`, źródeł pr
 
 `CaseBrief`, `EvidencePack` i materiały użytkownika są przekazywane do modelu, który zwraca `DraftLetter`. Projekt jest sprawdzany m.in. pod kątem dozwolonych identyfikatorów źródeł, brakujących treści i ograniczeń Phase 0. Poprawny projekt jest składany do tekstu Markdown; odwołania `E1`, `E2` wskazują źródła z `EvidencePack`, a `U1`, `U2` materiały użytkownika.
 
+Uwagi dla użytkownika zawsze stoją w nawiasach kwadratowych: `[DO UZUPEŁNIENIA: …]` i `[wymaga weryfikacji]`. Prompt prosi model o oznaczanie niepotwierdzonych twierdzeń znacznikiem `[wymaga weryfikacji]`. Renderer zamienia też zapis „(wymaga weryfikacji)” i samo „wymaga weryfikacji” poza nawiasami na `[wymaga weryfikacji]`. Nie dotyka zwrotu z przeczeniem („nie wymaga weryfikacji”).
+
+Stałe elementy układu pisma (adresat, nadawca, formuła, podpis, nagłówek źródeł) są stałymi w `pismogenerator_helper_functions.py`. Korzysta z nich Pismopoprawiator, który na ich podstawie rozpoznaje akapity tylko do odczytu.
+
 Przepływ: `CaseBrief` + `EvidencePack` + materiały użytkownika → `DraftLetter` → walidacja → treść pisma Markdown.

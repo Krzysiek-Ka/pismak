@@ -27,3 +27,12 @@ class TestDraftUserPrompt:
         assert "U1" in prompt
         assert "EvidencePack" in prompt
         assert "Utwórz DraftLetter" in prompt
+
+
+class TestPismogeneratorSystemPrompt:
+    def test_pismogenerator_system_prompt__asks_for_the_bracketed_verification_marker(
+        self,
+    ) -> None:
+        """Verify the model is told to write the note in the same brackets as other user notes."""
+        assert "[wymaga weryfikacji]" in prompts.PISMOGENERATOR_SYSTEM_PROMPT
+        assert "w nawiasach kwadratowych" in prompts.PISMOGENERATOR_SYSTEM_PROMPT

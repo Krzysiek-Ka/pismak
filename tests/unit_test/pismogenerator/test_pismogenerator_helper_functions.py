@@ -338,3 +338,52 @@ class TestRenderLetter:
         result = pismogenerator_helper_functions.render_letter(draft, make_evidence_pack(), [])
 
         assert "**Adresat:** [DO UZUPEŁNIENIA: adresat]" in result
+
+    def test_render_letter__puts_verification_notes_from_the_model_in_square_brackets(
+        self,
+    ) -> None:
+        """Verify a note the model wrote in parentheses reaches the letter as a [ ] marker."""
+        draft = make_draft(
+            argumentation_markdown=ARGUMENTATION + " Ruch jest duży (wymaga weryfikacji)."
+        )
+
+        result = pismogenerator_helper_functions.render_letter(draft, make_evidence_pack(), [])
+
+        assert "Ruch jest duży [wymaga weryfikacji]." in result
+        assert "### Informacje wymagające weryfikacji przed wysłaniem" in result
+
+
+class TestBracketVerificationMarkers:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("Ruch jest duży (wymaga weryfikacji).", "Ruch jest duży [wymaga weryfikacji]."),
+            ("Ruch jest duży ( wymaga weryfikacji ).", "Ruch jest duży [wymaga weryfikacji]."),
+            ("Ruch jest duży — wymaga weryfikacji.", "Ruch jest duży — [wymaga weryfikacji]."),
+            ("Wymaga weryfikacji, czy ruch rośnie.", "[Wymaga weryfikacji], czy ruch rośnie."),
+            ("Ruch jest duży [wymaga weryfikacji].", "Ruch jest duży [wymaga weryfikacji]."),
+        ],
+    )
+    def test_bracket_verification_markers__brackets_every_unbracketed_note(
+        self, text: str, expected: str
+    ) -> None:
+        """Verify each spelling of the note ends up as one bracketed marker, never doubled."""
+        assert pismogenerator_helper_functions.bracket_verification_markers(text) == expected
+
+    def test_bracket_verification_markers__leaves_notes_inside_other_markers(self) -> None:
+        """Verify a placeholder that mentions verification is not split by a nested bracket."""
+        text = "[DO UZUPEŁNIENIA: liczba, która wymaga weryfikacji]"
+
+        assert pismogenerator_helper_functions.bracket_verification_markers(text) == text
+
+    def test_bracket_verification_markers__leaves_a_negated_phrase_as_plain_text(self) -> None:
+        """Verify "nie wymaga weryfikacji" is not turned into a marker that says the opposite."""
+        text = "Ten fakt nie wymaga weryfikacji."
+
+        assert pismogenerator_helper_functions.bracket_verification_markers(text) == text
+
+    def test_bracket_verification_markers__ignores_other_forms_of_the_word(self) -> None:
+        """Verify headings such as "wymagające weryfikacji" stay as they are."""
+        text = "Informacje wymagające weryfikacji przed wysłaniem"
+
+        assert pismogenerator_helper_functions.bracket_verification_markers(text) == text

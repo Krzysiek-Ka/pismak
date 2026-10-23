@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 #   dopytywator        model Dopytywatora (wywiad i CaseBrief)
 #   zrodlowyszukiwacz  model Źródłowyszukiwacza (planner i reranker; embeddingi zawsze bge-m3)
 #   pismogenerator     model Pismogeneratora
+#   pismopoprawiator   opcjonalnie: model korekty językowej; domyślnie model Pismogeneratora,
+#                      "brak" wyłącza korektę (jak przełącznik „Korekta językowa” w aplikacji)
 #   sprawy             opcjonalnie: lista spraw, np. ["buspas"]; domyślnie wszystkie z CASES
 #
 # Model to jedno z:
@@ -111,18 +113,24 @@ class Setup:
     pismo: Provider
     # Sprawy, na których uruchomienie jest wykonywane; pusta krotka oznacza wszystkie.
     case_ids: tuple[str, ...] = ()
+    # Model korekty językowej; None oznacza korektę wyłączoną.
+    poprawiator: Provider | None = None
 
     @property
     def stages(self) -> tuple[tuple[str, Provider], ...]:
-        return (
+        stages = (
             ("Dopytywator", self.dopytywator),
             ("Źródłowyszukiwacz", self.zrodla),
             ("Pismogenerator", self.pismo),
         )
+        if self.poprawiator is not None:
+            stages += (("Pismopoprawiator", self.poprawiator),)
+        return stages
 
     @property
     def label(self) -> str:
-        if self.dopytywator == self.zrodla == self.pismo:
+        providers = {provider for _, provider in self.stages}
+        if len(providers) == 1:
             return self.dopytywator.label
         return " → ".join(f"{stage}: {provider.label}" for stage, provider in self.stages)
 
@@ -137,8 +145,9 @@ PLLUM = Provider("pllum", "ollama", "pismak-pllum:latest", "Lokalny PLLuM (Ollam
 MODELE = {provider.id: provider for provider in (BIELIK, PLLUM, OPENROUTER)}
 
 OPENROUTER_PREFIX = "openrouter:"
+NO_CORRECTION = "brak"
 _REQUIRED_KEYS = ("nazwa", "dopytywator", "zrodlowyszukiwacz", "pismogenerator")
-_OPTIONAL_KEYS = ("sprawy",)
+_OPTIONAL_KEYS = ("pismopoprawiator", "sprawy")
 _NAME = re.compile(r"[A-Za-z0-9_-]+")
 
 
@@ -185,9 +194,11 @@ def build_setups(entries: list[dict], case_ids: list[str]) -> tuple[Setup, ...]:
             )
         try:
             stages = [resolve_model(str(entry[key])) for key in _REQUIRED_KEYS[1:]]
+            correction = str(entry.get("pismopoprawiator") or entry["pismogenerator"])
+            poprawiator = None if correction.strip() == NO_CORRECTION else resolve_model(correction)
         except ValueError as exc:
             raise ValueError(f"{where}: {exc}") from exc
-        setups.append(Setup(name, *stages, case_ids=cases))
+        setups.append(Setup(name, *stages, case_ids=cases, poprawiator=poprawiator))
     if not setups:
         raise ValueError("URUCHOMIENIA: lista jest pusta — dodaj co najmniej jeden wpis")
     return tuple(setups)

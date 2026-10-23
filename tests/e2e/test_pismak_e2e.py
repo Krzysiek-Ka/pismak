@@ -3,7 +3,8 @@ Testy end-to-end Pismaka na prawdziwych modelach, bazie RAG i konfiguracji z .en
 
 Uruchomienia (modele na etapach Dopytywator, Źródłowyszukiwacz, Pismogenerator) są w liście
 URUCHOMIENIA w e2e_cases.py; każde idzie na każdej sprawie z CASES albo na wybranych.
-Zbierane tylko z PISMAK_E2E=1 (tests/e2e/conftest.py). Opcjonalnie PISMAK_E2E_LABEL nazywa
+Uruchamiane tylko z `-m e2e` (marker nadaje tests/e2e/conftest.py).
+Opcjonalnie PISMAK_E2E_LABEL nazywa
 przebieg. Raport trafia do outputs/e2e/<czas>_<etykieta>/report.md i jest przepisywany po
 każdym uruchomieniu, zanim zostaną sprawdzone asercje; tabela podsumowania pojawia się też
 na końcu wyjścia pytest.

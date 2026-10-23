@@ -48,6 +48,9 @@ argumentation_markdown:
 - zachowuj styl bezpośredni, rzeczowy i obywatelski,
 - używaj danych z CaseBrief, jeżeli użytkownik je podał,
 - nie przedstawiaj przypuszczeń jako potwierdzonych faktów,
+- twierdzenie, którego nie potwierdzają CaseBrief ani źródła, oznacz bezpośrednio po nim
+  znacznikiem [wymaga weryfikacji] — zawsze w nawiasach kwadratowych, tak jak
+  [DO UZUPEŁNIENIA: ...],
 - uwzględnij wszystkie requested_actions,
 - przy kilku postulatach preferuj numerowaną listę,
 - nie dodawaj nowych postulatów,

@@ -5,7 +5,7 @@ Dopytuje o sprawę, wyszukuje fragmenty dokumentów miejskich i na ich podstawie
 przygotowuje projekt wniosku z listą źródeł.
 
 ```text
-opis sprawy → Dopytywator → CaseBrief → Źródłowyszukiwacz (RAG) → EvidencePack → Pismogenerator → letter.md
+opis sprawy → Dopytywator → CaseBrief → Źródłowyszukiwacz (RAG) → EvidencePack → Pismogenerator → Pismopoprawiator → letter.md
 ```
 
 - **Dopytywator** zadaje pytania pomocnicze i buduje `CaseBrief`.
@@ -13,12 +13,15 @@ opis sprawy → Dopytywator → CaseBrief → Źródłowyszukiwacz (RAG) → Evi
   (PostgreSQL + pgvector), a reranker LLM wybiera fragmenty do `EvidencePack`.
 - **Pismogenerator** pisze projekt wyłącznie na podstawie briefu, znalezionych fragmentów
   i materiałów użytkownika; ostateczny `letter.md` składa kod.
+- **Pismopoprawiator** poprawia język pisma (ortografia, interpunkcja, gramatyka, literówki,
+  spacje) bez zmiany treści. Model zwraca tylko listę poprawek, a kod sprawdza każdą
+  strażnikami i stosuje przyjęte. Przy błędzie zostaje pismo bez korekty, a pipeline biegnie
+  dalej. Szczegóły: `src/Pismopoprawiator/README.md`.
 - **Wyświetlator** to interfejs Streamlit łączący te etapy.
 
 Modele działają lokalnie w Ollamie (PLLuM lub Bielik oraz `bge-m3` do embeddingów);
 każdy etap generatywny może zamiast tego użyć OpenRouter. Projekt jest prototypem
-rozwijanym na Windowsie. Planowane: sprawdzanie faktów, korekta językowa, wybór
-adresata i wysyłka.
+rozwijanym na Windowsie. Planowane: sprawdzanie faktów, wybór adresata i wysyłka.
 
 ## 1. Szybki start
 
@@ -212,13 +215,20 @@ działającej Ollamy z `bge-m3` i bazy z wczytanymi dokumentami.
 
 - Dla każdego etapu wybierasz dostawcę (Ollama albo OpenRouter) i model oraz limit
   pytań Dopytywatora (domyślnie 1, najwyżej 12).
+- Przełącznik „Korekta językowa” (domyślnie włączony) uruchamia Pismopoprawiator po
+  Pismogeneratorze. Każde żądanie korekty ma limit 5 minut. Gdy korekta się nie uda, pismo
+  zostaje bez niej.
 - Po rozmowie widzisz brief, znalezione źródła i projekt pisma do pobrania jako
-  `pismo.md`.
+  `pismo.md`. Po korekcie masz zakładki: wersję poprawioną, wersję bez korekty i
+  „Różnice” (zastosowane poprawki, zmiany wiersz po wierszu, odrzucone poprawki z powodem,
+  sugestie stylistyczne). Gdy korekta zmieniła pismo, do pobrania są `pismo.md` i
+  `pismo_bez_korekty.md`.
 - Pismo ma stałą strukturę: adresat, formuła „Jako wieloletni mieszkaniec naszego
   kochanego miasta, wnioskuję o …”, typ `WNIOSEK`, argumentacja z przypisami, podpis do
-  uzupełnienia, lista źródeł i sekcja kontrolna z informacjami do weryfikacji. Model ma
-  polecenie nie dodawać podstawy prawnej, ale aplikacja tego nie sprawdza — przeczytaj
-  pismo przed wysłaniem.
+  uzupełnienia, lista źródeł i sekcja kontrolna z informacjami do weryfikacji. Uwagi dla
+  użytkownika stoją w nawiasach kwadratowych: `[DO UZUPEŁNIENIA: …]` i
+  `[wymaga weryfikacji]`. Model ma polecenie nie dodawać podstawy prawnej, ale aplikacja
+  tego nie sprawdza — przeczytaj pismo przed wysłaniem.
 - Ollama obsługuje jedno żądanie naraz: kolejne sprawy czekają z komunikatem, a po
   15 minutach oczekiwania dostają prośbę o ponowienie. Żądania do OpenRouter nie czekają.
 
@@ -233,7 +243,9 @@ embeddingi i baza zostają lokalne. Szczegóły i test połączenia:
 ### Dane, logi i prywatność
 
 - Każda sprawa jest zapisywana w `outputs/<data>_<id>_ui/` (rozmowa, brief, źródła,
-  draft, pismo, użyte modele), a jej log w `logs/pismak_<czas>.log`. Błędy bez
+  draft, pismo, użyte modele, a po korekcie także `letter_bez_korekty.md` i
+  `korekta.json`), a jej log w `logs/pismak_<czas>.log`. Log zawiera każdą poprawkę
+  językową, zastosowaną albo odrzuconą, z powodem. Błędy bez
   przypisanej sprawy trafiają do `logs/app_errors.log`.
 - Pliki nie są szyfrowane i nie mają terminu usunięcia; ma do nich dostęp każdy z
   dostępem do dysku serwera. Logi mogą zawierać niepoprawne lub ucięte odpowiedzi modelu
@@ -291,8 +303,13 @@ python -m ruff format .
 
 - GitHub Actions uruchamia testy, `ruff check` i `ruff format --check` na Pythonie 3.11
   i 3.14; `pre-commit` uruchamia Ruff lokalnie przed commitem.
-- Testy end-to-end na prawdziwych modelach i bazie uruchamia się ręcznie
-  (`PISMAK_E2E=1`), zob. `tests/e2e/README.md`.
+- Testy end-to-end na prawdziwych modelach i bazie uruchamia się tylko ręcznie
+  (marker `e2e`: `python -m pytest tests/e2e -m e2e`), zob. `tests/e2e/README.md`.
+- Złote zbiory modułów są w `tests/golden_set/<moduł>/` i uruchamia się je tylko ręcznie
+  (marker `golden_set`, testy na modelach także `llm`); zwykłe `pytest` i CI je pomijają.
+  Pismopoprawiator:
+  `python -m pytest tests/golden_set/pismopoprawiator -m golden_set -v -s`
+  (zob. `tests/golden_set/README.md`).
 - Zależności zmieniasz w `requirements.in`, po czym odtwarzasz blokadę; wersję ruff w
   `.pre-commit-config.yaml` trzymaj równą tej z `requirements.in`:
 
@@ -305,6 +322,7 @@ python -m ruff format .
 
 Struktura: `src/Dopytywator/`, `src/Zrodlowyszukiwator/` (`rag_ingestion`,
 `rag_retrieval`, `brief_to_evidence`, katalog i PDF-y w `RAG/`), `src/Pismogenerator/`,
+`src/Pismopoprawiator/`,
 `src/Wyswietlator/` (`app.py` — interfejs, `services.py` — adaptery i zapis wyników),
 `src/_shared/` (klient LLM, kolejka modelu, budżet kontekstu), `modele/`,
 `docker/postgres/init/`, `tests/`.

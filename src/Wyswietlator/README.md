@@ -12,9 +12,9 @@ Pismak pomaga przejść od opisu problemu, przez doprecyzowującą rozmowę i wy
 
 ## Dostawcy modeli
 
-Każdy etap generatywny (Dopytywator, planner/reranker Źródłowyszukiwacza
-i Pismogenerator) może korzystać z lokalnej Ollama albo z darmowego
-routera OpenRouter (`openrouter/free`). Ustaw `OPENROUTER_KEY` w lokalnym
+Każdy etap generatywny (Dopytywator, planner/reranker Źródłowyszukiwacza,
+Pismogenerator i Pismopoprawiator) może korzystać z lokalnej Ollama albo
+z darmowego routera OpenRouter (`openrouter/free`). Ustaw `OPENROUTER_KEY` w lokalnym
 pliku `.env`; nie dodawaj prawdziwego klucza do repozytorium.
 
 Przy wyborze OpenRouter UI wymaga potwierdzenia przed wysłaniem danych
@@ -45,6 +45,12 @@ Embeddingi BGE-M3 i lokalny pipeline RAG pozostają niezależne od OpenRouter.
 
 ## Przepływ danych
 
-Użytkownik opisuje sprawę w rozmowie; interfejs przekazuje ją do Dopytywatora i przechowuje w stanie sesji. Po utworzeniu `CaseBrief` uruchamia Źródłowyszukiwacz, który zwraca `EvidencePack`, a następnie Pismogenerator, który tworzy i waliduje projekt. Rozmowa jest wyświetlana jako pierwsza, a poniżej znajdują się podsumowanie sprawy, źródła i pismo do pobrania. Rozmowa i kolejne artefakty są zapisywane w katalogu uruchomienia w `outputs/`.
+Użytkownik opisuje sprawę w rozmowie; interfejs przekazuje ją do Dopytywatora i przechowuje w stanie sesji. Po utworzeniu `CaseBrief` uruchamia Źródłowyszukiwacz, który zwraca `EvidencePack`, a następnie Pismogenerator, który tworzy i waliduje projekt. Gdy przełącznik „Korekta językowa” jest włączony (domyślnie tak), Pismopoprawiator poprawia język pisma bez zmiany treści. Błąd korekty nie przerywa pipeline'u, tylko zostawia pismo bez korekty. Rozmowa jest wyświetlana jako pierwsza, a poniżej znajdują się podsumowanie sprawy, źródła i pismo do pobrania. Po korekcie pismo ma trzy zakładki:
 
-Przepływ: rozmowa → `CaseBrief` → `EvidencePack` → projekt pisma → podgląd, pobranie i zapis wyników.
+- wersja poprawiona,
+- wersja bez korekty,
+- „Różnice”: tabela zastosowanych poprawek, zmiany wiersz po wierszu, odrzucone poprawki z powodem i sugestie stylistyczne, których aplikacja nie stosuje.
+
+Gdy korekta zmieniła pismo, do pobrania są obie wersje. Rozmowa i kolejne artefakty są zapisywane w katalogu uruchomienia w `outputs/`, po korekcie także `letter_bez_korekty.md` i `korekta.json`.
+
+Przepływ: rozmowa → `CaseBrief` → `EvidencePack` → projekt pisma → korekta językowa → podgląd, pobranie i zapis wyników.

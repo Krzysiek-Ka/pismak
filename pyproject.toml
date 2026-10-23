@@ -8,6 +8,16 @@ license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 # Zależności: requirements.in (bezpośrednie) i requirements.txt (pełna blokada), README rozdział 8.
 
+[tool.pytest.ini_options]
+markers = [
+  "llm: testy na prawdziwych modelach językowych; tylko ręcznie, przez `-m llm`",
+  "golden_set: złote zbiory modułów z tests/golden_set; tylko ręcznie, przez `-m golden_set`",
+  "e2e: testy end-to-end z tests/e2e; tylko ręcznie, przez `-m e2e`",
+]
+# Zwykłe `python -m pytest` i CI pomijają testy `llm`, złote zbiory i E2E; `-m …`
+# w poleceniu zastępuje ten filtr.
+addopts = "-m 'not llm and not golden_set and not e2e'"
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

@@ -78,6 +78,40 @@ def validate_draft(
 
 PHASE0_OPENING_FORMULA = "Jako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o"
 PHASE0_DOCUMENT_TYPE = "WNIOSEK"
+# Stałe elementy układu pisma. Pismopoprawiator rozpoznaje po nich akapity tylko do odczytu
+# i część pisma, której nie przekazuje modelowi.
+RECIPIENT_LABEL = "**Adresat:**"
+RECIPIENT_PLACEHOLDER = "[DO UZUPEŁNIENIA: adresat]"
+SENDER_LABEL = "**Nadawca:**"
+PHASE0_CLOSING = "Z poważaniem,"
+PHASE0_SIGNATURE = "[imię i nazwisko]"
+SOURCES_HEADING = "## Źródła"
+CONTROL_SECTION_HEADING = "## Sekcja kontrolna"
+
+# Uwaga dla użytkownika, tak jak [DO UZUPEŁNIENIA: …], zawsze stoi w nawiasach kwadratowych.
+VERIFICATION_PHRASE = "wymaga weryfikacji"
+VERIFICATION_MARKER = f"[{VERIFICATION_PHRASE}]"
+_VERIFICATION_NOTE = re.compile(
+    r"\(\s*(wymaga\s+weryfikacji)\s*\)|(?<!\w)(wymaga\s+weryfikacji)(?!\w)", re.IGNORECASE
+)
+_SQUARE_BRACKETS = re.compile(r"\[[^\[\]\n]*\]")
+_NEGATION_BEFORE = re.compile(r"(?<!\w)nie\s+$", re.IGNORECASE)
+
+
+def bracket_verification_markers(text: str) -> str:
+    """Put every "wymaga weryfikacji" note that is not already bracketed into [ ]."""
+    bracketed = [match.span() for match in _SQUARE_BRACKETS.finditer(text)]
+
+    def bracket(match: re.Match[str]) -> str:
+        start, end = match.span()
+        if any(left <= start and end <= right for left, right in bracketed):
+            return match.group(0)
+        # „nie wymaga weryfikacji” w nawiasie czytałoby się jak znacznik do sprawdzenia.
+        if match.group(2) and _NEGATION_BEFORE.search(text[:start]):
+            return match.group(0)
+        return f"[{match.group(1) or match.group(2)}]"
+
+    return _VERIFICATION_NOTE.sub(bracket, text)
 
 
 def render_list(items: list[str], empty_text: str = "Brak.") -> str:
@@ -127,32 +161,34 @@ def render_letter(
     user_evidence: list[str],
 ) -> str:
     """Turn a DraftLetter model into a final markdown letter body."""
-    recipient = draft.recipient.strip() or "[DO UZUPEŁNIENIA: adresat]"
+    recipient = draft.recipient.strip() or RECIPIENT_PLACEHOLDER
+    request_summary = bracket_verification_markers(draft.request_summary.strip())
+    argumentation = bracket_verification_markers(draft.argumentation_markdown.strip())
 
     # Pusta linia między polami nagłówka: bez niej Markdown pokazuje je w jednej linii.
-    letter = f"""**Adresat:** {recipient}
+    letter = f"""{RECIPIENT_LABEL} {recipient}
 
-**Nadawca:**
+{SENDER_LABEL}
 
-{PHASE0_OPENING_FORMULA} {draft.request_summary.strip()}
+{PHASE0_OPENING_FORMULA} {request_summary}
 
 # {PHASE0_DOCUMENT_TYPE}
 
-{draft.argumentation_markdown.strip()}
+{argumentation}
 
-Z poważaniem,
+{PHASE0_CLOSING}
 
-[imię i nazwisko]
+{PHASE0_SIGNATURE}
 
 ---
 
-## Źródła
+{SOURCES_HEADING}
 
 {render_sources(draft.sources, evidence_pack, user_evidence)}
 
 ---
 
-## Sekcja kontrolna
+{CONTROL_SECTION_HEADING}
 
 ### Informacje wymagające weryfikacji przed wysłaniem
 

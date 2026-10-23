@@ -17,10 +17,16 @@ from e2e_support import (
     PASS,
     PASSED,
     REDACTED,
+    WARN,
     Check,
     PhaseError,
+    RunResult,
+    _correction_cell,
+    _RunState,
     analyze_log,
     contains_any,
+    correction_invariant,
+    correction_quality,
     interview_invariants,
     legal_basis_outside,
     markdown_summary,
@@ -34,6 +40,9 @@ from e2e_support import (
 )
 
 from src.Dopytywator.structures import ConversationMessage
+from src.Pismogenerator.pismogenerator_helper_functions import render_letter
+from src.Pismogenerator.structures import DraftLetter
+from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
 
 CASE = CASES[0]
 CASE_IDS = [case.id for case in CASES]
@@ -142,10 +151,14 @@ def test_result_names_every_stage_and_reproduces_exactly_one_run() -> None:
             "model": OPENROUTER.model,
         },
         "Pismogenerator": {"name": "bielik", "provider": "ollama", "model": BIELIK.model},
+        # Bez pola „pismopoprawiator” korektę wykonuje model Pismogeneratora.
+        "Pismopoprawiator": {"name": "bielik", "provider": "ollama", "model": BIELIK.model},
     }
     # `-k bielik-kot_wrocek` wybrałby też ten przebieg; polecenie podaje pełny identyfikator.
     assert f"test_pismak_end_to_end[{result.run_id}]" in result.reproduce
     assert " -k " not in result.reproduce
+    # Bez `-m e2e` filtr z pyproject.toml odrzuciłby także test wskazany identyfikatorem.
+    assert " -m e2e " in result.reproduce
 
 
 def test_interview_invariants_accept_both_ways_of_ending() -> None:
@@ -268,3 +281,124 @@ def test_summary_table_shows_each_stage_model_and_why_runs_did_not_pass() -> Non
     assert any("model nie jest zarejestrowany" in line for line in table)
     assert "| `mix` | buspas | pllum | bielik | openrouter |" in markdown
     assert "Przyczyny niepowodzeń" in markdown
+
+
+def test_correction_model_defaults_to_the_letter_model_and_can_be_switched_off() -> None:
+    default, custom, off = build_setups(
+        [
+            entry("domyslny"),
+            entry("wlasny", pismopoprawiator="bielik"),
+            entry("bez_korekty", pismopoprawiator="brak"),
+        ],
+        CASE_IDS,
+    )
+
+    assert default.poprawiator == OPENROUTER
+    assert custom.poprawiator == BIELIK
+    assert off.poprawiator is None
+    assert [stage for stage, _ in off.stages] == [
+        "Dopytywator",
+        "Źródłowyszukiwacz",
+        "Pismogenerator",
+    ]
+
+
+def correction_state(corrected: str | None = None) -> tuple[RunResult, _RunState]:
+    """Return a finished run whose letter went through the Pismopoprawiator."""
+    [setup] = build_setups([entry("mix")], CASE_IDS)
+    result = new_result(setup, CASE)
+    letter = render_letter(
+        DraftLetter(
+            recipient="Prezydent Wrocławia",
+            request_summary="zgodę na happening",
+            argumentation_markdown="Kot Wrocek ma zwrócić uwagę na problem szczurów ktore są.",
+        ),
+        EvidencePack(
+            query_summary="Kot",
+            research_plan=ResearchPlan(case_summary="Kot", intents=[]),
+        ),
+        [],
+    )
+    corrected = (
+        letter.replace("szczurów ktore", "szczurów, które") if corrected is None else corrected
+    )
+    state = _RunState(database_url="", letter=corrected, letter_original=letter)
+    result.correction = {
+        "status": "corrected",
+        "mode": "whole",
+        "applied": [
+            {
+                "akapit": "A5",
+                "oryginal": "szczurów ktore",
+                "poprawka": "szczurów, które",
+                "kategoria": "interpunkcja",
+                "uzasadnienie": "",
+            }
+        ],
+        "rejected": [
+            {
+                "correction": {
+                    "akapit": "A5",
+                    "oryginal": "Kot Wrocek",
+                    "poprawka": "Kot Wrocka",
+                    "kategoria": "fleksja",
+                    "uzasadnienie": "",
+                },
+                "reason": "zmienia nazwy własne: usuwa „Wrocek”; dodaje „Wrocka”",
+            }
+        ],
+        "suggestions": [],
+        "calls": 1,
+        "elapsed_seconds": 12.0,
+        "model": "fake/model",
+        "errors": [],
+    }
+    return result, state
+
+
+def test_correction_invariant_passes_a_language_only_correction() -> None:
+    result, state = correction_state()
+
+    correction_invariant(result, state)
+    correction_quality(result)
+
+    checks = {check.id: check for check in result.checks}
+    assert checks["H8"].status == PASS
+    assert checks["S10"].status == WARN
+    assert "zmienia nazwy własne×1" in checks["S10"].detail
+    assert _correction_cell(result) == "poprawiono 1/1"
+
+
+def test_correction_invariant_fails_when_the_correction_changed_the_content() -> None:
+    result, state = correction_state()
+    state.letter = state.letter.replace("Kot Wrocek", "Kot Wrocka")
+
+    correction_invariant(result, state)
+
+    [check] = result.checks
+    assert (check.id, check.status) == ("H8", FAIL)
+    assert "nazwy własne" in check.detail
+
+
+def test_correction_invariant_fails_when_the_stage_raised() -> None:
+    result, state = correction_state()
+    result.errors = [PhaseError("korekta", "RuntimeError", "Błąd", None, "nieoczekiwany")]
+    state.letter_original = None
+
+    correction_invariant(result, state)
+
+    [check] = result.checks
+    assert (check.id, check.status) == ("H8", FAIL)
+    assert "RuntimeError" in check.detail
+    assert _correction_cell(result) == "błąd"
+
+
+def test_correction_checks_are_skipped_when_the_correction_is_off() -> None:
+    [setup] = build_setups([entry("bez", pismopoprawiator="brak")], CASE_IDS)
+    result = new_result(setup, CASE)
+
+    correction_invariant(result, _RunState(database_url=""))
+    correction_quality(result)
+
+    assert result.checks == []
+    assert _correction_cell(result) == "wyłączona"

@@ -172,6 +172,7 @@ class TestErrorReporting:
 INTERVIEW = "InterviewTurnResult"
 BRIEF = "CaseBrief"
 DRAFT = "DraftLetter"
+CORRECTION = "CorrectionResponse"
 GENERATE_LABEL = "Znajdź źródła i wygeneruj pismo"
 
 QUESTION = {
@@ -281,9 +282,12 @@ def ui(monkeypatch, tmp_path):
         *,
         models: list[str] | Exception = ("model-testowy",),
         storage_consent: bool = True,
+        korekta: bool | None = False,
     ) -> tuple[AppTest, ScriptedCompletions]:
         completions = ScriptedCompletions(replies or {})
         client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+        # Pismopoprawiator ustawia własny limit czasu przez with_options klienta OpenAI.
+        client.with_options = lambda **kwargs: client
 
         def list_models(client):
             if isinstance(models, Exception):
@@ -296,6 +300,10 @@ def ui(monkeypatch, tmp_path):
         st.cache_resource.clear()
         app_test = AppTest.from_file(str(WYSWIETLATOR_DIR / "app.py"), default_timeout=30)
         app_test.session_state["cfg_server_storage_consent"] = storage_consent
+        # Korekta językowa jest domyślnie włączona; testy innych etapów ją wyłączają, żeby
+        # sprawdzać dokładną listę wywołań. None zostawia ustawienie aplikacji.
+        if korekta is not None:
+            app_test.session_state["cfg_korekta"] = korekta
         return app_test, completions
 
     monkeypatch.setenv("PISMAK_PROJECT_ROOT", str(tmp_path))
@@ -867,3 +875,151 @@ class TestPipeline:
         captions = [c.value for c in app_test.caption]
         assert any("Trafność fragmentów nie została oceniona" in c for c in captions)
         assert "Cele > Bezpieczeństwo" in captions
+
+
+def correction_fix(oryginal: str, poprawka: str, kategoria: str = "ortografia") -> dict:
+    return {
+        "akapit": "A5",
+        "oryginal": oryginal,
+        "poprawka": poprawka,
+        "kategoria": kategoria,
+        "uzasadnienie": "błąd językowy",
+    }
+
+
+TYPO_DRAFT = {
+    **VALID_DRAFT,
+    "argumentation_markdown": VALID_DRAFT["argumentation_markdown"].replace(
+        "przechodzą", "przechodza"
+    ),
+}
+
+
+class TestPismopoprawiator:
+    def test_app__correction_is_on_by_default_and_both_versions_are_kept(
+        self, ui, tmp_path, monkeypatch
+    ) -> None:
+        """Verify a new case corrects the letter and keeps the uncorrected version available."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        answer = {
+            "poprawki": [
+                correction_fix("codziennie przechodza", "codziennie przechodzą"),
+                correction_fix("ruchliwą ulicę", "ruchliwą ulicę.", "styl"),
+            ]
+        }
+        app_test, completions = ui({DRAFT: [TYPO_DRAFT], CORRECTION: [answer]}, korekta=None)
+        with_brief(app_test).run()
+
+        assert app_test.toggle(key="cfg_korekta").value is True
+        click(app_test, GENERATE_LABEL)
+
+        assert not app_test.exception
+        assert completions.calls == [DRAFT, CORRECTION]
+        letter = app_test.session_state["letter_markdown"]
+        original = app_test.session_state["letter_original"]
+        assert "codziennie przechodzą" in letter
+        assert "codziennie przechodza" in original
+        assert app_test.session_state["correction"].status == "corrected"
+        assert [b.label for b in app_test.get("download_button")] == [
+            "Pobierz pismo.md (po korekcie)",
+            "Pobierz pismo_bez_korekty.md",
+        ]
+        assert [t.label for t in app_test.tabs] == ["Wersja poprawiona", "Bez korekty", "Różnice"]
+        assert any("Korekta językowa: wprowadzono poprawki" in c.value for c in app_test.caption)
+        [run_dir] = run_dirs(tmp_path)
+        assert (run_dir / "letter.md").read_text(encoding="utf-8") == letter
+        assert (run_dir / "letter_bez_korekty.md").read_text(encoding="utf-8") == original
+        saved = json.loads((run_dir / "korekta.json").read_text(encoding="utf-8"))
+        assert saved["status"] == "corrected"
+        assert saved["applied"][0]["poprawka"] == "codziennie przechodzą"
+        assert saved["suggestions"][0]["kategoria"] == "styl"
+        assert "original_text" not in saved
+        models = json.loads((run_dir / "models.json").read_text(encoding="utf-8"))
+        assert models["Pismopoprawiator"] == [
+            {"provider": "ollama", "model": "fake/CorrectionResponse"}
+        ]
+
+    def test_app__diff_view_lists_applied_and_rejected_corrections(self, ui, monkeypatch) -> None:
+        """Verify the user sees what changed, what was refused and why."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        answer = {
+            "poprawki": [
+                correction_fix("codziennie przechodza", "codziennie przechodzą"),
+                correction_fix("miejscu [1]", "miejscu [2]"),
+            ]
+        }
+        app_test, _ = ui({DRAFT: [TYPO_DRAFT], CORRECTION: [answer]}, korekta=True)
+        with_brief(app_test).run()
+
+        click(app_test, GENERATE_LABEL)
+
+        [diff] = [c.value for c in app_test.code if c.language == "diff"]
+        assert "-Dzieci codziennie przechodza" in diff
+        assert "+Dzieci codziennie przechodzą" in diff
+        [applied, rejected] = [frame.value for frame in app_test.dataframe]
+        assert list(applied["Jest"]) == ["codziennie przechodzą"]
+        assert list(rejected["Powód odrzucenia"]) == [
+            "zmienia liczby i daty: usuwa „1”; dodaje „2”"
+        ]
+        assert "Odrzucone poprawki (1)" in [e.label for e in app_test.expander]
+
+    def test_app__failed_correction_keeps_the_letter_without_an_error(
+        self, ui, tmp_path, monkeypatch
+    ) -> None:
+        """Verify a broken correction answer never stops the pipeline or hides the letter."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, completions = ui(
+            {DRAFT: [VALID_DRAFT], CORRECTION: ["nie JSON", "nadal nie JSON"]}, korekta=True
+        )
+        with_brief(app_test).run()
+
+        click(app_test, GENERATE_LABEL)
+
+        assert not app_test.exception
+        assert not app_test.error
+        assert completions.calls == [DRAFT, CORRECTION, CORRECTION]
+        correction = app_test.session_state["correction"]
+        assert correction.status == "failed"
+        assert app_test.session_state["stage"] == "DONE"
+        assert app_test.session_state["letter_markdown"] == correction.original_text
+        assert any("nie powiodła się, pismo bez korekty" in c.value for c in app_test.caption)
+        assert [b.label for b in app_test.get("download_button")] == ["Pobierz pismo.md"]
+        models = json.loads((run_dirs(tmp_path)[0] / "models.json").read_text(encoding="utf-8"))
+        assert "Pismopoprawiator" not in models
+
+    def test_app__switched_off_correction_calls_no_model_and_offers_one_file(
+        self, ui, tmp_path, monkeypatch
+    ) -> None:
+        """Verify turning the correction off restores the two-stage pipeline exactly."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, completions = ui({DRAFT: [VALID_DRAFT]}, korekta=True)
+        with_brief(app_test).run()
+
+        app_test.toggle(key="cfg_korekta").set_value(False).run()
+        click(app_test, GENERATE_LABEL)
+
+        assert completions.calls == [DRAFT]
+        assert app_test.session_state["correction"] is None
+        assert [b.label for b in app_test.get("download_button")] == ["Pobierz pismo.md"]
+        assert not (run_dirs(tmp_path)[0] / "korekta.json").exists()
+        assert app_test.toggle(key="cfg_korekta").disabled
+
+    def test_app__openrouter_correction_needs_consent_before_the_pipeline(
+        self, ui, monkeypatch
+    ) -> None:
+        """Verify the letter is not sent out for correction without the external consent."""
+        pipeline = FakePipeline(make_evidence_pack())
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, completions = ui({DRAFT: [VALID_DRAFT]}, korekta=True)
+        with_brief(app_test).run()
+
+        app_test.selectbox(key="cfg_poprawiator_provider").set_value("openrouter").run()
+        click(app_test, GENERATE_LABEL)
+
+        assert "Potwierdź zgodę na przetwarzanie zewnętrzne" in shown_text(app_test)
+        assert completions.calls == []
+        assert pipeline.briefs == []
