@@ -1,0 +1,64 @@
+{
+  "id": "no_supporting_sources",
+  "description": "Sprawa spoza korpusu: reranker nie znalazł wsparcia (unsupported, pusty pakiet) i użytkownik nie ma materiałów. Sprawdza, czy pismo nie ma źródeł ani przypisów i nie wymyśla dokumentów.",
+  "input": {
+    "case_brief": {
+      "title": "Dłuższe godziny otwarcia filii biblioteki",
+      "problem_description": "Filia Miejskiej Biblioteki Publicznej przy ulicy Krzyckiej we Wrocławiu jest zamykana o 16:00, więc osoby pracujące nie mogą z niej korzystać.",
+      "location": "ul. Krzycka, Wrocław",
+      "time_context": null,
+      "desired_outcome": "Możliwość korzystania z filii biblioteki po pracy.",
+      "requested_actions": [
+        "Wydłużenie godzin otwarcia filii przynajmniej w dwa dni robocze."
+      ],
+      "institution": "Miejska Biblioteka Publiczna we Wrocławiu",
+      "addressee": "Dyrekcja Miejskiej Biblioteki Publicznej we Wrocławiu",
+      "affected_groups": [
+        "osoby pracujące"
+      ],
+      "public_interest_arguments": [],
+      "claims": [],
+      "available_evidence": [],
+      "previous_actions": [],
+      "likely_counterarguments": [],
+      "missing_information": [],
+      "facts_to_verify": [],
+      "preferred_tone": "neutralny",
+      "user_notes": []
+    },
+    "evidence_pack": {
+      "query_summary": "Godziny otwarcia filii biblioteki",
+      "research_plan": {
+        "case_summary": "Godziny otwarcia filii biblioteki",
+        "intents": []
+      },
+      "evidence": [],
+      "evidence_status": "unsupported",
+      "unsupported_topics": [
+        "Źródła wspierające wydłużenie godzin otwarcia biblioteki"
+      ],
+      "search_notes": [
+        "Źródła w EvidencePack: 0",
+        "Ocena wsparcia źródeł: unsupported"
+      ]
+    }
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "must_mention": [
+      "Krzyck",
+      "16"
+    ],
+    "expect_no_sources": true,
+    "no_new_numbers": true,
+    "no_legal_basis": true,
+    "quotes_from_inputs": true
+  },
+  "manual_review": [
+    "Twierdzenia bez pokrycia w briefie ani w źródłach mają znacznik [wymaga weryfikacji].",
+    "Ton jest rzeczowy i zgodny z preferred_tone briefu.",
+    "Pismo nie powołuje się na strategie ani programy miasta, których nie ma w danych."
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "id": "superseded_strategy_source",
+  "description": "Pakiet zawiera fragment nieobowiązującej Strategii Wrocław 2030 i obowiązującej Strategii 2050. Sprawdza podstawowe kontrakty; to, czy dokument historyczny nie jest przedstawiony jako obowiązujący, ocenia człowiek.",
+  "input": {
+    "case_brief": {
+      "title": "Priorytet dla tramwajów na skrzyżowaniach ulicy Legnickiej",
+      "problem_description": "Tramwaje na ulicy Legnickiej we Wrocławiu długo czekają na skrzyżowaniach na zielone światło.",
+      "location": "ul. Legnicka, Wrocław",
+      "time_context": null,
+      "desired_outcome": "Krótszy czas przejazdu tramwajów ulicą Legnicką.",
+      "requested_actions": [
+        "Wprowadzenie priorytetu dla tramwajów w sygnalizacji świetlnej na skrzyżowaniach ulicy Legnickiej."
+      ],
+      "institution": "Zarząd Dróg i Utrzymania Miasta we Wrocławiu",
+      "addressee": "Zarząd Dróg i Utrzymania Miasta we Wrocławiu",
+      "affected_groups": [],
+      "public_interest_arguments": [],
+      "claims": [
+        {
+          "statement": "Tramwaje długo czekają na zielone światło.",
+          "status": "user_statement",
+          "evidence_description": null
+        }
+      ],
+      "available_evidence": [],
+      "previous_actions": [],
+      "likely_counterarguments": [],
+      "missing_information": [],
+      "facts_to_verify": [],
+      "preferred_tone": "ekspercki",
+      "user_notes": []
+    },
+    "evidence_pack": {
+      "query_summary": "Priorytet dla tramwajów",
+      "research_plan": {
+        "case_summary": "Priorytet dla tramwajów",
+        "intents": []
+      },
+      "evidence": [
+        {
+          "evidence_id": "E1",
+          "chunk_id": "wroclaw-strategy-2050-2025:00246:da1f8ddfbe9b",
+          "document_id": "wroclaw-strategy-2050-2025",
+          "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+          "document_kind": "strategy",
+          "hierarchy_rank": 100,
+          "legal_form": "resolution",
+          "adoption_act_number": "XXIV/463/25",
+          "adoption_date": "2025-10-20",
+          "is_active": true,
+          "lifecycle_status": "current",
+          "page_start": 112,
+          "page_end": 112,
+          "section_path": [
+            "4. Za kluczowy element kształtujący mobilność miejską przyjmuje się rozwój sieci"
+          ],
+          "excerpt": "tranzytowym uzupełnionym o powiązania międzydzielnicowe.\n\n3. W układzie transportu zbiorowego wskazano obszar z priorytetem ruchu\n\ntramwajowego uzupełniony powiązaniami autobusowymi o charakterze promienisto-obwodowym.\n\n4. Za kluczowy element kształtujący mobilność miejską przyjmuje się rozwój sieci\n\ntransportu zbiorowego, zarówno kolejowego, jak i miejskiego, oraz głównej sieci korytarzy rowerowych, w tym tych stanowiących spójny element błękitno-zielonej infrastruktury. Połączenia te odseparowane od ruchu samochodowego staną się konkurencyjne czasowo i jakościowo, będą więc stanowić atrakcyjną opcję łączenia dojazdów z dbaniem o zdrowie.",
+          "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+          "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 77,
+          "relevance_reason": "Obszar z priorytetem ruchu tramwajowego w układzie transportu zbiorowego.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        },
+        {
+          "evidence_id": "E2",
+          "chunk_id": "wroclaw-strategy-2030:00053:f2a6139cb600",
+          "document_id": "wroclaw-strategy-2030",
+          "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2030”",
+          "document_kind": "strategy",
+          "hierarchy_rank": 100,
+          "legal_form": "resolution",
+          "adoption_act_number": "LI/1193/18",
+          "adoption_date": "2018-02-15",
+          "is_active": false,
+          "lifecycle_status": "superseded",
+          "page_start": 27,
+          "page_end": 27,
+          "section_path": [
+            "MISJA",
+            "Zrównoważony rozwój oparty na wysokiej jakości życia"
+          ],
+          "excerpt": "Naszą wizję zainspirowali sami wrocławianie. W badaniu, które przeprowadziliśmy latem 2016 r., zapytaliśmy m.in. o to, jakie powinny być priorytety władz miasta w najbliższych 10 latach. Oto cztery pierwsze wyniki: • Polityka proekologiczna, w tym lepsza ochrona powietrza i zwiększenie powierzchni terenów zieleni – 45,2 proc. • Rewitalizacja zdegradowanych obszarów miasta – 44,9 proc. • Rozwijanie transportu publicznego – 43,6 proc. • Wspieranie lokalnej przedsiębiorczości – 32,4 proc. Nasza wizja jest zgodna z Kartą Lipską. Unijnym dokumentem, przyjętym w 2007 r. Postuluje on zrównoważony rozwój miast. Podkreśla, że dobrobyt gospodarczy, równowaga społeczna i zdrowe środowisko są równie ważne. Mówi, że nie ma „postępu społecznego i wzrostu gospodarczego” bez „równowagi społecznej w miastach i pomiędzy nimi” oraz gwarancji „różnorodności kulturowej i wysokiej jakości standardów w zakresie projektowania, architektury i środowiska”. Jakie są trzy główne składniki wizji?\n\nZrównoważony rozwój oparty na wysokiej jakości życia\n\nobecnych i przyszłych mieszkańców oraz kreatywności, innowacyjności i przedsiębiorczości",
+          "source_url": "https://www.wroclaw.pl/beta2/files/news/61260/Strategia_2030-2.pdf",
+          "source_filename": "00_Strategia_2030.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 41,
+          "relevance_reason": "Priorytety mieszkańców z badań do poprzedniej strategii.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        }
+      ],
+      "evidence_status": "supported",
+      "unsupported_topics": [],
+      "search_notes": [
+        "Źródła w EvidencePack: 2",
+        "Ocena wsparcia źródeł: supported"
+      ]
+    }
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "must_mention": [
+      "Legnick",
+      "tramwaj"
+    ],
+    "recipient_must_mention": "Zarząd Dróg",
+    "no_new_numbers": true,
+    "no_legal_basis": true,
+    "quotes_from_inputs": true
+  },
+  "manual_review": [
+    "Twierdzenia bez pokrycia w briefie ani w źródłach mają znacznik [wymaga weryfikacji].",
+    "Ton jest rzeczowy i zgodny z preferred_tone briefu.",
+    "Strategia „Wrocław 2030” (nieobowiązująca) nie jest przedstawiona jako aktualnie obowiązujący dokument miasta."
+  ]
+}

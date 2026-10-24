@@ -1,0 +1,35 @@
+{
+  "id": "tram_program_not_covered_metro",
+  "description": "[poza korpusem, wroclaw-tram-program-2-0] Budowa metra: korpus wspomina metro wyłącznie w przypisach do przepisów technicznych standardów dostępności; żaden dokument nie planuje metra.",
+  "input": {
+    "title": "Budowa metra we Wrocławiu",
+    "problem_description": "Tramwaje i autobusy stoją w korkach, a Wrocław nie ma metra.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Pierwsza linia metra we Wrocławiu.",
+    "requested_actions": [
+      "Rozpoczęcie przygotowań do budowy pierwszej linii metra we Wrocławiu."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

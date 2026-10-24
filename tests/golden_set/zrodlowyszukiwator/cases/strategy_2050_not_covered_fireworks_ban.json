@@ -1,0 +1,35 @@
+{
+  "id": "strategy_2050_not_covered_fireworks_ban",
+  "description": "[poza korpusem, wroclaw-strategy-2050-2025] Zakaz fajerwerków: korpus nie zawiera żadnej wzmianki o fajerwerkach, petardach ani pirotechnice (sprawdzone wyszukiwaniem w bazie).",
+  "input": {
+    "title": "Zakaz używania fajerwerków w Sylwestra",
+    "problem_description": "Fajerwerki w Sylwestra straszą zwierzęta i są uciążliwe dla mieszkańców.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Sylwester bez fajerwerków w mieście.",
+    "requested_actions": [
+      "Wprowadzenie zakazu odpalania fajerwerków na terenie miasta."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

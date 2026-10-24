@@ -11,7 +11,7 @@ import pytest
 from openai import APITimeoutError
 
 from src._shared.llm_runtime import LLMBusyError
-from src._shared.serwer import LLMResponseError
+from src._shared.serwer import LLMConfigurationError, LLMResponseError
 from src.Pismogenerator.pismogenerator_helper_functions import render_letter
 from src.Pismogenerator.structures import DraftLetter
 from src.Pismopoprawiator import pismopoprawiator
@@ -86,6 +86,35 @@ def pismak_log(caplog):
     logger.removeHandler(caplog.handler)
 
 
+class ScriptedCompletions:
+    """Answer every request with the next scripted message content."""
+
+    def __init__(self, *contents: str) -> None:
+        self.contents = list(contents)
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        content = self.contents.pop(0)
+        return SimpleNamespace(
+            model="fake/poprawiator",
+            usage=None,
+            choices=[
+                SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content=content))
+            ],
+        )
+
+
+class FakeOpenAI:
+    def __init__(self, completions: ScriptedCompletions) -> None:
+        self.chat = SimpleNamespace(completions=completions)
+        self.options: dict = {}
+
+    def with_options(self, **kwargs):
+        self.options = kwargs
+        return self
+
+
 class TestCorrectLetter:
     def test_correct_letter__applies_valid_fixes_and_keeps_the_sources_and_control_section(
         self,
@@ -112,9 +141,10 @@ class TestCorrectLetter:
         assert result.corrected_text == letter.replace("ktore", "które").replace(
             "trwa  ponad", "trwa ponad"
         )
-        assert [c.oryginal for c in result.applied] == ["korki, ktore", "trwa  ponad"]
+        # Poprawki są przycięte do zmienionych wyrazów.
+        assert [c.oryginal for c in result.applied] == ["ktore", "trwa  ponad"]
         assert [(r.correction.oryginal, r.reason) for r in result.rejected] == [
-            ("20 minut", "zmienia liczby i daty: usuwa „20”; dodaje „25”")
+            ("20", "zmienia liczby i daty: usuwa „20”; dodaje „25”")
         ]
         assert [s.poprawka for s in result.suggestions] == ["zatory"]
         assert helpers.split_letter(result.corrected_text)[1] == helpers.split_letter(letter)[1]
@@ -275,8 +305,8 @@ class TestCorrectLetter:
         applied = next(line for line in info if line.startswith("correction_applied"))
         rejected = next(line for line in info if line.startswith("correction_rejected"))
         finished = next(line for line in info if line.startswith("correction_finished"))
-        assert 'akapit=A5 kategoria=ortografia oryginal="korki, ktore"' in applied
-        assert 'poprawka="korki, które" uzasadnienie="błąd"' in applied
+        assert 'akapit=A5 kategoria=ortografia oryginal="ktore"' in applied
+        assert 'poprawka="które" uzasadnienie="błąd"' in applied
         assert 'powod="zmienia liczby i daty: usuwa „20”; dodaje „25”"' in rejected
         assert "status=corrected mode=whole calls=1 applied=1 rejected=1" in finished
         assert not any(json.dumps(letter, ensure_ascii=False) in line for line in info)
@@ -302,35 +332,6 @@ class TestCorrectionModel:
             ("A2", "literówka"),
             ("A7", "szyk"),
         ]
-
-
-class ScriptedCompletions:
-    """Answer every request with the next scripted message content."""
-
-    def __init__(self, *contents: str) -> None:
-        self.contents = list(contents)
-        self.calls: list[dict] = []
-
-    def create(self, **kwargs):
-        self.calls.append(kwargs)
-        content = self.contents.pop(0)
-        return SimpleNamespace(
-            model="fake/poprawiator",
-            usage=None,
-            choices=[
-                SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content=content))
-            ],
-        )
-
-
-class FakeOpenAI:
-    def __init__(self, completions: ScriptedCompletions) -> None:
-        self.chat = SimpleNamespace(completions=completions)
-        self.options: dict = {}
-
-    def with_options(self, **kwargs):
-        self.options = kwargs
-        return self
 
 
 class TestMakeLlm:
@@ -401,3 +402,62 @@ class TestPlanCalls:
 
         assert editable == ["A3", "A5", "A6"]
         assert [p.id for p in in_call] == ["A2", "A3", "A4", "A5", "A6"]
+
+
+class TestChooseMode:
+    @staticmethod
+    def paragraphs(letter: str):
+        return helpers.split_paragraphs(helpers.split_letter(letter)[0])[1]
+
+    def test_choose_mode__short_letter_that_fits_the_window_goes_whole(self, monkeypatch) -> None:
+        """Verify an ordinary letter is corrected in one call, with the whole text as context."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        assert pismopoprawiator.choose_mode(self.paragraphs(make_letter()), "ollama", 8192) == (
+            "whole"
+        )
+
+    def test_choose_mode__letter_over_the_character_limit_goes_by_paragraphs(
+        self, monkeypatch
+    ) -> None:
+        """Verify a long letter is split even when a large model window could hold it."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+        long = "\n\n".join(["Zdanie bez błędów, które ma sens i jest dość długie."] * 300)
+
+        mode = pismopoprawiator.choose_mode(self.paragraphs(make_letter(long)), "ollama", 131072)
+
+        assert mode == "paragraphs"
+
+    def test_choose_mode__letter_beyond_a_small_window_goes_by_paragraphs(
+        self, monkeypatch
+    ) -> None:
+        """Verify a short letter is split when the model window cannot hold the whole prompt."""
+        monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
+
+        assert pismopoprawiator.choose_mode(self.paragraphs(make_letter()), "ollama", 3000) == (
+            "paragraphs"
+        )
+
+
+class TestFailedResult:
+    def test_failed_result__setup_error_returns_the_letter_unchanged_and_logs_it(
+        self, pismak_log
+    ) -> None:
+        """Verify a stage that could not build its client hands back the uncorrected letter."""
+        letter = make_letter()
+
+        result = pismopoprawiator.failed_result(
+            letter,
+            LLMConfigurationError("Brak OPENROUTER_KEY w .env"),
+            provider="openrouter",
+            model="openrouter/free",
+            session_id="case-1",
+        )
+
+        assert result.status == "failed"
+        assert result.original_text == result.corrected_text == letter
+        assert result.errors == ["LLMConfigurationError"]
+        assert result.applied == []
+        finished = [r.getMessage() for r in pismak_log.records if "correction_finished" in r.msg]
+        assert finished and "session_id=case-1 status=failed" in finished[0]
+        assert "OPENROUTER_KEY" not in pismak_log.text

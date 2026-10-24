@@ -1,0 +1,37 @@
+{
+  "id": "action_plan_direct_bike_rack_request",
+  "description": "[bezpośrednio, wroclaw-bicycle-action-plan-2030] Stojak przy przychodni: plan opisuje akcję „Wnioskuj o stojak” i cel 20 000 miejsc postojowych z parkowaniem przy instytucjach.",
+  "input": {
+    "title": "Stojaki rowerowe przy przychodni",
+    "problem_description": "Przy przychodni na osiedlu nie ma stojaków, więc pacjenci przypinają rowery do latarni.",
+    "location": "Wrocław, osiedle Gaj",
+    "time_context": null,
+    "desired_outcome": "Miejsce do bezpiecznego przypięcia roweru przy przychodni.",
+    "requested_actions": [
+      "Montaż stojaków rowerowych przy wejściu do przychodni."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-bicycle-action-plan-2030"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

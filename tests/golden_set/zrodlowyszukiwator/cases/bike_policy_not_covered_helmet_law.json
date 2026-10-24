@@ -1,0 +1,35 @@
+{
+  "id": "bike_policy_not_covered_helmet_law",
+  "description": "[poza korpusem, wroclaw-bicycle-policy-2010] Obowiązek jazdy w kasku: żaden dokument korpusu nie mówi o kaskach (sprawdzone wyszukiwaniem w bazie); fragmenty o bezpieczeństwie rowerzystów są tylko tematycznie podobne.",
+  "input": {
+    "title": "Obowiązek jazdy w kasku dla dzieci",
+    "problem_description": "Dzieci jeżdżą na rowerach po mieście bez kasków.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Wprowadzenie obowiązku jazdy w kasku dla dzieci do 16 lat.",
+    "requested_actions": [
+      "Wprowadzenie miejskiego obowiązku jazdy w kasku dla dzieci do 16 lat."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

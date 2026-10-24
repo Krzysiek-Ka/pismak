@@ -1,0 +1,71 @@
+{
+  "id": "mob-04",
+  "description": "Rozdział II.2 „Cele podstawowe” (PDF s. 4). Pełna odpowiedź wymaga trzech faktów z jednego akapitu: celu na 2020 r., celu dalszego i definicji transportu niesamochodowego. Strategia Wrocław 2050 podaje inne liczby (70% w 2050 r.), więc pytanie sprawdza też rozróżnianie dokumentów.",
+  "input": "Jaki udział transportu niesamochodowego w podróżach po mieście zakłada polityka mobilności?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "quote": "W dalszej perspektywie udział transportu niesamochodowego rozumianego jako transport zbiorowy, rowerowy i ruch pieszy powinien wynosić nie mniej niż 65%."
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "quote": "Udział transportu niesamochodowego do roku 2020 powinien wynosić nie mniej niż 60%, przy czym najistotniejszym celem na najbliższe lata jest przełamanie obecnej niekorzystnej wzrostowej tendencji udziału ruchu samochodowego w podróżach miejskich."
+      }
+    ],
+    "evidence": [
+      {
+        "label": "cel-2020-60%",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "do roku 2020",
+          "nie mniej niż 60%"
+        ]
+      },
+      {
+        "label": "cel-dalszy-65%",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "transport zbiorowy, rowerowy i ruch pieszy",
+          "nie mniej niż 65%"
+        ]
+      },
+      {
+        "label": "przełamanie-tendencji",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "przełamanie obecnej niekorzystnej wzrostowej tendencji udziału ruchu samochodowego"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "daty",
+      "wiele-dowodów",
+      "dystraktor",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Co najmniej 60% do 2020 r., a w dalszej perspektywie co najmniej 65%. Transport niesamochodowy to tu transport zbiorowy, rowerowy i ruch pieszy. Najpilniejszym celem było odwrócenie wzrostu udziału ruchu samochodowego."
+  ]
+}

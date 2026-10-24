@@ -1,0 +1,73 @@
+{
+  "id": "kot_wrocek",
+  "description": "Happening z Kotem Wrockiem: Czy Dopytywator zbiera wystarczające informacje i kończy rozmowę przed wykorzystaniem wszystkich 12 odpowiedzi, nie traktuje żartu jako dosłownego postulatu politycznego i nie wymyśla faktów.",
+  "input": "Chciałbym, aby prezydent Wrocławia, Jacek Sutryk, abdykował ze stanowiska i namaścił na swojego następcę Kota Wrocka. Dzięki temu raz na zawsze opanujemy plagę szczurów!",
+  "user_answers": [
+    "Ma to być akcja humorystyczna, happening artystyczny.",
+    "Tak, chciałbym, aby Kot Wrocek został prezydentem miasta.",
+    "Chodzi przede wszystkim o zwrócenie uwagi na problem szczurów we Wrocławiu.",
+    "Nie traktuję tego dosłownie — to satyra i sposób na nagłośnienie problemu.",
+    "Chcielibyśmy zorganizować happening w centrum Wrocławia, w miejscu widocznym dla przechodniów.",
+    "Nie mamy jeszcze ustalonego terminu ani konkretnej lokalizacji.",
+    "Chcemy, żeby mieszkańcy mogli się przyłączyć i robić sobie zdjęcia.",
+    "Ton powinien być ironiczny i zabawny, ale bez obrażania konkretnych osób.",
+    "Główny przekaz jest taki, że problem szczurów wymaga skuteczniejszych działań miasta.",
+    "Możemy przygotować transparenty, ulotki i przebranie kota.",
+    "Organizatorami będą prawdopodobnie mieszkańcy działający nieformalnie.",
+    "Chciałbym też wiedzieć, jakie działania miasto faktycznie podejmuje w sprawie szczurów."
+  ],
+  "limits": {
+    "max_questions": 12
+  },
+  "expected": {
+    "key_info": {
+      "Kot Wrocek": [
+        "wrocek",
+        "wrocka"
+      ],
+      "problem szczurów": [
+        "szczur"
+      ],
+      "Wrocław": [
+        "wrocław"
+      ],
+      "satyryczny charakter (happening)": [
+        "happening",
+        "satyr",
+        "humor",
+        "żart",
+        "ironi",
+        "artystyczn",
+        "zabaw",
+        "przebrani",
+        "symboliczn"
+      ]
+    },
+    "humor_markers": [
+      "happening",
+      "satyr",
+      "humor",
+      "żart",
+      "ironi",
+      "artystyczn",
+      "zabaw",
+      "przebrani",
+      "symboliczn"
+    ],
+    "literal_demand_markers": [
+      "abdyk",
+      "ustąpi",
+      "rezygnac",
+      "odwoła",
+      "namaszcz",
+      "dymisj"
+    ],
+    "user_has_no_measurements": false,
+    "expects_early_end": true,
+    "expected_evidence_status": []
+  },
+  "manual_review": [
+    "Pismo traktuje sprawę jako happening lub satyrę, nie jako dosłowne żądanie dymisji prezydenta.",
+    "Pismo nie wymyśla działań miasta w sprawie szczurów."
+  ]
+}

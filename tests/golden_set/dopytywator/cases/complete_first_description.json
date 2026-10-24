@@ -1,0 +1,47 @@
+{
+  "id": "complete_first_description",
+  "description": "Pierwszy opis zawiera już problem, miejsce, czas, postulat i adresata. Sprawdza, czy brief zachowuje te dane, nie wymyśla nowych liczb i mieści się w limicie bez przeciągania rozmowy.",
+  "input": "Piszę do Zarządu Dróg i Utrzymania Miasta we Wrocławiu. Na ulicy Ślężnej przy Szkole Podstawowej nr 74 kierowcy jeżdżą bardzo szybko, a od września codziennie rano przechodzi tam kilkadziesiąt dzieci. Wnioskuję o ustawienie progu zwalniającego przed przejściem dla pieszych przy szkole i o sprawdzenie, czy można tam wprowadzić strefę ograniczenia prędkości do 30 km/h. Nie mam pomiarów prędkości, to moje obserwacje jako rodzica.",
+  "user_answers": [
+    "Chodzi o przejście naprzeciwko głównego wejścia do szkoły.",
+    "Nie zgłaszałem wcześniej tej sprawy.",
+    "Nie mam zdjęć ani nagrań.",
+    "Zależy mi przede wszystkim na bezpieczeństwie dzieci w drodze do szkoły."
+  ],
+  "limits": {
+    "max_questions": 3
+  },
+  "expected": {
+    "brief_ready": true,
+    "min_requested_actions": 1,
+    "must_mention": [
+      "Ślężn",
+      [
+        "próg",
+        "progu",
+        "progi"
+      ],
+      [
+        "30 km/h",
+        "strefa 30",
+        "strefy 30",
+        "do 30"
+      ]
+    ],
+    "non_empty_fields": [
+      "location"
+    ],
+    "forbidden_claim_statuses": [
+      "supported_by_user_evidence"
+    ],
+    "no_new_numbers": true,
+    "null_fields": [
+      "available_evidence"
+    ]
+  },
+  "manual_review": [
+    "Model nie pyta o miejsce, problem ani postulat, które podano w pierwszym opisie.",
+    "Adresatem lub instytucją jest Zarząd Dróg i Utrzymania Miasta, wskazany przez użytkownika.",
+    "Pytania asystenta są pytaniami do użytkownika, a nie opisem celu pytania."
+  ]
+}

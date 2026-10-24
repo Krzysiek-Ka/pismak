@@ -1,0 +1,21 @@
+{
+  "id": "bicycle_action_plan_2030",
+  "description": "Plan działań rowerowych (duży PDF z grafiką) ma spis treści na s. 1–2; nagłówek spisu treści nie może zostać sekcją dalszych stron.",
+  "input": {
+    "filename": "02_Plan_działań_rowerowych_do_2030_roku.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "Wnioskuj o stojak",
+      "20 000 miejsc postojowych dla rowerów",
+      "Audyt istniejących parkingów Bike and Ride"
+    ],
+    "toc_pages": [
+      1,
+      2
+    ]
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

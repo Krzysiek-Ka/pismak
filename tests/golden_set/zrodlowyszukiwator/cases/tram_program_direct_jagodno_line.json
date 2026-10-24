@@ -1,0 +1,37 @@
+{
+  "id": "tram_program_direct_jagodno_line",
+  "description": "[bezpośrednio, wroclaw-tram-program-2-0] Tramwaj na Jagodno: raport opisuje trasę wzdłuż ul. Buforowej i rekomendowane działania do 2030 r.",
+  "input": {
+    "title": "Tramwaj na Jagodno",
+    "problem_description": "Osiedle Jagodno szybko rośnie, a dojazd do centrum zapewniają tylko zatłoczone autobusy.",
+    "location": "Wrocław, Jagodno, ul. Buforowa",
+    "time_context": null,
+    "desired_outcome": "Szybki dojazd z Jagodna do centrum transportem szynowym.",
+    "requested_actions": [
+      "Budowa trasy tramwajowej na osiedle Jagodno wzdłuż ulicy Buforowej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-tram-program-2-0"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

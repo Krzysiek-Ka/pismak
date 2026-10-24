@@ -1,0 +1,37 @@
+{
+  "id": "strategy_2030_direct_air_quality_superseded",
+  "description": "[bezpośrednio, wroclaw-strategy-2030] Dane o PM2,5 z 2016 r. są tylko w nieobowiązującej Strategii 2030. Domyślny filtr wyszukiwania musi ją pominąć, więc nie może trafić do pakietu (inne dokumenty mogą).",
+  "input": {
+    "title": "Walka ze smogiem we Wrocławiu",
+    "problem_description": "Stężenie pyłu PM2,5 we Wrocławiu przekracza normę, szczególnie zimą.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Czystsze powietrze w mieście.",
+    "requested_actions": [
+      "Przyspieszenie wymiany pieców węglowych na ekologiczne źródła ciepła."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "forbidden_source_ids": [
+      "wroclaw-strategy-2030"
+    ]
+  },
+  "manual_review": [
+    "Jeśli pakiet zawiera inne dokumenty, popierają one postulat, a nie tylko temat smogu."
+  ]
+}

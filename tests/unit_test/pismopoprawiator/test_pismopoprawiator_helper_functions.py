@@ -18,6 +18,7 @@ ARGUMENTATION = (
     "Według obserwacji wnioskodawcy przejazd trwa  ponad 20 minut [wymaga weryfikacji] [1]."
 )
 
+
 TEXT = (
     "Mieszkańcy ul. Kazimierza Wielkiego od 12 maja 2026 r. zgłaszają korki, ktore "
     "spowalniają autobusy linii 145. Według obserwacji wnioskodawcy przejazd trwa  ponad "
@@ -291,9 +292,11 @@ class TestReviewCorrections:
             paragraphs, [style, fix], {"A1"}
         )
 
-        assert [item.correction for item in accepted] == [fix]
+        assert [(c.correction.oryginal, c.correction.poprawka) for c in accepted] == [
+            ("ktore", "które")
+        ]
         assert rejected == []
-        assert suggestions == [style]
+        assert [s.poprawka for s in suggestions] == ["zatory, które"]
 
 
 class TestApplyCorrections:
@@ -379,3 +382,94 @@ class TestContentViolations:
         violations = helpers.content_violations(letter, corrected)
 
         assert any(expected in violation for violation in violations), violations
+
+
+class TestNarrowCorrection:
+    @pytest.mark.parametrize(
+        ("oryginal", "poprawka", "expected"),
+        [
+            pytest.param(TEXT, TEXT.replace("ktore", "które"), ("ktore", "które"), id="paragraph"),
+            pytest.param(
+                "zgłaszają korki, ktore spowalniają",
+                "zgłaszają korki, które spowalniają",
+                ("ktore", "które"),
+                id="sentence",
+            ),
+            pytest.param(
+                "przejazd trwa  ponad 20",
+                "przejazd trwa ponad 20",
+                ("trwa  ponad", "trwa ponad"),
+                id="space",
+            ),
+            pytest.param(
+                "Wogóle nie ma tam pomiarów.",
+                "W ogóle nie ma tam pomiarów.",
+                ("Wogóle", "W ogóle"),
+                id="word_split",
+            ),
+        ],
+    )
+    def test_narrow_correction__keeps_only_the_changed_words(
+        self, oryginal: str, poprawka: str, expected: tuple[str, str]
+    ) -> None:
+        """Verify a model that copies a whole sentence or paragraph is cut to the real change."""
+        narrowed = helpers.narrow_correction(correction(oryginal, poprawka), TEXT)
+
+        assert (narrowed.oryginal, narrowed.poprawka) == expected
+
+    def test_narrow_correction__adds_context_until_the_fragment_is_unique(self) -> None:
+        """Verify a changed word that occurs twice keeps a neighbour that tells them apart."""
+        text = "Prosimy o plan ktory dziala i o plan ktory pomoze."
+
+        narrowed = helpers.narrow_correction(
+            correction("i o plan ktory pomoze.", "i o plan, który pomoze."), text
+        )
+
+        # Przecinek wstawiony tuż po „plan” sprawia, że ten wyraz należy do zmiany.
+        assert (narrowed.oryginal, narrowed.poprawka) == (
+            "o plan ktory pomoze.",
+            "o plan, który pomoze.",
+        )
+        assert text.count(narrowed.oryginal) == 1
+
+    def test_narrow_correction__does_not_cut_a_protected_element(self) -> None:
+        """Verify a change next to a footnote keeps the whole footnote in the fragment."""
+        text = "Strategia wskazuje priorytet [1] . Dalej."
+
+        narrowed = helpers.narrow_correction(
+            correction("wskazuje priorytet [1] . Dalej.", "wskazuje priorytet [1]. Dalej."), text
+        )
+
+        assert narrowed.oryginal == "[1] ."
+        assert narrowed.poprawka == "[1]."
+
+    @pytest.mark.parametrize(
+        ("oryginal", "poprawka"),
+        [
+            pytest.param("tramwaje", "tramwaj", id="not_found"),
+            pytest.param("ul", "ulica", id="ambiguous"),
+            pytest.param("korki", "korki", id="unchanged"),
+        ],
+    )
+    def test_narrow_correction__leaves_a_correction_it_cannot_place(
+        self, oryginal: str, poprawka: str
+    ) -> None:
+        """Verify the guards still see, and reject, what the model actually proposed."""
+        item = correction(oryginal, poprawka)
+
+        assert helpers.narrow_correction(item, TEXT) == item
+
+    def test_review_corrections__accepts_a_fix_the_model_sent_as_a_long_paragraph(self) -> None:
+        """Verify the 200-character limit applies to the change, not to the copied context."""
+        fixed = TEXT.replace("ktore", "które")
+        assert len(TEXT) > 200
+
+        accepted, rejected, _ = helpers.review_corrections(
+            [paragraph()], [correction(TEXT, fixed)], {"A5"}
+        )
+
+        assert rejected == []
+        [item] = accepted
+        assert (item.correction.oryginal, item.correction.poprawka) == ("ktore", "które")
+        result, _, _ = helpers.apply_corrections([paragraph()], accepted)
+        assert result[0].text == fixed

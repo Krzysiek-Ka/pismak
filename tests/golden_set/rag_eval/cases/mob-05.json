@@ -1,0 +1,58 @@
+{
+  "id": "mob-05",
+  "description": "Tabela czynników i mierników w rozdziale V (PDF s. 16). Wartości stoją w komórkach tabeli („Vśrkt > 20 km/h”, „Vśrka > 25 km/h”), więc pytanie sprawdza ekstrakcję i chunkowanie tabel. Pytanie mówi „prędkości”, tabela — „prędkość komunikacyjna” i skróty.",
+  "input": "Jakie docelowe średnie prędkości komunikacyjne tramwajów i autobusów przyjęto jako mierniki?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          16
+        ],
+        "quote": "Średnia prędkość komunikacyjna na liniach tramwajowych i autobusowych Raz w roku"
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          16
+        ],
+        "quote": "Średnia prędkość komunikacyjna tramwajów Średnia prędkość komunikacyjna autobusów Vśrkt > 20 km/h Vśrka > 25 km/h"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "tramwaje-20-kmh",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          16
+        ],
+        "all_of": [
+          "Vśrkt > 20 km/h"
+        ]
+      },
+      {
+        "label": "autobusy-25-kmh",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          16
+        ],
+        "all_of": [
+          "Vśrka > 25 km/h"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "tabela",
+      "wiele-dowodów",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Tramwaje powyżej 20 km/h, autobusy powyżej 25 km/h. Miernik analizowany raz w roku."
+  ]
+}

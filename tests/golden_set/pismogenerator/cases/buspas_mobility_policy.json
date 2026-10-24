@@ -1,0 +1,144 @@
+{
+  "id": "buspas_mobility_policy",
+  "description": "Buspas z dwoma pasującymi fragmentami polityki mobilności i adresatem w briefie. Sprawdza, czy pismo cytuje tylko podane źródła, ma wszystkie sekcje, nie dodaje liczb, cytatów ani podstawy prawnej i kieruje pismo do adresata z briefu.",
+  "input": {
+    "case_brief": {
+      "title": "Buspas na ulicy Kazimierza Wielkiego we Wrocławiu",
+      "problem_description": "Autobusy na ulicy Kazimierza Wielkiego stoją w korkach, przez co komunikacja miejska jest niepunktualna. Według obserwacji wnioskodawcy więcej osób porusza się tam komunikacją miejską niż samochodami.",
+      "location": "ul. Kazimierza Wielkiego, centrum Wrocławia",
+      "time_context": null,
+      "desired_outcome": "Szybsza i bardziej punktualna komunikacja miejska na ulicy Kazimierza Wielkiego.",
+      "requested_actions": [
+        "Wyznaczenie buspasa na ulicy Kazimierza Wielkiego w obu kierunkach, jeśli będzie to możliwe.",
+        "Udostępnienie analizy wariantów i danych uzasadniających decyzję."
+      ],
+      "institution": "Zarząd Dróg i Utrzymania Miasta we Wrocławiu",
+      "addressee": "Zarząd Dróg i Utrzymania Miasta we Wrocławiu",
+      "affected_groups": [
+        "pasażerowie komunikacji miejskiej"
+      ],
+      "public_interest_arguments": [
+        "punktualność komunikacji miejskiej"
+      ],
+      "claims": [
+        {
+          "statement": "Autobusy stoją w korkach na ulicy Kazimierza Wielkiego.",
+          "status": "user_statement",
+          "evidence_description": null
+        },
+        {
+          "statement": "Więcej osób jedzie tam komunikacją miejską niż samochodami.",
+          "status": "requires_verification",
+          "evidence_description": null
+        }
+      ],
+      "available_evidence": [],
+      "previous_actions": [],
+      "likely_counterarguments": [],
+      "missing_information": [
+        "Pomiary natężenia ruchu"
+      ],
+      "facts_to_verify": [
+        "Udział pasażerów komunikacji miejskiej w ruchu na ulicy"
+      ],
+      "preferred_tone": "neutralny",
+      "user_notes": []
+    },
+    "evidence_pack": {
+      "query_summary": "Buspas na ulicy Kazimierza Wielkiego",
+      "research_plan": {
+        "case_summary": "Buspas na ulicy Kazimierza Wielkiego",
+        "intents": []
+      },
+      "evidence": [
+        {
+          "evidence_id": "E1",
+          "chunk_id": "wroclaw-mobility-policy-2013:00007:f8aac0fcfff8",
+          "document_id": "wroclaw-mobility-policy-2013",
+          "document_title": "Wrocławska polityka mobilności",
+          "document_kind": "policy",
+          "hierarchy_rank": 80,
+          "legal_form": "annex",
+          "adoption_act_number": "XLVIII/1169/13",
+          "adoption_date": "2013-09-19",
+          "is_active": true,
+          "lifecycle_status": "current_reference",
+          "page_start": 7,
+          "page_end": 8,
+          "section_path": [
+            "ŚRODKI REALIZACJI CELÓW PODSTAWOWYCH"
+          ],
+          "excerpt": "3) OBSZAR: transport zbiorowy – jest podstawą zrównoważonego transportu w mieście. Fundamentem transportu zbiorowego we Wrocławiu i w obszarze metropolitalnym jest transport szynowy – tramwaje i kolej.\n\nW obszarze transportu zbiorowego za najistotniejsze środki realizacji celów przyjmuje się: - zapewnienie spójności funkcjonalnej, przestrzennej, informacyjnej i organizacyjnej systemu transportu zbiorowego na poziomie miejskim, aglomeracyjnym, regionalnym, krajowym i międzynarodowym, - wspomaganie rozwoju aglomeracyjnych i regionalnych systemów transportu zbiorowego, - kreowanie priorytetu transportu zbiorowego, - zintegrowanie funkcjonalne i przestrzenne transportu zbiorowego z systemem transportu rowerowego i samochodowego, w szczególności w zakresie stworzenia systemu parkingów Park&Ride (Parkuj i Jedź) i Bike&Ride (Parkuj rower i Jedź), - zapewnienie wygodnych dojść pieszych do węzłów i przystanków transportu zbiorowego oraz dogodnych warunków do wykonywania przesiadek, - zapewnienie obsługi transportem zbiorowym kluczowych dla miasta przestrzeni publicznych, lokalnych centrów oraz dużych generatorów ruchu, - zapewnienie jednolitego systemu opłat za korzystanie z miejskiego i metropolitalnego transportu zbiorowego, - tworzenie atrakcyjnego systemu taryfowego odpowiadającego potrzebom użytkowników, - podnoszenie standardu przewozów pasażerów środkami transportu zbiorowego, - organizowanie transportu zbiorowego bez barier, - rozwijanie nowoczesnych systemów zarządzania transportem zbiorowym, - wydzielanie specjalnych korytarzy komunikacyjnych dla transportu zbiorowego, - racjonalizację systemu transportu zbiorowego w zakresie układu linii, rozkładów jazdy i taboru, - koordynację rozkładów jazdy środków komunikacji zbiorowej, w szczególności dla połączeń o małej częstotliwości, - dbałość o utrzymanie wysokiej jakości infrastruktury transportu zbiorowego, - rozwijanie zaawansowanych, dynamicznych systemów informowania pasażerów, - rozwijanie floty taboru o pojazdy ekologiczne i przyjazne osobom o ograniczonej sprawności, - ochronę interesów pasażera transportu zbiorowego,\n\n- wprowadzenie możliwości indywidualizacji usług transportu zbiorowego, w tym taksówek zbiorowych oraz dostosowywania marszruty mikrobusów do potrzeb bieżąco zgłaszanych przez pasażerów, - wspieranie inicjatyw zmierzających do wykreowania dworca międzynarodowego transportu autokarowego poza centrum miasta – w miejscu zapewniającym sprawne powiązania z systemem dróg międzynarodowych i krajowych oraz dobrą dostępność transportu miejskiego, - prowadzenie studiów i wdrażanie nowych systemów transportu zbiorowego, - wspieranie rozwoju transportu wodnego, w tym wskazywanie lokalizacji marin, przystani i przystanków.\n\n4) OBSZAR: bezpieczeństwo przemieszczania się – bezpieczeństwo, a właściwie jego poprawa uznana jest przez Unię Europejską za priorytetowy cel we wszelkich działaniach związanych z transportem. Prawo do swobodnego poruszania się jest nieodłącznie związane z prawem do bezpieczeństwa użytkowników systemu transportowego. Traktowane jest ono przez ludzi jako jedno z ważniejszych kryteriów oceny jakości życia. Dlatego też jako kierunkowe założenie przyjmuje się wizję „zero śmiertelnych ofiar wypadków we Wrocławiu”.",
+          "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
+          "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 88,
+          "relevance_reason": "Wydzielanie korytarzy i priorytet dla transportu zbiorowego.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        },
+        {
+          "evidence_id": "E2",
+          "chunk_id": "wroclaw-mobility-policy-2013:00004:7a58a0cb59c8",
+          "document_id": "wroclaw-mobility-policy-2013",
+          "document_title": "Wrocławska polityka mobilności",
+          "document_kind": "policy",
+          "hierarchy_rank": 80,
+          "legal_form": "annex",
+          "adoption_act_number": "XLVIII/1169/13",
+          "adoption_date": "2013-09-19",
+          "is_active": true,
+          "lifecycle_status": "current_reference",
+          "page_start": 5,
+          "page_end": 5,
+          "section_path": [
+            "ZASADY REALIZACJI POLITYKI"
+          ],
+          "excerpt": "III.\n\nZASADY REALIZACJI POLITYKI\n\nDziałania na rzecz realizacji celów Wrocławskiej polityki mobilności realizowane będą z poszanowaniem następujących zasad: 1) kształtowanie systemu transportowego w harmonii z otoczeniem, 2) kształtowanie systemu transportowego w zależności od specyfiki i preferowanej dostępności poszczególnych obszarów miasta, 3) wpływanie na popyt na przemieszczanie się i sposób jego zaspakajania, 4) priorytet dla wykorzystania istniejącej infrastruktury transportowej w stosunku do jej przebudowy i rozbudowy, 5) preferowanie rozbudowy infrastruktury transportu zbiorowego oraz rowerowej i pieszej w stosunku do infrastruktury dla transportu samochodowego indywidualnego, 6) zachowanie właściwych proporcji między nakładami na budowę nowej infrastruktury transportowej a nakładami na utrzymanie istniejących zasobów, 7) uwzględnianie potrzeb osób o ograniczonej sprawności przy planowaniu, projektowaniu i realizacji infrastruktury transportowej, 8) współpraca z podmiotami zewnętrznymi dla integracji systemu transportowego miasta i obszaru metropolitalnego.\n\nDziałania realizowane w oparciu o powyższe zasady prowadzić będą do wzrostu udziału transportu zbiorowego oraz ruchu niezmotoryzowanego – pieszego i rowerowego – w ogólnej liczbie podróży w mieście, tym samym przyczyniając się do kształtowania zrównoważonej mobilności.\n\nIV.",
+          "source_url": "https://www.wroclaw.pl/files/1200x627/Wroclawska-Polityka-Mobilnosci_zal.%20do%20koncepcji%20rozwoju%20transportu%20WrOF.pdf",
+          "source_filename": "01_Wroclawska_polityka_mobilnosci.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 74,
+          "relevance_reason": "Zasada preferowania infrastruktury transportu zbiorowego.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        }
+      ],
+      "evidence_status": "supported",
+      "unsupported_topics": [],
+      "search_notes": [
+        "Źródła w EvidencePack: 2",
+        "Ocena wsparcia źródeł: supported"
+      ]
+    }
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "must_mention": [
+      "Kazimierza Wielkiego",
+      [
+        "buspas",
+        "pas autobus",
+        "pasa autobus",
+        "pas dla autobus",
+        "pasa dla autobus",
+        "pas dla komunikacji",
+        "pasa dla komunikacji"
+      ]
+    ],
+    "recipient_must_mention": "Zarząd Dróg",
+    "no_new_numbers": true,
+    "no_legal_basis": true,
+    "quotes_from_inputs": true,
+    "min_sources": 1
+  },
+  "manual_review": [
+    "Twierdzenia bez pokrycia w briefie ani w źródłach mają znacznik [wymaga weryfikacji].",
+    "Ton jest rzeczowy i zgodny z preferred_tone briefu.",
+    "Obserwacja o liczbie pasażerów jest przedstawiona jako obserwacja wnioskodawcy, a nie fakt."
+  ]
+}

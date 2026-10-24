@@ -1,0 +1,35 @@
+{
+  "id": "mobility_not_covered_bicycle_registration",
+  "description": "[poza korpusem, wroclaw-mobility-policy-2013] Obowiązkowa rejestracja rowerów: korpus nie zawiera nic o rejestracji ani tablicach rowerów (sprawdzone wyszukiwaniem w bazie); polityka wspiera ruch rowerowy, a nie jego ograniczanie.",
+  "input": {
+    "title": "Obowiązkowa rejestracja rowerów",
+    "problem_description": "Skradzione rowery trudno odzyskać, bo nie są nigdzie zarejestrowane.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Obowiązkowa rejestracja rowerów z numerem na tabliczce.",
+    "requested_actions": [
+      "Wprowadzenie obowiązkowej rejestracji rowerów i tabliczek z numerem."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

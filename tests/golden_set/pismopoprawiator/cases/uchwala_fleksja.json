@@ -1,0 +1,51 @@
+{
+  "id": "uchwala_fleksja",
+  "description": "Droga rowerowa: fleksja przy uchwale, cytat i adres URL w treści. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Prezydent Wrocławia\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o rozważenie budowy drogi rowerowej łączącej osiedle Gaj z centrum\n\n# WNIOSEK\n\nZgodnie z uchwała nr XLVIII/1169/13 Rady Miejskiej Wrocławia miasto rozwija sieć dróg rowerowych [1]. Polityka Rowerowa Wrocławia zakłada wzrost udziału ruchu rowerowego do 15% [1].\n\nBrakuje jednak łącznika dla mieszkańcy osiedla Gaj, którzy dojeżdżają do centrum. Wnioskodawca prosi o rozważenie budowy drogi rowerowej w celu skuteczniej obsługi tego ruchu.\n\nStrategia „Wrocław 2050” opisuje rower jako codzienny środek transportu [2]. Szczegóły są dostępne pod adresem https://www.wroclaw.pl/rowerowy-wroclaw.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] E1: Wrocławska polityka mobilności, s. 11, https://www.wroclaw.pl/files/Wroclawska-Polityka-Mobilnosci.pdf\n- [2] E2: Strategia Rozwoju Wrocławia „Wrocław 2050”, s. 122, https://www.wroclaw.pl/beta2/files/dokumenty/Strategia_Wroclaw_2050.pdf\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "z uchwała nr",
+        "right": [
+          "z uchwałą nr",
+          "z uchwałą numer"
+        ]
+      },
+      {
+        "wrong": "dla mieszkańcy osiedla",
+        "right": [
+          "dla mieszkańców osiedla"
+        ]
+      },
+      {
+        "wrong": "skuteczniej obsługi",
+        "right": [
+          "skuteczniejszej obsługi"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "XLVIII/1169/13",
+      "Rady Miejskiej Wrocławia",
+      "15",
+      "Polityka Rowerowa Wrocławia",
+      "„Wrocław 2050”",
+      "https://www.wroclaw.pl/rowerowy-wroclaw",
+      "osiedla Gaj",
+      "[1]",
+      "[2]",
+      "prosi o rozważenie"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "do 15% [1]",
+        "expansion": "do 15 procent [1]",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

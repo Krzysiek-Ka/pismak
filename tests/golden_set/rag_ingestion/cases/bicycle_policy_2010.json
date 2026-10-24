@@ -1,0 +1,20 @@
+{
+  "id": "bicycle_policy_2010",
+  "description": "Polityka Rowerowa (dokument w repozytorium) ma zepsute mapowanie fontu („Ŝ” zamiast „ż”) i linie zaczynające się od liczb, które dawny chunker brał za nagłówki.",
+  "input": {
+    "filename": "01_Polityka-rowerowa-wroclawia.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "w roku 2015 co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych",
+      "Koordynator (oficer rowerowy) oraz",
+      "Sekcja ds. rozwoju ruchu rowerowego",
+      "CELE BIEŻĄCE"
+    ],
+    "legacy_glyphs_repaired": true,
+    "no_running_lines_removed": true
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

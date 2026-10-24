@@ -303,12 +303,13 @@ python -m ruff format .
 
 - GitHub Actions uruchamia testy, `ruff check` i `ruff format --check` na Pythonie 3.11
   i 3.14; `pre-commit` uruchamia Ruff lokalnie przed commitem.
+- Testy jednostkowe (`tests/unit_test/`) odwzorowują katalogi `src/`; zasady testów opisuje
+  `.github/copilot-instructions.md`.
 - Testy end-to-end na prawdziwych modelach i bazie uruchamia się tylko ręcznie
   (marker `e2e`: `python -m pytest tests/e2e -m e2e`), zob. `tests/e2e/README.md`.
 - Złote zbiory modułów są w `tests/golden_set/<moduł>/` i uruchamia się je tylko ręcznie
-  (marker `golden_set`, testy na modelach także `llm`); zwykłe `pytest` i CI je pomijają.
-  Pismopoprawiator:
-  `python -m pytest tests/golden_set/pismopoprawiator -m golden_set -v -s`
+  (marker `golden`); zwykłe `pytest` i CI je pomijają. Wszystkie moduły:
+  `python -m pytest tests/golden_set -m golden -v -s`
   (zob. `tests/golden_set/README.md`).
 - Zależności zmieniasz w `requirements.in`, po czym odtwarzasz blokadę; wersję ruff w
   `.pre-commit-config.yaml` trzymaj równą tej z `requirements.in`:

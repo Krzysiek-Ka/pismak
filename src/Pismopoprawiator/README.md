@@ -27,6 +27,13 @@ Wywołanie korzysta z `LLMClient.generate_structured` (`src/_shared/serwer.py`):
 
 ## Strażnicy
 
+Przed sprawdzeniem kod przycina poprawkę do zmienionych wyrazów (`narrow_correction`), bo małe modele kopiują całe zdania albo akapity:
+- odcina wspólny początek i koniec oryginału i poprawki;
+- dokłada sąsiednie wyrazy tylko wtedy, gdy fragment nie byłby w akapicie jednoznaczny;
+- nigdy nie tnie elementu chronionego.
+
+Wynik w akapicie się nie zmienia, więc strażnicy oceniają tę samą zmianę, a limit 200 znaków dotyczy samej zmiany.
+
 Poprawka jest odrzucana, z podanym powodem, gdy:
 
 - dotyczy akapitu nieistniejącego, tylko do odczytu albo widocznego w danym wywołaniu tylko jako kontekst;
@@ -65,6 +72,6 @@ W logu sprawy każda poprawka ma osobną linię: `correction_applied`, `correcti
 
 ## Testy
 
-- `tests/unit_test/pismopoprawiator/` — strażnicy, stosowanie poprawek, tryby, błędy i logi, bez sieci.
-- `tests/golden_set/pismopoprawiator/` — złoty zbiór na prawdziwych modelach (tylko ręcznie, `-m golden_set`), porównanie trybu „całość” i „po akapitach”. Rozwinięcie skrótu („ul.” → „ulicy”) nie jest w nim naruszeniem treści.
+- `tests/unit_test/Pismopoprawiator/` — strażnicy, stosowanie poprawek, tryby, błędy i logi, bez sieci.
+- `tests/golden_set/pismopoprawiator/` — złoty zbiór na prawdziwych modelach (tylko ręcznie, `-m golden`), porównanie trybu „całość” i „po akapitach”. Rozwinięcie skrótu („ul.” → „ulicy”) nie jest w nim naruszeniem treści.
 - `tests/e2e/` — etap „korekta” po Pismogeneratorze; niezmiennik H8 i ocena S10.

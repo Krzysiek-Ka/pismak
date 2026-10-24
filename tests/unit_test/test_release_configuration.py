@@ -7,12 +7,17 @@ from pathlib import Path
 
 from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
 from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
+from src.Zrodlowyszukiwator.rag_ingestion.models import LifecycleStatus
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 PUBLISHED_RAG_DOCUMENTS = (
     "01_Polityka-rowerowa-wroclawia.pdf",
     "01_Wroclawska_polityka_mobilnosci.pdf",
 )
+
+
 # Odwołania w README sprawdzane jako ścieżki plików repozytorium.
 REPOSITORY_FILE_SUFFIXES = (
     ".py",
@@ -115,3 +120,18 @@ class TestReleaseFiles:
                     missing.append(f"{readme.relative_to(PROJECT_ROOT).as_posix()}: {reference}")
 
         assert missing == []
+
+    def test_document_catalog__every_repository_entry_validates(self) -> None:
+        """Verify the catalog shipped with the repository still fits the model that loads it."""
+        catalog = load_catalog(DEFAULT_CATALOG_PATH)
+
+        # Liczba wpisów rośnie z korpusem; dwa pliki z jednym document_id nadpisałyby się w bazie.
+        document_ids = [metadata.document_id for metadata in catalog.values()]
+        assert len(document_ids) == len(set(document_ids)) >= 2
+        superseded = [
+            metadata.document_id
+            for metadata in catalog.values()
+            if metadata.lifecycle_status is LifecycleStatus.SUPERSEDED
+        ]
+        assert superseded == ["wroclaw-strategy-2030"]
+        assert all(metadata.source_url for metadata in catalog.values())

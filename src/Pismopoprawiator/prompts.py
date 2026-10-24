@@ -54,6 +54,11 @@ FORMAT ODPOWIEDZI — wyłącznie JSON:
 - kategoria: jedna z: {", ".join(CATEGORIES)}, {STYLE_CATEGORY},
 - uzasadnienie: krótko, po polsku, na czym polega błąd.
 
+Przykład: w zdaniu „Wnioskodawca prosi o miejsca parkingowe dla rodziców dzieci z pobliskiej
+szkołe przy ulicy.” zgłoś tylko
+{{"akapit": "A5", "oryginal": "pobliskiej szkołe", "poprawka": "pobliskiej szkoły", "kategoria": "fleksja", "uzasadnienie": "błędna końcówka dopełniacza"}}
+— nie kopiuj całego zdania ani akapitu.
+
 Każdy błąd zgłoś osobno. Zgłoś najwyżej {MAX_CORRECTIONS_PER_CALL} poprawek, najważniejsze.
 Nie poprawiaj tego, co jest poprawne. Jeżeli pismo nie ma błędów, zwróć {{"poprawki": []}}.
 

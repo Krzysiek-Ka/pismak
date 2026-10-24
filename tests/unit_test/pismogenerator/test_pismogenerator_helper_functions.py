@@ -73,7 +73,9 @@ def validate(
 
 
 class TestValidateDraft:
-    def test_validate_draft__returns_errors_for_invalid_draft(self) -> None:
+    def test_validate_draft__short_argumentation_and_unknown_source_return_both_errors(
+        self,
+    ) -> None:
         """Verify the validator catches short argumentation and illegal sources."""
         draft = structures.DraftLetter(
             recipient="",
@@ -219,13 +221,35 @@ class TestValidateDraft:
         assert errors == []
         assert capsys.readouterr().out == ""
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "BŁĄD: validate_draft sprawdza tylko górną granicę przypisów; [0] przechodzi, "
+            "choć lista źródeł jest numerowana od [1]"
+        ),
+    )
+    def test_validate_draft__footnote_zero_returns_an_error(self) -> None:
+        """Verify [0] is caught like any other footnote that points at no source."""
+        errors = validate(make_draft(argumentation_markdown=ARGUMENTATION + " Zob. [0]."))
 
-class TestRenderListAndSources:
-    def test_render_list__returns_bullet_list_for_items(self) -> None:
+        assert errors == [
+            "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
+        ]
+
+
+class TestRenderList:
+    def test_render_list__items_are_rendered_as_bullets(self) -> None:
         """Verify list rendering keeps a consistent bullet format."""
         assert pismogenerator_helper_functions.render_list(["A", "B"]) == "- A\n- B"
 
-    def test_render_sources__uses_reference_numbers(self) -> None:
+    def test_render_list__empty_section_returns_the_placeholder(self) -> None:
+        """Verify an empty control section still says explicitly that there is nothing to check."""
+        assert pismogenerator_helper_functions.render_list([]) == "- Brak."
+        assert pismogenerator_helper_functions.render_list([], empty_text="Nic.") == "- Nic."
+
+
+class TestRenderSources:
+    def test_render_sources__sources_are_numbered_in_list_order(self) -> None:
         """Verify sources are rendered in numbered format for later reference."""
         assert (
             pismogenerator_helper_functions.render_sources(
@@ -236,7 +260,7 @@ class TestRenderListAndSources:
             == "- [1] E1: Raport miejski, s. 4-5\n- [2] U1: Zdjęcie"
         )
 
-    def test_render_sources__returns_fallback_for_empty_sources(self) -> None:
+    def test_render_sources__no_sources_returns_the_fallback_text(self) -> None:
         """Verify an empty source list renders a safe fallback instead of blank output."""
         assert (
             pismogenerator_helper_functions.render_sources(
@@ -247,7 +271,7 @@ class TestRenderListAndSources:
             == "Brak źródeł wskazanych przez użytkownika."
         )
 
-    def test_render_sources__does_not_crash_on_malformed_user_source_id(self) -> None:
+    def test_render_sources__malformed_user_source_id_is_shown_as_is(self) -> None:
         """Verify malformed user identifiers remain visible instead of crashing the renderer."""
         assert (
             pismogenerator_helper_functions.render_sources(
@@ -258,7 +282,7 @@ class TestRenderListAndSources:
             == "- [1] U99\n- [2] Ubad"
         )
 
-    def test_render_sources__adds_the_document_address_and_a_single_page(self) -> None:
+    def test_render_sources__single_page_evidence_shows_page_and_address(self) -> None:
         """Verify a reader can open the cited document and finds one page written once."""
         pack = make_evidence_pack()
         pack.evidence[0] = pack.evidence[0].model_copy(
@@ -269,7 +293,7 @@ class TestRenderListAndSources:
             "- [1] E1: Raport miejski, s. 4, https://bip.um.wroc.pl/dokument.pdf"
         )
 
-    def test_render_sources__treats_u0_as_unknown_instead_of_the_last_material(self) -> None:
+    def test_render_sources__u0_is_shown_as_unknown_not_as_the_last_material(self) -> None:
         """Verify U0 is not resolved through index -1 to the user's last material."""
         assert (
             pismogenerator_helper_functions.render_sources(
@@ -278,14 +302,9 @@ class TestRenderListAndSources:
             == "- [1] U0"
         )
 
-    def test_render_list__uses_the_placeholder_for_an_empty_section(self) -> None:
-        """Verify an empty control section still says explicitly that there is nothing to check."""
-        assert pismogenerator_helper_functions.render_list([]) == "- Brak."
-        assert pismogenerator_helper_functions.render_list([], empty_text="Nic.") == "- Nic."
-
 
 class TestRenderLetter:
-    def test_render_letter__includes_all_sections(self) -> None:
+    def test_render_letter__complete_draft_contains_every_section(self) -> None:
         """Verify every required letter section is present in the final document."""
         draft = structures.DraftLetter(
             recipient="Urząd",
@@ -387,3 +406,107 @@ class TestBracketVerificationMarkers:
         text = "Informacje wymagające weryfikacji przed wysłaniem"
 
         assert pismogenerator_helper_functions.bracket_verification_markers(text) == text
+
+
+class TestNormalizeUserEvidence:
+    @pytest.mark.parametrize(
+        ("values", "expected"),
+        [
+            pytest.param(None, [], id="none"),
+            pytest.param([], [], id="empty"),
+            pytest.param(
+                ["  Zdjęcia  ", "", "   ", "Pismo z ZDiUM"],
+                ["Zdjęcia", "Pismo z ZDiUM"],
+                id="blank_entries",
+            ),
+        ],
+    )
+    def test_normalize_user_evidence__blank_entries_are_dropped_and_text_trimmed(
+        self, values: list[str] | None, expected: list[str]
+    ) -> None:
+        """Verify U1, U2… count real materials only, the same way in the prompt and the letter."""
+        assert pismogenerator_helper_functions.normalize_user_evidence(values) == expected
+
+
+class TestNormalizeRequestSummary:
+    @pytest.mark.parametrize(
+        ("summary", "expected"),
+        [
+            pytest.param(
+                "Zwołanie gwardii narodowej", "zwołanie gwardii narodowej", id="verbal_noun"
+            ),
+            pytest.param("Zgodę na happening", "zgodę na happening", id="accusative_noun"),
+            pytest.param(
+                "wnioskuję o wnioskuję o udostępnienie danych",
+                "udostępnienie danych",
+                id="repeated_formula",
+            ),
+            pytest.param(
+                "Wnioskuję o Wprowadzenie buspasa", "wprowadzenie buspasa", id="formula_and_capital"
+            ),
+            pytest.param("MPK o zmianę rozkładu", "MPK o zmianę rozkładu", id="acronym"),
+            pytest.param(
+                "Wrocławskie Centrum Zdrowia o dane",
+                "Wrocławskie Centrum Zdrowia o dane",
+                id="proper_name",
+            ),
+        ],
+    )
+    def test_normalize_request_summary__fits_the_fixed_formula(
+        self, summary: str, expected: str
+    ) -> None:
+        """Verify the summary never repeats "wnioskuję o" or starts with a stray capital."""
+        assert pismogenerator_helper_functions.normalize_request_summary(summary) == expected
+
+
+class TestUnescapeNewlines:
+    def test_unescape_newlines__turns_literal_backslash_n_into_line_breaks(self) -> None:
+        """Verify a model that writes "\\n" instead of a line break still gets paragraphs."""
+        text = "Wstęp.\\n\\n**Postulat:**\\n- zwołanie gwardii"
+
+        assert pismogenerator_helper_functions.unescape_newlines(text) == (
+            "Wstęp.\n\n**Postulat:**\n- zwołanie gwardii"
+        )
+
+    def test_unescape_newlines__keeps_hard_line_breaks(self) -> None:
+        """Verify a backslash before a real line break, a Markdown hard break, stays as it is."""
+        text = "Wstęp.\\\nDalej."
+
+        assert pismogenerator_helper_functions.unescape_newlines(text) == text
+
+
+class TestStripClosing:
+    @pytest.mark.parametrize(
+        "argumentation",
+        [
+            pytest.param("Treść pisma.\n\nZ poważaniem,\n[Twoje Imię i Nazwisko]", id="signature"),
+            pytest.param("Treść pisma.\n\nZ wyrazami szacunku,\n\n[Imię i Nazwisko]", id="blank"),
+            pytest.param("Treść pisma.\\\n\\\nZ wyrazami szacunku,", id="hard_breaks"),
+            pytest.param("Treść pisma.\nPozdrawiam", id="closing_only"),
+        ],
+    )
+    def test_strip_closing__removes_the_closing_the_renderer_adds_anyway(
+        self, argumentation: str
+    ) -> None:
+        """Verify the letter does not end with two closings and two signatures."""
+        assert pismogenerator_helper_functions.strip_closing(argumentation) == "Treść pisma."
+
+    def test_strip_closing__keeps_a_closing_phrase_inside_a_sentence(self) -> None:
+        """Verify only a closing on its own last line is removed."""
+        text = "Piszę z poważaniem dla pracy urzędu i proszę o odpowiedź."
+
+        assert pismogenerator_helper_functions.strip_closing(text) == text
+
+    def test_render_letter__cleans_what_the_model_adds_around_the_text(self) -> None:
+        """Verify the renderer fixes the formula, literal line breaks and a doubled closing."""
+        draft = make_draft(
+            request_summary="Wnioskuję o Zwołanie gwardii narodowej",
+            argumentation_markdown=ARGUMENTATION + "\\n\\nZ poważaniem,\\n[Imię i Nazwisko]",
+        )
+
+        result = pismogenerator_helper_functions.render_letter(draft, make_evidence_pack(), [])
+
+        assert "wnioskuję o zwołanie gwardii narodowej" in result
+        assert "\\n" not in result
+        assert result.count("Z poważaniem,") == 1
+        assert "[Imię i Nazwisko]" not in result

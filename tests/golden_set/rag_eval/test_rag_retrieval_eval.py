@@ -1,11 +1,12 @@
 """
 Ewaluacja retrievalu na żywym indeksie RAG (PostgreSQL/pgvector + Ollama z bge-m3).
 
-Złoty zbiór: tylko ręcznie, przez `-m golden_set`; zwykłe `pytest` i CI go pomijają
-(tests/golden_set/conftest.py). Bez bazy albo Ollamy testy są pomijane z powodem.
+Złoty zbiór: tylko ręcznie, przez `-m golden`; zwykłe `pytest` i CI go pomijają
+(addopts w pyproject.toml). Bez bazy albo Ollamy testy są pomijane z powodem.
 Opcjonalnie: PISMAK_RAG_EVAL_LABEL (np. baseline/after) nazywa przebieg, a
 PISMAK_RAG_EVAL_RERANKER_MODEL (np. pismak-pllum:latest) dodaje konfigurację z rerankerem LLM.
-Raport trafia do outputs/rag_eval/<czas>_<etykieta>/ i jest zapisywany przed asercjami.
+Raport trafia do results/<czas>_<etykieta>/ (report.md, results.json), a wynik każdego pytania
+do results/<czas>_<etykieta>_<id>.json; oba są zapisywane przed asercjami.
 """
 
 from __future__ import annotations
@@ -21,9 +22,25 @@ from typing import Any
 import pymupdf
 import pytest
 from dotenv import load_dotenv
-from rag_eval_support import (
+
+from src._shared.model_context import detect_context_tokens
+from src._shared.serwer import set_up_client
+from src.Zrodlowyszukiwator.brief_to_evidence.pipeline import BriefToEvidencePipeline
+from src.Zrodlowyszukiwator.brief_to_evidence.planner import LLMQueryPlanner
+from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
+from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
+from src.Zrodlowyszukiwator.rag_ingestion.embedder import OllamaEmbedder
+from src.Zrodlowyszukiwator.rag_ingestion.pipeline import file_sha256
+from src.Zrodlowyszukiwator.rag_retrieval import (
+    DatabaseConnectionError,
+    HybridRetriever,
+    LLMReranker,
+    RetrievalRepository,
+)
+from src.Zrodlowyszukiwator.rag_retrieval.models import RetrievalFilters
+from tests.golden_set.rag_eval.rag_eval_support import (
     CANDIDATE_K,
-    DATASET_PATH,
+    CASES_DIR,
     EVIDENCE_K,
     K_VALUES,
     MAX_PER_DOCUMENT,
@@ -50,21 +67,7 @@ from rag_eval_support import (
     supported_items,
 )
 
-from src._shared.model_context import detect_context_tokens
-from src._shared.serwer import set_up_client
-from src.Zrodlowyszukiwator.brief_to_evidence.pipeline import BriefToEvidencePipeline
-from src.Zrodlowyszukiwator.brief_to_evidence.planner import LLMQueryPlanner
-from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
-from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
-from src.Zrodlowyszukiwator.rag_ingestion.embedder import OllamaEmbedder
-from src.Zrodlowyszukiwator.rag_ingestion.pipeline import file_sha256
-from src.Zrodlowyszukiwator.rag_retrieval import (
-    DatabaseConnectionError,
-    HybridRetriever,
-    LLMReranker,
-    RetrievalRepository,
-)
-from src.Zrodlowyszukiwator.rag_retrieval.models import RetrievalFilters
+pytestmark = pytest.mark.golden
 
 QUESTIONS = load_questions()
 ANSWERABLE = [q for q in QUESTIONS if q.answerable]
@@ -369,7 +372,7 @@ def run_evaluation(
         started_at=started_at,
         git_commit=_git_commit(),
         settings={
-            "zbiór": f"{DATASET_PATH.relative_to(PROJECT_ROOT)} ({len(QUESTIONS)} pytań)",
+            "zbiór": f"{CASES_DIR.relative_to(PROJECT_ROOT).as_posix()} ({len(QUESTIONS)} pytań)",
             "model embeddingów": os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"),
             "filtry": "RetrievalFilters() — domyślne produkcyjne (bez dokumentów jawnie nieaktywnych)",
             "limity": f"vector/lexical {CANDIDATE_K}, candidate_k {CANDIDATE_K}, evidence_k {EVIDENCE_K}, "
@@ -389,10 +392,72 @@ def run_evaluation(
     )
 
 
+def question_status(run: EvalRun, question: EvalQuestion) -> tuple[str, list[str]]:
+    """Return passed/failed_check for one question, by the same rules as the tests below."""
+    problems = []
+    pipeline = run.result(question.id, "pipeline")
+    reranked = run.result(question.id, "pipeline+reranker")
+    if question.answerable:
+        if pipeline is None or pipeline.error or source_rank(question, pipeline.hits) is None:
+            problems.append("brak właściwego źródła w EvidencePack")
+        elif evidence_rank(pipeline.hits) is None:
+            problems.append("żaden fragment EvidencePack nie zawiera dowodu")
+        if reranked is not None and reranked.evidence_status != "supported":
+            problems.append(f"po rerankerze: {reranked.evidence_status}")
+    else:
+        if any(run.corpus_absence[question.id].values()):
+            problems.append("wzorce odpowiedzi występują w indeksie")
+        if reranked is not None and not reranked.abstained:
+            problems.append(f"brak abstencji po rerankerze ({reranked.evidence_status})")
+    return ("failed_check" if problems else "passed"), problems
+
+
+def write_question_results(run: EvalRun, out_dir: Any, prefix: str) -> None:
+    """Write results/<prefix>_<question_id>.json with every configuration's top hits."""
+    for question in run.questions:
+        status, problems = question_status(run, question)
+        configs = {}
+        for result in run.results:
+            if result.question_id != question.id:
+                continue
+            configs[result.config] = {
+                "error": result.error,
+                "evidence_status": result.evidence_status,
+                "abstained": result.abstained,
+                "source_rank": source_rank(question, result.hits),
+                "evidence_rank": evidence_rank(result.hits),
+                "top_hits": [
+                    {
+                        "rank": h.rank,
+                        "document_id": h.document_id,
+                        "pages": f"{h.page_start}-{h.page_end}",
+                        "supports": h.supports,
+                    }
+                    for h in result.hits[:EVIDENCE_K]
+                ],
+            }
+        payload = {
+            "module": "rag_eval",
+            "case_id": question.id,
+            "status": status,
+            "checks": problems,
+            "embedding_model": run.settings.get("model embeddingów"),
+            "reranker_model": run.settings.get("reranker"),
+            "answerable": question.answerable,
+            "configs": configs,
+            "manual_review": [f"Oczekiwana odpowiedź: {question.expected_answer}"],
+        }
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / f"{prefix}_{question.id}.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+        )
+
+
 def write_report(run: EvalRun) -> Any:
-    """Write report.md and results.json to a new directory under outputs/rag_eval."""
+    """Write report.md and results.json, plus one result file per question, under results/."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = REPORTS_DIR / f"{stamp}_{run.label}"
+    write_question_results(run, REPORTS_DIR, f"{stamp}_{run.label}")
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "report.md").write_text(render_markdown(run), encoding="utf-8")
     payload = {"headline": headline_rows(run)} | {

@@ -1,4 +1,4 @@
-"""Testy zbioru pytań ewaluacyjnych i funkcji oceny. Nie wymagają bazy ani Ollamy."""
+"""Testy zbioru pytań ewaluacyjnych i funkcji oceny (marker `golden`). Nie wymagają bazy ani Ollamy."""
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-from rag_eval_support import (
+
+from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
+from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
+from src.Zrodlowyszukiwator.rag_ingestion.pdf_extractor import extract_pdf_pages
+from tests.golden_set.rag_eval.rag_eval_support import (
     PROJECT_ROOT,
     RAW_DIR,
     EvalQuestion,
@@ -29,9 +33,7 @@ from rag_eval_support import (
     strip_diacritics,
 )
 
-from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
-from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
-from src.Zrodlowyszukiwator.rag_ingestion.pdf_extractor import extract_pdf_pages
+pytestmark = pytest.mark.golden
 
 QUESTIONS = load_questions()
 CATALOG = load_catalog(DEFAULT_CATALOG_PATH)

@@ -1,0 +1,40 @@
+{
+  "Dopytywator": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    },
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    },
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Planner": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Reranker": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Pismogenerator": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ],
+  "Pismopoprawiator": [
+    {
+      "provider": "ollama",
+      "model": "pismak-bielik:latest"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "single_measurement_claim",
+  "description": "Użytkownik podaje liczbę z jednego, własnego pomiaru. Sprawdza, czy brief zachowuje liczbę, ale oznacza ją jako fakt do weryfikacji, i nie dopisuje innych liczb.",
+  "input": "Na skrzyżowaniu ulicy Grabiszyńskiej z ulicą Hallera we Wrocławiu piesi czekają na zielone światło około 3 minut. Chciałbym, żeby skrócono ten czas.",
+  "user_answers": [
+    "Zmierzyłem to raz stoperem w telefonie, w poniedziałek około godziny 8.",
+    "Czekają tam głównie osoby idące na tramwaj, także starsze.",
+    "Część osób przechodzi na czerwonym, bo nie chce czekać.",
+    "Nie zgłaszałem tego wcześniej."
+  ],
+  "limits": {
+    "max_questions": 3
+  },
+  "expected": {
+    "brief_ready": true,
+    "min_requested_actions": 1,
+    "must_mention": [
+      "Grabiszyńsk",
+      "Hallera",
+      "3"
+    ],
+    "non_empty_fields": [
+      "facts_to_verify"
+    ],
+    "no_new_numbers": true
+  },
+  "manual_review": [
+    "Czas oczekiwania (około 3 minut) jest przedstawiony jako pomiar użytkownika do weryfikacji, a nie jako fakt.",
+    "Przechodzenie na czerwonym świetle jest opisane jako obserwacja użytkownika.",
+    "Pytania asystenta są pytaniami do użytkownika, a nie opisem celu pytania."
+  ]
+}

@@ -247,6 +247,85 @@ def count_occurrences(text: str, fragment: str) -> int:
     return count
 
 
+def _widen(text: str, start: int, end: int) -> tuple[int, int]:
+    """Extend a range by one word on each side, staying inside the text."""
+    while start > 0 and text[start - 1].isspace():
+        start -= 1
+    while start > 0 and not text[start - 1].isspace():
+        start -= 1
+    while end < len(text) and text[end].isspace():
+        end += 1
+    while end < len(text) and not text[end].isspace():
+        end += 1
+    return start, end
+
+
+def narrow_correction(correction: Correction, text: str) -> Correction:
+    """Cut a correction down to the changed words, with just enough context to be unique."""
+    # Małe modele kopiują całe zdania albo akapity. Odcięcie wspólnego początku i końca nie
+    # zmienia wyniku w akapicie, a limit długości i podobieństwo dotyczą wtedy samej zmiany.
+    original, fixed = correction.oryginal, correction.poprawka
+    if not original or original == fixed or count_occurrences(text, original) != 1:
+        return correction
+    base = text.find(original)
+    shorter = min(len(original), len(fixed))
+    prefix = 0
+    while prefix < shorter and original[prefix] == fixed[prefix]:
+        prefix += 1
+    suffix = 0
+    while suffix < shorter - prefix and original[-1 - suffix] == fixed[-1 - suffix]:
+        suffix += 1
+    start, end = prefix, len(original) - suffix
+    # Zakres powiększa się tylko o wspólne części, więc w poprawce odpowiada mu ten sam kawałek.
+    while start > 0 and original[start - 1].isalnum():
+        start -= 1
+    while end < len(original) and original[end].isalnum():
+        end += 1
+    # Zmiana samych spacji jest czytelna tylko z sąsiednim wyrazem („trwa  ponad”).
+    if start < end and original[start].isspace():
+        start = _widen(original, start, end)[0]
+    if start < end and original[end - 1].isspace():
+        end = _widen(original, start, end)[1]
+
+    spans = [(left - base, right - base) for left, right, _ in protected_spans(text)]
+
+    def cover_spans(start: int, end: int) -> tuple[int, int] | None:
+        """Grow the range until no protected element is cut; None when that leaves the fragment."""
+        changed = True
+        while changed:
+            changed = False
+            for left, right in spans:
+                if start < right and left < end and not (start <= left and right <= end):
+                    if left < 0 or right > len(original):
+                        return None
+                    start, end, changed = min(start, left), max(end, right), True
+        return start, end
+
+    while True:
+        # Element chroniony musi być we fragmencie w całości albo wcale. Gdy już fragment
+        # modelu przecinał taki element, zostaje bez zmian i ocenią go strażnicy.
+        covered = cover_spans(start, end)
+        if covered is None:
+            return correction
+        start, end = covered
+        fragment = original[start:end].strip()
+        if fragment and count_occurrences(text, fragment) == 1:
+            break
+        if start == 0 and end == len(original):
+            return correction
+        start, end = _widen(original, start, end)
+
+    # Spacje na brzegach zostają poza fragmentem, jeżeli nie należą do zmiany.
+    while start < prefix and original[start].isspace():
+        start += 1
+    while end > len(original) - suffix and original[end - 1].isspace():
+        end -= 1
+    delta = len(fixed) - len(original)
+    return correction.model_copy(
+        update={"oryginal": original[start:end], "poprawka": fixed[start : end + delta]}
+    )
+
+
 def check_correction(
     correction: Correction,
     paragraph: Paragraph | None,
@@ -306,11 +385,13 @@ def review_corrections(
     rejected: list[RejectedCorrection] = []
     suggestions: list[Correction] = []
     for correction in corrections:
+        position = positions.get(correction.akapit)
+        paragraph = paragraphs[position] if position is not None else None
+        if paragraph is not None:
+            correction = narrow_correction(correction, paragraph.text)
         if correction.kategoria == STYLE_CATEGORY:
             suggestions.append(correction)
             continue
-        position = positions.get(correction.akapit)
-        paragraph = paragraphs[position] if position is not None else None
         start, reason = check_correction(correction, paragraph, editable_ids)
         if reason is not None or start is None or position is None:
             rejected.append(RejectedCorrection(correction=correction, reason=reason or "-"))

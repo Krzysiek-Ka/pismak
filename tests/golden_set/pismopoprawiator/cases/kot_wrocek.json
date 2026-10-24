@@ -1,0 +1,41 @@
+{
+  "id": "kot_wrocek",
+  "description": "Happening z Kotem Wrockiem: pisownia łączna i rozdzielna, cytat, nazwiska. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Prezydent Wrocławia\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o zgodę na zorganizowanie happeningu z Kotem Wrockiem w centrum Wrocławia\n\n# WNIOSEK\n\nProponujemy satyryczny happening, który przedewszystkim ma zwrócić uwagę na problem szczurów we Wrocławiu. Kot Wrocek, maskotka akcji, „obejmie urząd” tylko symbolicznie.\n\nAkcja potrwa conajmniej dwie godziny i odbędzie się w miejscu widocznym dla przechodniów [DO UZUPEŁNIENIA: miejsce i termin]. Nieznamy jeszcze liczby uczestników.\n\nTon akcji będzie ironiczny, ale nie będzie obrażał konkretnych osób, w tym prezydenta Jacka Sutryka.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "przedewszystkim",
+        "right": [
+          "przede wszystkim"
+        ]
+      },
+      {
+        "wrong": "conajmniej",
+        "right": [
+          "co najmniej"
+        ]
+      },
+      {
+        "wrong": "Nieznamy",
+        "right": [
+          "Nie znamy"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "Kot Wrocek",
+      "„obejmie urząd”",
+      "Jacka Sutryka",
+      "[DO UZUPEŁNIENIA: miejsce i termin]",
+      "nie będzie obrażał",
+      "dwie godziny",
+      "satyryczny"
+    ],
+    "allowed_expansions": []
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "tram_program_2_0",
+  "description": "Raport Programu Tramwajowego 2.0 ma spis treści na s. 2 i duże tabele z liczbami w środku stron.",
+  "input": {
+    "filename": "02_Wrocławski_program_tramwajowy_2.0.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "Trasa o długości 2,7 km",
+      "wydzielenie buspasa w ul. Krzywoustego"
+    ],
+    "toc_pages": [
+      2
+    ]
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

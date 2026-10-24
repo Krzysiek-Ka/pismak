@@ -1,0 +1,40 @@
+{
+  "id": "bike_policy_combining_ngo_cooperation",
+  "description": "[łączenie informacji, wroclaw-bicycle-policy-2010] Współpraca stowarzyszenia z miastem wymaga dwóch zapisów: rady z udziałem organizacji pozarządowych (opiniowanie projektów) i zadań oficera rowerowego (kampanie, współpraca z NGO).",
+  "input": {
+    "title": "Udział stowarzyszenia rowerowego w pracach miasta",
+    "problem_description": "Stowarzyszenie rowerowe nie ma wpływu na projekty dróg i nie współpracuje z miastem przy promocji jazdy rowerem.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Stała współpraca stowarzyszenia z miastem przy projektach dróg i promocji roweru.",
+    "requested_actions": [
+      "Włączenie przedstawicieli stowarzyszenia do opiniowania koncepcji i projektów drogowych.",
+      "Wspólne prowadzenie kampanii promujących jazdę rowerem z miejskim koordynatorem ruchu rowerowego."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Wybrane fragmenty pokrywają oba postulaty: opiniowanie projektów i kampanie."
+  ]
+}

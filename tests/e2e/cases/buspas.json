@@ -1,0 +1,60 @@
+{
+  "id": "buspas",
+  "description": "Buspas na ulicy Kazimierza Wielkiego: Czy model doprecyzowuje konkretny postulat, odróżnia obserwacje użytkownika od potwierdzonych danych i przygotowuje brief nadający się do wyszukiwania źródeł i wygenerowania pisma.",
+  "input": "Chciałbym wprowadzenia buspasa na ulicy Kazimierza Wielkiego we Wrocławiu.",
+  "user_answers": [
+    "Aktualnie więcej osób porusza się tam komunikacją miejską niż samochodami.",
+    "Są tam korki, przez które komunikacja miejska jedzie wolniej.",
+    "To absurd, że tak centralnie położona ulica pełni funkcję drogi tranzytowej.",
+    "Chodzi mi o ulicę Kazimierza Wielkiego w centrum Wrocławia.",
+    "Zależy mi na buspasie w obu kierunkach, o ile będzie to możliwe.",
+    "Najważniejsze jest dla mnie zwiększenie punktualności i przewidywalności przejazdu komunikacji miejskiej.",
+    "Nie mam własnych pomiarów ruchu — to moje obserwacje z codziennego poruszania się po mieście.",
+    "Chciałbym ograniczyć ruch samochodów, które nie muszą przejeżdżać przez centrum.",
+    "Nie postuluję całkowitego zamknięcia ulicy dla samochodów.",
+    "Należy uwzględnić wpływ zmian na dostawy, mieszkańców, służby i pozostały ruch.",
+    "Chciałbym, żeby miasto przeanalizowało możliwe warianty i udostępniło dane uzasadniające decyzję.",
+    "Pismo powinno być konkretne i rzeczowe, bez agresywnego tonu."
+  ],
+  "limits": {
+    "max_questions": 12
+  },
+  "expected": {
+    "key_info": {
+      "ulica Kazimierza Wielkiego": [
+        "kazimierza wielkiego"
+      ],
+      "buspas": [
+        "buspas",
+        "bus-pas",
+        "pas autobus",
+        "pas dla autobus",
+        "pas dla komunikacji",
+        "pas bus",
+        "pasa autobus",
+        "pasa dla autobus",
+        "pasa dla komunikacji"
+      ],
+      "komunikacja miejska": [
+        "komunikacj",
+        "autobus",
+        "tramwaj",
+        "transport publiczn"
+      ],
+      "Wrocław": [
+        "wrocław"
+      ]
+    },
+    "humor_markers": [],
+    "literal_demand_markers": [],
+    "user_has_no_measurements": true,
+    "expects_early_end": false,
+    "expected_evidence_status": [
+      "supported"
+    ]
+  },
+  "manual_review": [
+    "Obserwacje użytkownika (korki, więcej pasażerów niż kierowców) nie są przedstawione jako potwierdzone dane.",
+    "Źródła wspierają ogólny kierunek (priorytet komunikacji zbiorowej), a pismo nie twierdzi, że dokument wskazuje ulicę Kazimierza Wielkiego."
+  ]
+}

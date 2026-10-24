@@ -1,0 +1,48 @@
+{
+  "id": "lista_postulatow",
+  "description": "Lista postulatów z pogrubieniami: pisownia rozdzielna i „ó”. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Zieleni Miejskiej we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o realizację trzech postulatów dotyczących okolic Hali Targowej\n\n# WNIOSEK\n\nWnioskodawca przedstawia następujące postulaty:\n1. **Wyznaczenie strefy płatnego parkowania** na ul. Ołbińskiej.\n2. **Montaż stojaków rowerowych** przy Hali Targowej, gdzie brakuje conajmniej 20 miejsc [wymaga weryfikacji].\n3. **Przegląd oznakowania** na odcinku od pl. Bema do ul. Jedności Narodowej.\n\nPostulaty wynikają z rozmów z mieszkańcami, ktorzy codziennie korzystają z tych miejsc.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "conajmniej 20",
+        "right": [
+          "co najmniej 20"
+        ]
+      },
+      {
+        "wrong": "mieszkańcami, ktorzy",
+        "right": [
+          "mieszkańcami, którzy"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "1. **Wyznaczenie strefy płatnego parkowania**",
+      "2. **Montaż stojaków rowerowych**",
+      "3. **Przegląd oznakowania**",
+      "Ołbińskiej",
+      "Hali Targowej",
+      "Bema",
+      "Jedności Narodowej",
+      "20 miejsc",
+      "[wymaga weryfikacji]"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "na ul. Ołbińskiej",
+        "expansion": "na ulicy Ołbińskiej",
+        "seen_in_real_run": false
+      },
+      {
+        "fragment": "od pl. Bema do ul. Jedności",
+        "expansion": "od placu Bema do ulicy Jedności",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

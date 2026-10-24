@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.Dopytywator import dopytywator, structures
+from src.Dopytywator import dopytywator, prompts, structures
 from src.Dopytywator.constants import DOPYTYWATOR_MAX_OUTPUT_TOKENS
 
 
@@ -50,8 +50,19 @@ def answer_with(monkeypatch, *answers: str) -> list[str]:
     return prompts
 
 
+BRIEF = structures.CaseBrief(
+    title="Przejście przy szkole",
+    problem_description="Brak przejścia.",
+    desired_outcome="Wyznaczenie przejścia.",
+    requested_actions=["Wyznaczenie przejścia"],
+)
+
+
+CONVERSATION = [structures.ConversationMessage(role="user", content="Brak przejścia")]
+
+
 class TestGetProblem:
-    def test_get_problem__reads_user_input(self, monkeypatch) -> None:
+    def test_get_problem__non_empty_input_is_returned(self, monkeypatch) -> None:
         """Verify that the text prompt accepts a non-empty problem description."""
         monkeypatch.setattr("builtins.input", lambda prompt: "Brak dostępu do informacji")
 
@@ -215,7 +226,7 @@ class TestAskQuestions:
 
 
 class TestBuildBrief:
-    def test_build_brief__returns_valid_case_brief(self, monkeypatch) -> None:
+    def test_build_brief__valid_model_answer_returns_the_brief(self, monkeypatch) -> None:
         """Verify that a valid generated response is returned and checked for readiness."""
 
         class FakeLLM:
@@ -237,7 +248,7 @@ class TestBuildBrief:
         assert isinstance(case_brief, structures.CaseBrief)
         assert case_brief.title == "Brak dostępu"
 
-    def test_build_brief__passes_stage_output_token_limit(self, monkeypatch) -> None:
+    def test_build_brief__model_call_uses_the_module_output_token_limit(self, monkeypatch) -> None:
         """Verify brief generation explicitly uses the Dopytywator's short-output budget."""
         captured: dict[str, object] = {}
 
@@ -287,15 +298,6 @@ class TestBuildBrief:
         assert "Brak oczekiwanego rezultatu" in out
         assert "Brak co najmniej jednego konkretnego postulatu" in out
         assert "spełnia minimalne kryteria" not in out
-
-
-BRIEF = structures.CaseBrief(
-    title="Przejście przy szkole",
-    problem_description="Brak przejścia.",
-    desired_outcome="Wyznaczenie przejścia.",
-    requested_actions=["Wyznaczenie przejścia"],
-)
-CONVERSATION = [structures.ConversationMessage(role="user", content="Brak przejścia")]
 
 
 class TestInterviewStep:
@@ -385,3 +387,37 @@ class TestInterviewStep:
             )
 
         assert calls_seen == [1]
+
+    @pytest.mark.parametrize(
+        ("questions_asked", "turns"),
+        [pytest.param(0, (READY, BRIEF), id="model_ready"), pytest.param(3, (BRIEF,), id="limit")],
+    )
+    def test_interview_step__every_model_call_uses_the_module_output_token_limit(
+        self, questions_asked: int, turns: tuple
+    ) -> None:
+        """Verify the interview turn and the brief both carry the Dopytywator output cap."""
+        llm = ScriptedLLM(*turns)
+
+        dopytywator.interview_step(
+            CONVERSATION, llm, questions_asked=questions_asked, max_interview_questions=3
+        )
+
+        assert [call["max_output_tokens"] for call in llm.calls] == [
+            DOPYTYWATOR_MAX_OUTPUT_TOKENS
+        ] * len(turns)
+
+
+class TestGenerateBrief:
+    def test_generate_brief__conversation_is_sent_with_the_brief_prompt_and_limits(self) -> None:
+        """Verify the brief request carries the whole conversation, temperature 0 and the cap."""
+        llm = ScriptedLLM(BRIEF)
+
+        brief = dopytywator.generate_brief(CONVERSATION, llm)
+
+        [call] = llm.calls
+        assert brief == BRIEF
+        assert call["system_prompt"] == prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT
+        assert "UŻYTKOWNIK: Brak przejścia" in call["user_prompt"]
+        assert call["response_model"] is structures.CaseBrief
+        assert call["temperature"] == 0.0
+        assert call["max_output_tokens"] == DOPYTYWATOR_MAX_OUTPUT_TOKENS

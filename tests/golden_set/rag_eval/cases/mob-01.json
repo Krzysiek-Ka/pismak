@@ -1,0 +1,43 @@
+{
+  "id": "mob-01",
+  "description": "Rozdział II.2 „Cele podstawowe” (PDF s. 4). Parafraza: „bez auta” zamiast „transport niesamochodowy”. Strategia Wrocław 2050 zawiera podobne, ale inne liczby (wizja „co najmniej 70 proc.” na 2050 r., stan 60,20% w 2024 r.), więc pytanie sprawdza też rozróżnianie dat i dokumentów.",
+  "input": "Ile procent przejazdów po Wrocławiu miało się odbywać bez auta do 2020 roku? Chodzi mi o oficjalny cel miasta.",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "quote": "Udział transportu niesamochodowego do roku 2020 powinien wynosić nie mniej niż 60%"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "cel-2020-60%",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "do roku 2020",
+          "nie mniej niż 60%"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "daty",
+      "parafraza",
+      "potoczny",
+      "dystraktor"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Wrocławska polityka mobilności zakłada, że udział transportu niesamochodowego (transport zbiorowy, rowerowy i ruch pieszy) do roku 2020 powinien wynosić nie mniej niż 60%, a w dalszej perspektywie nie mniej niż 65%."
+  ]
+}

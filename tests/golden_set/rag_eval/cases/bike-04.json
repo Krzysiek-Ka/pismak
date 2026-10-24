@@ -1,0 +1,59 @@
+{
+  "id": "bike-04",
+  "description": "Rozdział II.1 „Cele strategiczne” (PDF s. 4, wydruk s. 3). Plan działań rowerowych do 2030 roku powtarza cel 15% bez roku 2020 (s. 3 i 10), więc pytanie sprawdza, czy wyszukiwanie wskaże samą politykę.",
+  "input": "Jaki jest główny cel strategiczny Polityki Rowerowej Wrocławia?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "quote": "Głównym celem strategicznym Polityki Rowerowej Wrocławia w perspektywie długoterminowej jest osiągnięcie co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży realizowanych w Mieście w 2020 roku."
+      },
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "quote": "Wrocław Miastem przyjaznym rowerzystom."
+      }
+    ],
+    "evidence": [
+      {
+        "label": "cel-2020-15%",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "co najmniej 15% udziału ruchu rowerowego",
+          "w 2020 roku"
+        ]
+      },
+      {
+        "label": "hasło",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "Wrocław Miastem przyjaznym rowerzystom"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "daty",
+      "dystraktor",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży w mieście w 2020 r. Hasło: „Wrocław Miastem przyjaznym rowerzystom”."
+  ]
+}

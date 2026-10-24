@@ -1,0 +1,57 @@
+{
+  "id": "mob-03",
+  "description": "Trudny negatyw z pułapką leksykalną: korpus zawiera ogólny kierunek (strefy zależne od wpływu pojazdu na środowisko) oraz „normę EURO 5”, która dotyczy autobusów jako wskaźnika monitoringu, a nie zakazu wjazdu. Pytanie dotyczy terminu i kryteriów, których nie ma.",
+  "input": "Od kiedy we Wrocławiu ma obowiązywać strefa czystego transportu i które samochody nie będą mogły wjechać do centrum?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": false,
+    "expected_sources": [],
+    "evidence": [],
+    "acceptable_document_ids": [],
+    "absence_check": {
+      "searched_documents": [
+        "wroclaw-strategy-2050-2025",
+        "wroclaw-strategy-2030",
+        "wroclaw-bicycle-policy-2010",
+        "wroclaw-mobility-policy-2013",
+        "wroclaw-bicycle-action-plan-2030",
+        "wroclaw-tram-program-2-0",
+        "wroclaw-accessibility-standards"
+      ],
+      "searched_terms": [
+        "strefa czystego transportu",
+        "SCT",
+        "niskiej emisji",
+        "Euro 3–7",
+        "norma emisji",
+        "zakaz wjazdu",
+        "ograniczenie wjazdu",
+        "wjazd do centrum",
+        "pojazdy spalinowe",
+        "strefy o ograniczonej dostępności"
+      ],
+      "answer_patterns": [
+        "czystego transportu",
+        "\\bsct\\b",
+        "stref\\w* (niskiej|zerowej|ograniczonej) emisj",
+        "\\b(samochod\\w*|pojazd\\w*|aut[aoy]?)\\b.{0,80}norm\\w* (emisji )?euro",
+        "zakaz\\w* wjazdu",
+        "ograniczonej dostępności uzależnion\\w*.{0,200}\\b20\\d\\d\\b"
+      ],
+      "related_but_insufficient": [
+        "Wrocławska polityka mobilności, s. 14: „dążenie do wprowadzenia stref o ograniczonej dostępności uzależnionej od wpływu pojazdu na środowisko” (bez terminu i kryteriów)",
+        "Wrocławska polityka mobilności, s. 15 i 18: „liczba autobusów spełniającej wymogi co najmniej normy EURO 5” (wskaźnik monitoringu dla autobusów)",
+        "Strategia Wrocław 2050, s. 123: rozszerzanie strefy płatnego parkowania (nie dotyczy kryteriów emisji)",
+        "Plan działań rowerowych do 2030 roku, s. 10: dążenie miasta do zeroemisyjności (bez stref i kryteriów wjazdu)"
+      ]
+    },
+    "tags": [
+      "trudny-negatyw",
+      "daty",
+      "pułapka-leksykalna"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Żaden dokument nie wspomina strefy czystego transportu ani nie podaje terminu i kryteriów wjazdu. Polityka mobilności zapowiada tylko ogólnie „dążenie do wprowadzenia stref o ograniczonej dostępności uzależnionej od wpływu pojazdu na środowisko”."
+  ]
+}

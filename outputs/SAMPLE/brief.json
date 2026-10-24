@@ -1,0 +1,66 @@
+{
+  "title": "Obecność kosmitów w Wrocławiu i obawy mieszkańców",
+  "problem_description": "Czy istnieją dowody na obecność kosmitów we Wrocławiu, a jeśli tak, czy należy podjąć działania?",
+  "location": "Wrocław",
+  "time_context": "21:00 (nieokreślony dzień)",
+  "desired_outcome": "Ocena sytuacji i ewentualne podjęcie działań przez władze miasta.",
+  "requested_actions": [
+    "Zweryfikowanie doniesień o latających spodkach i zajęciu Hydropolis oraz Hali Targowej.",
+    "Sprawdzenie, czy zniknięcie krasnali z Rynku jest wiarygodne."
+  ],
+  "institution": "Prezydent Wrocławia",
+  "addressee": "Agent",
+  "affected_groups": [
+    "Mieszkańcy Wrocławia"
+  ],
+  "public_interest_arguments": [
+    "Obawy mieszkańców o bezpieczeństwo i przyszłość miasta."
+  ],
+  "claims": [
+    {
+      "statement": "Latające spodki krążą nad Wrocławiem.",
+      "status": "user_assumption",
+      "evidence_description": "Obiekt widziany na pl. Grunwaldzkim."
+    },
+    {
+      "statement": "Kosmici zajęli Hydropolis i Halę Targową.",
+      "status": "user_assumption",
+      "evidence_description": "Obserwacje mieszkańców."
+    },
+    {
+      "statement": "Zniknięcie kilkunastu krasnali z Rynku.",
+      "status": "user_assumption",
+      "evidence_description": "Brak szczegółów."
+    },
+    {
+      "statement": "Mieszkańcy boją się wychodzić z domów.",
+      "status": "user_assumption",
+      "evidence_description": "Obawy mieszkańców."
+    }
+  ],
+  "available_evidence": [
+    "Widoczny obiekt na pl. Grunwaldzkim.",
+    "Obserwacje mieszkańców o zajęciu Hydropolis i Hali Targowej.",
+    "Brak szczegółów dotyczących zniknięcia krasnali."
+  ],
+  "previous_actions": [
+    "Użytkownik zgłosił obawy do Agent."
+  ],
+  "likely_counterarguments": [
+    "Możliwe, że obserwacje są wynikiem złudzeń optycznych lub miejskich legend.",
+    "Zniknięcie krasnali może być wynikiem innych czynników (np. kradzież)."
+  ],
+  "missing_information": [
+    "Brak szczegółów dotyczących obiektu na pl. Grunwaldzkim.",
+    "Brak dowodów na zajęcie Hydropolis i Hali Targowej."
+  ],
+  "facts_to_verify": [
+    "Czy obiekt na pl. Grunwaldzkim to latający spodek?",
+    "Czy zniknięcie krasnali z Rynku jest wiarygodne?"
+  ],
+  "preferred_tone": "neutralny",
+  "user_notes": [
+    "Pilna sytuacja.",
+    "Obawy mieszkańców."
+  ]
+}

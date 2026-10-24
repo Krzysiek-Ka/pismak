@@ -1,0 +1,38 @@
+{
+  "id": "strategy_2030_combining_rail_superseded",
+  "description": "[łączenie informacji, wroclaw-strategy-2030] Kolej aglomeracyjna i wykluczenie komunikacyjne osiedli peryferyjnych łączą dwa priorytety Strategii 2030. Dokument jest nieobowiązujący, więc nie może trafić do pakietu.",
+  "input": {
+    "title": "Kolej aglomeracyjna dla peryferyjnych osiedli",
+    "problem_description": "Mieszkańcy peryferyjnych osiedli mają słaby dojazd do centrum i są wykluczeni komunikacyjnie.",
+    "location": "Wrocław, osiedla peryferyjne",
+    "time_context": null,
+    "desired_outcome": "Dobry dojazd koleją z osiedli peryferyjnych do centrum.",
+    "requested_actions": [
+      "Rozwój kolei aglomeracyjnej i nowych przystanków kolejowych na osiedlach peryferyjnych.",
+      "Zintegrowanie kolei z miejską komunikacją zbiorową."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "forbidden_source_ids": [
+      "wroclaw-strategy-2030"
+    ]
+  },
+  "manual_review": [
+    "Zwrócone fragmenty pochodzą z obowiązujących dokumentów i dotyczą kolei lub przesiadek."
+  ]
+}

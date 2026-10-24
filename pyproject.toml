@@ -10,13 +10,12 @@ license-files = ["LICENSE"]
 
 [tool.pytest.ini_options]
 markers = [
-  "llm: testy na prawdziwych modelach językowych; tylko ręcznie, przez `-m llm`",
-  "golden_set: złote zbiory modułów z tests/golden_set; tylko ręcznie, przez `-m golden_set`",
-  "e2e: testy end-to-end z tests/e2e; tylko ręcznie, przez `-m e2e`",
+  "golden: złote zbiory jednego modułu na prawdziwych modelach i bazie; tylko ręcznie, przez `-m golden`",
+  "e2e: cały pipeline na prawdziwych modelach i bazie; tylko ręcznie, przez `-m e2e`",
 ]
-# Zwykłe `python -m pytest` i CI pomijają testy `llm`, złote zbiory i E2E; `-m …`
-# w poleceniu zastępuje ten filtr.
-addopts = "-m 'not llm and not golden_set and not e2e'"
+# Zwykłe `python -m pytest` i CI pomijają złote zbiory i E2E; `-m …` w poleceniu zastępuje
+# ten filtr. --strict-markers odrzuca literówkę w nazwie markera zamiast cicho ją ignorować.
+addopts = "--strict-markers -m 'not golden and not e2e'"
 
 [tool.ruff]
 target-version = "py311"

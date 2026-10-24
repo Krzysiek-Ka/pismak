@@ -1,0 +1,71 @@
+{
+  "id": "user_material_only",
+  "description": "Jedyny materiał to zdjęcia wnioskodawcy (U1), pakiet źródeł pusty. Sprawdza, że lista źródeł zawiera najwyżej U1 i że data ze zdjęć nie zmienia się w inną.",
+  "input": {
+    "case_brief": {
+      "title": "Naprawa zniszczonej ławki w Parku Południowym",
+      "problem_description": "W Parku Południowym we Wrocławiu przy głównej alejce stoi ławka z połamanymi deskami siedziska.",
+      "location": "Park Południowy, Wrocław",
+      "time_context": null,
+      "desired_outcome": "Bezpieczna ławka przy głównej alejce.",
+      "requested_actions": [
+        "Naprawa albo wymiana zniszczonej ławki."
+      ],
+      "institution": null,
+      "addressee": "Zarząd Zieleni Miejskiej we Wrocławiu",
+      "affected_groups": [],
+      "public_interest_arguments": [],
+      "claims": [
+        {
+          "statement": "Deski siedziska ławki są połamane.",
+          "status": "supported_by_user_evidence",
+          "evidence_description": "Zdjęcia z 12 maja 2026 r."
+        }
+      ],
+      "available_evidence": [
+        "Zdjęcia zniszczonej ławki wykonane przez wnioskodawcę 12 maja 2026 r."
+      ],
+      "previous_actions": [],
+      "likely_counterarguments": [],
+      "missing_information": [],
+      "facts_to_verify": [],
+      "preferred_tone": "neutralny",
+      "user_notes": []
+    },
+    "evidence_pack": {
+      "query_summary": "Zniszczona ławka w parku",
+      "research_plan": {
+        "case_summary": "Zniszczona ławka w parku",
+        "intents": []
+      },
+      "evidence": [],
+      "evidence_status": "unsupported",
+      "unsupported_topics": [],
+      "search_notes": [
+        "Źródła w EvidencePack: 0",
+        "Ocena wsparcia źródeł: unsupported"
+      ]
+    }
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "must_mention": [
+      "Park",
+      "ławk"
+    ],
+    "allowed_sources_subset": [
+      "U1"
+    ],
+    "recipient_must_mention": "Zarząd Zieleni",
+    "no_new_numbers": true,
+    "no_legal_basis": true,
+    "quotes_from_inputs": true
+  },
+  "manual_review": [
+    "Twierdzenia bez pokrycia w briefie ani w źródłach mają znacznik [wymaga weryfikacji].",
+    "Ton jest rzeczowy i zgodny z preferred_tone briefu.",
+    "Zdjęcia są przywołane jako materiał wnioskodawcy (U1)."
+  ]
+}

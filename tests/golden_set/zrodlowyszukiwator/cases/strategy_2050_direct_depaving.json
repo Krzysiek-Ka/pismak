@@ -1,0 +1,37 @@
+{
+  "id": "strategy_2050_direct_depaving",
+  "description": "[bezpośrednio, wroclaw-strategy-2050-2025] Odbetonowanie placu: strategia wprost wymienia przeciwdziałanie betonozie, rozszczelnianie powierzchni i nawierzchnie przepuszczalne.",
+  "input": {
+    "title": "Odbetonowanie placu na osiedlu",
+    "problem_description": "Plac na osiedlu jest w całości wybetonowany, latem bardzo się nagrzewa, a po deszczu stoi woda.",
+    "location": "Wrocław, Nowy Dwór",
+    "time_context": null,
+    "desired_outcome": "Plac z zielenią i nawierzchnią przepuszczającą wodę.",
+    "requested_actions": [
+      "Zastąpienie części betonu na placu zielenią i nawierzchnią przepuszczalną."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-strategy-2050-2025"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

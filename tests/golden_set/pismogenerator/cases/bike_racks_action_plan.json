@@ -1,0 +1,133 @@
+{
+  "id": "bike_racks_action_plan",
+  "description": "Stojaki rowerowe przy szkole, źródła z Planu działań rowerowych, bez adresata w briefie. Sprawdza znacznik [DO UZUPEŁNIENIA: adresat], cytowanie źródeł i brak liczb spoza danych.",
+  "input": {
+    "case_brief": {
+      "title": "Stojaki rowerowe przy Szkole Podstawowej nr 74",
+      "problem_description": "Przy Szkole Podstawowej nr 74 na ulicy Ślężnej we Wrocławiu brakuje stojaków rowerowych; uczniowie przypinają rowery do ogrodzenia.",
+      "location": "ul. Ślężna, Szkoła Podstawowa nr 74, Wrocław",
+      "time_context": null,
+      "desired_outcome": "Bezpieczne miejsce do parkowania rowerów przy szkole.",
+      "requested_actions": [
+        "Montaż stojaków rowerowych przy wejściu do Szkoły Podstawowej nr 74."
+      ],
+      "institution": null,
+      "addressee": null,
+      "affected_groups": [
+        "uczniowie",
+        "rodzice"
+      ],
+      "public_interest_arguments": [],
+      "claims": [
+        {
+          "statement": "Uczniowie przypinają rowery do ogrodzenia.",
+          "status": "user_statement",
+          "evidence_description": null
+        }
+      ],
+      "available_evidence": [],
+      "previous_actions": [],
+      "likely_counterarguments": [],
+      "missing_information": [
+        "Adresat pisma",
+        "Liczba potrzebnych stojaków"
+      ],
+      "facts_to_verify": [],
+      "preferred_tone": "koncyliacyjny",
+      "user_notes": []
+    },
+    "evidence_pack": {
+      "query_summary": "Stojaki rowerowe przy szkole",
+      "research_plan": {
+        "case_summary": "Stojaki rowerowe przy szkole",
+        "intents": []
+      },
+      "evidence": [
+        {
+          "evidence_id": "E1",
+          "chunk_id": "wroclaw-bicycle-action-plan-2030:00016:ba91803fa614",
+          "document_id": "wroclaw-bicycle-action-plan-2030",
+          "document_title": "Plan działań rowerowych do 2030 roku",
+          "document_kind": "plan",
+          "hierarchy_rank": 70,
+          "legal_form": "standalone",
+          "adoption_act_number": null,
+          "adoption_date": null,
+          "is_active": true,
+          "lifecycle_status": "reference",
+          "page_start": 10,
+          "page_end": 10,
+          "section_path": [
+            "SPIS TREŚCI",
+            "Obszar 3: Informacja, promocja i edukacja"
+          ],
+          "excerpt": "Dotychczasowe doświadczenia w zakresie organizacji parkingów rowerowych - montaż stojaków, budowa systemu Bike and Ride, parkingów rowerowych przy miejscach zamieszkania oraz wnioski mieszkańców pozwoliły wskazać kierunki rozwoju systemu parkowania rowerów we Wrocławiu. W ramach nowych obszarów działań, warto wspomnieć o przeprowadzonym w 2021 roku pilotażowym projekcie zadaszonych i zamykanych wiat rowerowych, który zostanie poddany dalszej analizie i ewaluacji.\n\nObszar 3: Informacja, promocja i edukacja\n\nDotychczasowe działania prowadzone we Wrocławiu w zakresie edukacji i promocji ruchu rowerowego to m.in. Rowerowa Szkoła Mobilności Aktywnej, Rowerowy Maj, Szkolna ulica, Aktywna Mobilność – działania edukacyjne. Plan zakłada rozwój istniejących programów oraz propozycje nowych działań skierowanych do szerszego grona odbiorców.",
+          "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/98067/Plan%20dzia%C5%82a%C5%84%20rowerowych%20do%202030%20roku.pdf",
+          "source_filename": "02_Plan_działań_rowerowych_do_2030_roku.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 81,
+          "relevance_reason": "Kierunki rozwoju parkowania rowerów we Wrocławiu.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        },
+        {
+          "evidence_id": "E2",
+          "chunk_id": "wroclaw-bicycle-action-plan-2030:00013:1314b86bac5e",
+          "document_id": "wroclaw-bicycle-action-plan-2030",
+          "document_title": "Plan działań rowerowych do 2030 roku",
+          "document_kind": "plan",
+          "hierarchy_rank": 70,
+          "legal_form": "standalone",
+          "adoption_act_number": null,
+          "adoption_date": null,
+          "is_active": true,
+          "lifecycle_status": "reference",
+          "page_start": 9,
+          "page_end": 9,
+          "section_path": [
+            "SPIS TREŚCI",
+            "Informacja, promocja"
+          ],
+          "excerpt": "rowerowych •\n\nPodniesienie standardu istniejących\n\ntras 2\n\nParkingi rowerowe\n\n•\n\nStojaki wolnostojące\n\n•\n\nBezpieczne parkingi przy miejscach\n\nzamieszkania •\n\nBike and Ride\n\n•\n\nKontynuacja projektu\n\n•\n\nMożliwe obszary rozwoju\n\n3 4\n\nInformacja, promocja\n\ni edukacja",
+          "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/98067/Plan%20dzia%C5%82a%C5%84%20rowerowych%20do%202030%20roku.pdf",
+          "source_filename": "02_Plan_działań_rowerowych_do_2030_roku.pdf",
+          "retrieval_score": 0.03,
+          "rerank_score": 62,
+          "relevance_reason": "Stojaki jako działanie Planu.",
+          "matched_intents": [
+            "Q1: Źródła wspierające postulat"
+          ]
+        }
+      ],
+      "evidence_status": "supported",
+      "unsupported_topics": [],
+      "search_notes": [
+        "Źródła w EvidencePack: 2",
+        "Ocena wsparcia źródeł: supported"
+      ]
+    }
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "must_mention": [
+      [
+        "stojak",
+        "stojaków"
+      ],
+      "74"
+    ],
+    "expect_recipient_placeholder": true,
+    "no_new_numbers": true,
+    "no_legal_basis": true,
+    "quotes_from_inputs": true,
+    "min_sources": 1
+  },
+  "manual_review": [
+    "Twierdzenia bez pokrycia w briefie ani w źródłach mają znacznik [wymaga weryfikacji].",
+    "Ton jest rzeczowy i zgodny z preferred_tone briefu.",
+    "Pismo nie podaje liczby stojaków, której brak w briefie."
+  ]
+}

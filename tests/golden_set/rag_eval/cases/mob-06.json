@@ -1,0 +1,58 @@
+{
+  "id": "mob-06",
+  "description": "Obszar 9 „transport samochodowy osobowy” (PDF s. 11). Parafraza: „ulice prowadzące do centrum” zamiast „ulic wprowadzających ruch do obszaru śródmiejskiego”.",
+  "input": "Co polityka mówi o przepustowości ulic prowadzących do centrum?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "quote": "wstrzymanie się od powiększania przepustowości ulic wprowadzających ruch do obszaru śródmiejskiego oraz stopniowe zmniejszanie przepustowości ulic wprowadzających ruch do centrum"
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "quote": "Przewiduje się ograniczanie roli samochodu, szczególnie w centrum miasta."
+      }
+    ],
+    "evidence": [
+      {
+        "label": "przepustowość-do-centrum",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "all_of": [
+          "wstrzymanie się od powiększania przepustowości ulic wprowadzających ruch do obszaru śródmiejskiego",
+          "stopniowe zmniejszanie przepustowości ulic wprowadzających ruch do centrum"
+        ]
+      },
+      {
+        "label": "ograniczanie-roli-samochodu",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "all_of": [
+          "ograniczanie roli samochodu, szczególnie w centrum miasta"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "zasady",
+      "parafraza",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Miasto ma nie zwiększać przepustowości ulic wprowadzających ruch do śródmieścia i stopniowo ją zmniejszać. Rola samochodu ma być ograniczana, szczególnie w centrum."
+  ]
+}

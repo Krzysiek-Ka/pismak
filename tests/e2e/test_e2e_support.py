@@ -9,8 +9,22 @@ from __future__ import annotations
 import re
 
 import pytest
-from e2e_cases import BIELIK, CASES, OPENROUTER, PLLUM, SETUPS, build_setups, resolve_model
-from e2e_support import (
+
+from src.Dopytywator.structures import ConversationMessage
+from src.Pismogenerator.pismogenerator_helper_functions import render_letter
+from src.Pismogenerator.structures import DraftLetter
+from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
+from tests.e2e.e2e_cases import (
+    BIELIK,
+    CASES,
+    OPENROUTER,
+    PLLUM,
+    SETUPS,
+    build_setups,
+    mixed_entries,
+    resolve_model,
+)
+from tests.e2e.e2e_support import (
     FAIL,
     MAX_QUESTIONS,
     NOT_RUN,
@@ -39,12 +53,10 @@ from e2e_support import (
     words_outside,
 )
 
-from src.Dopytywator.structures import ConversationMessage
-from src.Pismogenerator.pismogenerator_helper_functions import render_letter
-from src.Pismogenerator.structures import DraftLetter
-from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack, ResearchPlan
+pytestmark = pytest.mark.e2e
 
-CASE = CASES[0]
+CASE = next(case for case in CASES if case.id == "kot_wrocek")
+BUSPAS = next(case for case in CASES if case.id == "buspas")
 CASE_IDS = [case.id for case in CASES]
 
 
@@ -155,7 +167,7 @@ def test_result_names_every_stage_and_reproduces_exactly_one_run() -> None:
         "Pismopoprawiator": {"name": "bielik", "provider": "ollama", "model": BIELIK.model},
     }
     # `-k bielik-kot_wrocek` wybrałby też ten przebieg; polecenie podaje pełny identyfikator.
-    assert f"test_pismak_end_to_end[{result.run_id}]" in result.reproduce
+    assert f"test_e2e_pipeline[{result.run_id}]" in result.reproduce
     assert " -k " not in result.reproduce
     # Bez `-m e2e` filtr z pyproject.toml odrzuciłby także test wskazany identyfikatorem.
     assert " -m e2e " in result.reproduce
@@ -254,7 +266,7 @@ def test_secret_values_cover_the_passwords_of_every_database_role(monkeypatch) -
 
 def test_summary_table_shows_each_stage_model_and_why_runs_did_not_pass() -> None:
     [setup] = build_setups([entry("mix")], CASE_IDS)
-    passed = new_result(setup, CASES[1])
+    passed = new_result(setup, BUSPAS)
     passed.status = PASSED
     passed.questions_asked = 12
     passed.end_reason = "question_limit"
@@ -402,3 +414,19 @@ def test_correction_checks_are_skipped_when_the_correction_is_off() -> None:
 
     assert result.checks == []
     assert _correction_cell(result) == "wyłączona"
+
+
+def test_mixed_entries_turn_the_environment_list_into_named_runs() -> None:
+    """Verify PISMAK_E2E_MIXED adds one named run per entry, with an optional correction model."""
+    three, four = mixed_entries("pllum/bielik/openrouter, bielik/pllum/openrouter/brak")
+
+    assert three == {
+        "dopytywator": "pllum",
+        "zrodlowyszukiwacz": "bielik",
+        "pismogenerator": "openrouter",
+        "nazwa": "mix_pllum_bielik_openrouter",
+    }
+    [setup] = build_setups([four], CASE_IDS)
+    assert setup.poprawiator is None
+    with pytest.raises(ValueError, match="3 albo 4 modele"):
+        mixed_entries("pllum/bielik")

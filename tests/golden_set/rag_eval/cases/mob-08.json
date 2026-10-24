@@ -1,0 +1,55 @@
+{
+  "id": "mob-08",
+  "description": "Trudny negatyw z nazwą ulicy, której nie ma w korpusie. Polityka zawiera bliskie, ogólne zapisy o korytarzach i priorytecie dla transportu zbiorowego, a Program Tramwajowy 2.0 — buspas na innej ulicy. System powinien rozpoznać brak dowodu dla tej lokalizacji zamiast przedstawić ogólne zapisy jako odpowiedź.",
+  "input": "Czy polityka mobilności przewiduje buspas na ul. Kazimierza Wielkiego?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": false,
+    "expected_sources": [],
+    "evidence": [],
+    "acceptable_document_ids": [],
+    "absence_check": {
+      "searched_documents": [
+        "wroclaw-strategy-2050-2025",
+        "wroclaw-strategy-2030",
+        "wroclaw-bicycle-policy-2010",
+        "wroclaw-mobility-policy-2013",
+        "wroclaw-bicycle-action-plan-2030",
+        "wroclaw-tram-program-2-0",
+        "wroclaw-accessibility-standards"
+      ],
+      "searched_terms": [
+        "buspas",
+        "bus-pas",
+        "pas autobusowy",
+        "pas dla autobusów",
+        "pas dla komunikacji zbiorowej",
+        "Kazimierza Wielkiego",
+        "Kazimierza",
+        "korytarz komunikacyjny",
+        "wydzielone korytarze",
+        "priorytet dla komunikacji zbiorowej",
+        "strefy miasta"
+      ],
+      "answer_patterns": [
+        "(buspas\\w*|bus-pas\\w*|pas\\w* (autobusow\\w*|dla autobus\\w*|dla komunikacji|ruchu autobus\\w*)).{0,200}kazimierza wielkiego",
+        "kazimierza wielkiego.{0,200}(buspas\\w*|bus-pas\\w*|pas\\w* (autobusow\\w*|dla autobus\\w*|dla komunikacji|ruchu autobus\\w*))",
+        "(wydziel\\w*|korytarz\\w*|priorytet\\w*).{0,150}kazimierza wielkiego"
+      ],
+      "related_but_insufficient": [
+        "Wrocławska polityka mobilności, s. 7: „wydzielanie specjalnych korytarzy komunikacyjnych dla transportu zbiorowego” i „kreowanie priorytetu transportu zbiorowego” (kierunek bez lokalizacji)",
+        "Wrocławska polityka mobilności, s. 14: zapowiedź określenia stref miasta na kolejnym etapie realizacji polityki (bez wskazania ulic)",
+        "Wrocławski Program Tramwajowy 2.0, s. 44–45: wydzielenie buspasa w ul. Krzywoustego (inna ulica, inny dokument)"
+      ]
+    },
+    "tags": [
+      "trudny-negatyw",
+      "lokalizacja",
+      "dystraktor",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Polityka mobilności nie wskazuje konkretnych ulic ani lokalizacji buspasów — zawiera tylko ogólny kierunek wydzielania specjalnych korytarzy dla transportu zbiorowego (s. 7) i zapowiedź późniejszego określenia stref miasta (s. 14). Żaden dokument korpusu nie wspomina ul. Kazimierza Wielkiego."
+  ]
+}

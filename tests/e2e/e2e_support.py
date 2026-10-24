@@ -32,7 +32,6 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import pytest
-from e2e_cases import Case, Provider, Setup
 
 from src._shared.model_context import detect_context_tokens
 from src._shared.serwer import OPENROUTER_KEY_PLACEHOLDER, LLMClient, error_log_detail
@@ -49,9 +48,10 @@ from src.Wyswietlator import services
 from src.Zrodlowyszukiwator.brief_to_evidence import EvidencePack
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import LLMQueryPlanner
 from src.Zrodlowyszukiwator.rag_retrieval import RetrievalRepository
+from tests.e2e.e2e_cases import Case, Provider, Setup
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-REPORTS_DIR = PROJECT_ROOT / "outputs" / "e2e"
+REPORTS_DIR = Path(__file__).resolve().parent / "results"
 MAX_QUESTIONS = 12
 # Ollama przerywa żądanie po 900 s (OLLAMA_REQUEST_TIMEOUT_SECONDS); wolniejsze wywołania
 # są blisko limitu i warto je widzieć w raporcie.
@@ -65,6 +65,16 @@ PASS, FAIL, WARN = "PASS", "FAIL", "WARN"
 PASSED, FAILED, NOT_RUN = "ZALICZONY", "NIEUDANY", "NIEURUCHOMIONY"
 REDACTED = "***REDACTED***"
 EVIDENCE_STATUSES = ("supported", "unsupported", "unverified")
+# Błędy otoczenia, a nie Pismaka: przebieg z samymi takimi błędami ma status infra_error.
+INFRA_ERROR_TYPES = {
+    "APIConnectionError",
+    "APITimeoutError",
+    "RateLimitError",
+    "InternalServerError",
+    "LLMBusyError",
+    "DatabaseConnectionError",
+    "LLMConfigurationError",
+}
 CORRECTION_STATUSES = {
     "corrected": "poprawiono",
     "unchanged": "bez zmian",
@@ -271,7 +281,7 @@ def new_result(setup: Setup, case: Case) -> RunResult:
         # Pełny identyfikator testu, bo `-k bielik-buspas` wybrałby też konfiguracje mieszane.
         reproduce=(
             ".venv\\Scripts\\python.exe -m pytest "
-            f'"tests/e2e/test_pismak_e2e.py::test_pismak_end_to_end[{rid}]" -m e2e -v -rA -s'
+            f'"tests/e2e/test_e2e_pipeline.py::test_e2e_pipeline[{rid}]" -m e2e -v -rA -s'
         ),
     )
 
@@ -350,7 +360,7 @@ def _interview(setup: Setup, case: Case, result: RunResult, state: _RunState) ->
             state.messages,
             llm,
             questions_asked=result.questions_asked,
-            max_interview_questions=MAX_QUESTIONS,
+            max_interview_questions=case.max_questions,
             after_llm_call=lambda: _record_model(result, "Dopytywator", provider, llm.last_model),
         )
         elapsed = round(perf_counter() - step_started, 3)
@@ -1587,6 +1597,7 @@ class E2ESession:
 
     def __init__(self, label: str, header: dict[str, Any], cases: Iterable[Case]) -> None:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.stamp = stamp
         self.label = label
         self.header = header
         self.cases = {case.id: case for case in cases}
@@ -1628,7 +1639,56 @@ class E2ESession:
             self._write(result)
             scrub_secrets(self.out_dir, self.secrets)
 
+    def _write_standard_result(self, result: RunResult) -> None:
+        """Write results/<time>_<setup>_<case>.json with the fields the test standard lists."""
+        case = self.cases.get(result.case_id)
+        failures = result.hard_failures()
+        if result.status == NOT_RUN:
+            status = "skipped"
+        elif result.status == PASSED:
+            status = "passed"
+        elif result.errors and all(e.error_type in INFRA_ERROR_TYPES for e in result.errors):
+            status = "infra_error"
+        else:
+            status = "failed_check"
+        stats = result.log_stats or {}
+        payload = {
+            "module": "e2e",
+            "case_id": result.case_id,
+            "setup": result.setup_id,
+            "stages": result.stages,
+            "models": result.actual_models(),
+            "status": status,
+            "checks": [asdict(check) for check in result.checks],
+            "failed_invariants": [f"{c.id} {c.title}: {c.detail}" for c in failures],
+            "questions_asked": result.questions_asked,
+            "end_reason": result.end_reason,
+            "sources": [
+                {"evidence_id": e.get("evidence_id"), "document_id": e.get("document_id")}
+                for e in ((result.rag or {}).get("evidence") or [])
+                if isinstance(e, dict)
+            ],
+            "evidence_status": (result.rag or {}).get("evidence_status"),
+            "stage_durations_seconds": result.timings,
+            "retries": sum(call.get("attempt", 1) > 1 for call in result.llm_calls),
+            "truncations": stats.get("llm_output_truncated", 0),
+            "errors": [asdict(error) for error in result.errors]
+            + ([result.not_run_reason] if result.not_run_reason else []),
+            "manual_review": list(case.manual_review) if case else [],
+            "artifacts": result.paths.get("artifacts"),
+            "logs": result.paths.get("logs"),
+        }
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        stamp = (
+            (result.started_at or self.stamp).replace("-", "").replace(":", "").replace("T", "_")
+        )
+        path = REPORTS_DIR / f"{stamp}_{result.setup_id}_{result.case_id}.json"
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+        )
+
     def _write(self, result: RunResult) -> None:
+        self._write_standard_result(result)
         if result.status != NOT_RUN:
             run_dir = self.out_dir / f"{result.setup_id}__{result.case_id}"
             run_dir.mkdir(parents=True, exist_ok=True)

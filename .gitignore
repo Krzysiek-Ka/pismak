@@ -79,10 +79,17 @@ data/
 
 postgres-data/
 
-# Generated UI runs are local data; keep one concrete example for documentation.
+# Wyniki złotych zbiorów i testów E2E (raporty z przebiegów na modelach).
+tests/golden_set/*/results/
+tests/e2e/results/
+
+# Generated UI runs are local data; keep concrete examples for documentation.
 outputs/*
 !outputs/20260926_200658_ui/
 !outputs/20260926_200658_ui/**
+# Przykładowa sprawa przez wszystkie etapy, z korektą językową (Pismopoprawiator).
+!outputs/SAMPLE/
+!outputs/SAMPLE/**
 
 
 # ==========================================

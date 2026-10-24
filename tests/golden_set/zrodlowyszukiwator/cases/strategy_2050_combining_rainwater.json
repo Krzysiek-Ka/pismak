@@ -1,0 +1,39 @@
+{
+  "id": "strategy_2050_combining_rainwater",
+  "description": "[łączenie informacji, wroclaw-strategy-2050-2025] Podtopienia po ulewach łączą zapisy o retencji i detencji wody opadowej, błękitno-zielonej infrastrukturze i ograniczaniu powierzchni nieprzepuszczalnych.",
+  "input": {
+    "title": "Zatrzymywanie wody deszczowej na osiedlu",
+    "problem_description": "Po każdej ulewie ulice i piwnice na osiedlu są zalewane, bo woda nie ma gdzie wsiąkać.",
+    "location": "Wrocław, Kozanów",
+    "time_context": null,
+    "desired_outcome": "Osiedle, które zatrzymuje wodę deszczową zamiast odprowadzać ją do zalewanych ulic.",
+    "requested_actions": [
+      "Budowa ogrodów deszczowych i zbiorników retencyjnych na osiedlu.",
+      "Zwiększenie powierzchni zieleni i nawierzchni przepuszczalnych."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-strategy-2050-2025"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

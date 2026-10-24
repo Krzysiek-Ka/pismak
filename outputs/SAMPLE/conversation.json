@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "Pilne! Nad Wrocławiem krążą latające spodki, a kosmici od wczoraj okupują Hydropolis i Halę Targową. Wzywam Prezydenta Wrocławia do natychmiastowego zwołania gwardii narodowej, zanim porwą wszystkie wrocławskie krasnale!"
+  },
+  {
+    "role": "assistant",
+    "content": "Czy użytkownik ma konkretne dowody na obecność kosmitów lub czy może podać więcej szczegółów dotyczących ich działań?"
+  },
+  {
+    "role": "user",
+    "content": "Spodek wylądował wczoraj około 21:00 na pl. Grunwaldzkim. Według obserwacji mieszkańców kosmici zajęli Hydropolis i Halę Targową, a z Rynku zniknęło kilkanaście krasnali. Nikt nie został ranny, ale mieszkańcy boją się wychodzić z domów."
+  },
+  {
+    "role": "assistant",
+    "content": "Mam wystarczające informacje. Przygotowałem podsumowanie sprawy."
+  }
+]

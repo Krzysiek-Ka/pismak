@@ -1,0 +1,59 @@
+{
+  "id": "bike-02",
+  "description": "Rozdział 7 „Instrumenty organizacyjne” (PDF s. 8). Pytanie używa innych słów niż dokument: „stowarzyszenie” i „organizacje społeczne” zamiast „organizacji pozarządowych”, „wpływ na projektowanie dróg” zamiast „opiniowania koncepcji i projektów drogowych”.",
+  "input": "Działam w stowarzyszeniu rowerowym. Czy organizacje społeczne mają jakiś formalny wpływ na to, jak miasto projektuje drogi?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "quote": "Rada ds. rozwoju ruchu rowerowego w Mieście, która składa się z przedstawicieli wydziałów Urzędu Miejskiego Wrocławia i jednostek organizacyjnych Gminy związanych z wdrażaniem Polityki Rowerowej Wrocławia oraz przedstawicieli organizacji pozarządowych działających na rzecz rozwoju ruchu rowerowego."
+      },
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "quote": "opiniowanie koncepcji i projektów drogowych w zakresie udogodnień dla rowerzystów"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "rada-z-ngo",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "Rada ds. rozwoju ruchu rowerowego",
+          "organizacji pozarządowych"
+        ]
+      },
+      {
+        "label": "opiniowanie-projektów",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "opiniowanie koncepcji i projektów drogowych w zakresie udogodnień dla rowerzystów"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "synonimy",
+      "parafraza",
+      "potoczny",
+      "obowiązki"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Tak. Polityka Rowerowa przewiduje Radę ds. rozwoju ruchu rowerowego, w której obok przedstawicieli urzędu i jednostek miejskich zasiadają przedstawiciele organizacji pozarządowych działających na rzecz ruchu rowerowego. Do zadań Rady należy m.in. opiniowanie koncepcji i projektów drogowych w zakresie udogodnień dla rowerzystów."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "strategy_2050",
+  "description": "Strategia 2050 to najdłuższy dokument korpusu (ponad 400 fragmentów) z listami punktowanymi.",
+  "input": {
+    "filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "przeciwdziałanie tzw. betonozie",
+      "miastem 15-minutowym"
+    ]
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

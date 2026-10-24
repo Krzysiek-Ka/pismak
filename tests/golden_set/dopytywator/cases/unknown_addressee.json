@@ -1,0 +1,36 @@
+{
+  "id": "unknown_addressee",
+  "description": "Użytkownik wprost mówi, że nie wie, do kogo pisać. Sprawdza zasadę promptu: nieznany adresat i instytucja zostają puste (null), a brak trafia do missing_information, zamiast nazwy urzędu z wiedzy modelu.",
+  "input": "Na przystanku tramwajowym przy ulicy Świdnickiej we Wrocławiu od około miesiąca nie działa elektroniczna tablica z odjazdami. Chcę, żeby ją naprawiono. Nie wiem, do kogo mam z tym napisać.",
+  "user_answers": [
+    "Tablica jest ciemna od około czterech tygodni, codziennie tamtędy przechodzę.",
+    "Nie wiem, która instytucja za to odpowiada, i nie chcę zgadywać.",
+    "Nie zgłaszałem tego wcześniej nigdzie.",
+    "Nie mam zdjęć tablicy."
+  ],
+  "limits": {
+    "max_questions": 3
+  },
+  "expected": {
+    "brief_ready": true,
+    "min_requested_actions": 1,
+    "must_mention": [
+      "Świdnick",
+      "tablic"
+    ],
+    "null_fields": [
+      "addressee",
+      "institution",
+      "available_evidence"
+    ],
+    "non_empty_fields": [
+      "missing_information"
+    ],
+    "no_new_numbers": true
+  },
+  "manual_review": [
+    "missing_information wskazuje brak adresata lub instytucji odpowiedzialnej za tablicę.",
+    "Brief nie podaje nazwy przewoźnika ani urzędu, których użytkownik nie wymienił.",
+    "Pytania asystenta są pytaniami do użytkownika, a nie opisem celu pytania."
+  ]
+}

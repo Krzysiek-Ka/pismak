@@ -1,0 +1,60 @@
+{
+  "id": "bike-01",
+  "description": "Oba cele są w rozdziale II.1 „Cele strategiczne” (PDF s. 4 i 5). Pytanie parafrazuje „udział ruchu rowerowego” jako „udział rowerów w ruchu” i wymaga dwóch dat, czyli dwóch dowodów. Cel na 2015 r. stoi w linii zaczynającej się od „2015”, którą chunker w wersji 0.1 brał za nagłówek i usuwał z treści.",
+  "input": "Jaki udział rowerów w ruchu miasto chciało osiągnąć w 2015, a jaki w 2020 roku? Chcę porównać z tym, co jest teraz.",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "quote": "Głównym celem strategicznym Polityki Rowerowej Wrocławia w perspektywie długoterminowej jest osiągnięcie co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży realizowanych w Mieście w 2020 roku."
+      },
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          5
+        ],
+        "quote": "Celem strategicznym w perspektywie średnioterminowej jest osiągniecie w roku 2015 co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych realizowanych w Mieście."
+      }
+    ],
+    "evidence": [
+      {
+        "label": "cel-2020-15%",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          4
+        ],
+        "all_of": [
+          "co najmniej 15% udziału ruchu rowerowego",
+          "w 2020 roku"
+        ]
+      },
+      {
+        "label": "cel-2015-10%",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          5
+        ],
+        "all_of": [
+          "2015 co najmniej 10% udziału ruchu rowerowego"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "daty",
+      "parafraza",
+      "potoczny",
+      "wiele-dowodów"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Według Polityki Rowerowej Wrocławia celem średnioterminowym było osiągnięcie w 2015 r. co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych, a głównym celem długoterminowym – co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży w 2020 r. Dokument nie podaje, jaki udział faktycznie osiągnięto."
+  ]
+}

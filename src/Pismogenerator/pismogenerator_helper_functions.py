@@ -114,6 +114,67 @@ def bracket_verification_markers(text: str) -> str:
     return _VERIFICATION_NOTE.sub(bracket, text)
 
 
+# Model zaczyna czasem podsumowanie od zwrotu, który renderer już dokleja („wnioskuję o
+# wnioskuję o…”), albo od wielkiej litery („wnioskuję o Zwołanie…”).
+_REQUEST_PREFIX = re.compile(r"^(?:wnioskuj[eę]|wnosz[eę])\s+o\s+", re.IGNORECASE)
+# Końcówki rzeczowników, które zwykle dopełniają „wnioskuję o”: „zwołanie”, „podjęcie”,
+# „zgodę”. Nazwa własna na początku podsumowania zostaje z wielkiej litery.
+_REQUEST_NOUN_ENDINGS = ("nie", "cie", "ę")
+_CLOSING_LINE = re.compile(
+    r"^(?:z poważaniem|z wyrazami szacunku|łączę wyrazy szacunku|z pozdrowieniami|pozdrawiam)"
+    r"[,.!]?$",
+    re.IGNORECASE,
+)
+_PLACEHOLDER_LINE = re.compile(r"^\[[^\[\]\n]*\]$")
+
+
+def normalize_request_summary(summary: str) -> str:
+    """Make the summary a lowercase complement of the fixed "wnioskuję o" formula."""
+    text = summary.strip()
+    while match := _REQUEST_PREFIX.match(text):
+        text = text[match.end() :]
+    first_word = text.split(maxsplit=1)[0] if text else ""
+    letters = first_word.rstrip(",.;:")
+    if (
+        letters[:1].isupper()
+        and letters[1:] == letters[1:].lower()
+        and letters.lower().endswith(_REQUEST_NOUN_ENDINGS)
+    ):
+        text = text[0].lower() + text[1:]
+    return text
+
+
+def unescape_newlines(text: str) -> str:
+    """Turn the literal "\\n" a model sometimes writes instead of a line break into one."""
+    return text.replace("\\r\\n", "\n").replace("\\n", "\n")
+
+
+def strip_closing(argumentation: str) -> str:
+    """Drop a closing formula and signature placeholder the model added at the end."""
+    # Renderer sam dodaje „Z poważaniem,” i podpis, więc pożegnanie modelu dubluje się.
+    lines = argumentation.rstrip().split("\n")
+
+    def cleaned(index: int) -> str:
+        return lines[index].strip().rstrip("\\").strip()
+
+    def last_filled(stop: int) -> int:
+        index = stop - 1
+        while index >= 0 and not cleaned(index):
+            index -= 1
+        return index
+
+    last = last_filled(len(lines))
+    if last >= 0 and _PLACEHOLDER_LINE.match(cleaned(last)):
+        last = last_filled(last)
+    if last < 0 or not _CLOSING_LINE.match(cleaned(last)):
+        return argumentation
+    kept = lines[: last_filled(last) + 1]
+    # Twarde łamanie wiersza („\” na końcu) przed usuniętym pożegnaniem nie ma już czego łamać.
+    if kept:
+        kept[-1] = kept[-1].rstrip().rstrip("\\").rstrip()
+    return "\n".join(kept)
+
+
 def render_list(items: list[str], empty_text: str = "Brak.") -> str:
     """Render a list as a markdown-style bullet list."""
     if not items:
@@ -162,8 +223,12 @@ def render_letter(
 ) -> str:
     """Turn a DraftLetter model into a final markdown letter body."""
     recipient = draft.recipient.strip() or RECIPIENT_PLACEHOLDER
-    request_summary = bracket_verification_markers(draft.request_summary.strip())
-    argumentation = bracket_verification_markers(draft.argumentation_markdown.strip())
+    request_summary = bracket_verification_markers(
+        normalize_request_summary(unescape_newlines(draft.request_summary))
+    )
+    argumentation = bracket_verification_markers(
+        strip_closing(unescape_newlines(draft.argumentation_markdown).strip())
+    )
 
     # Pusta linia między polami nagłówka: bez niej Markdown pokazuje je w jednej linii.
     letter = f"""{RECIPIENT_LABEL} {recipient}

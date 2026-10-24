@@ -1,0 +1,39 @@
+{
+  "id": "action_plan_combining_bike_and_ride_station",
+  "description": "[łączenie informacji, wroclaw-bicycle-action-plan-2030] Parking rowerowy przy Dworcu Głównym łączy rozbudowę Bike and Ride, audyt istniejących parkingów i bezpieczne parkingi na dworcach.",
+  "input": {
+    "title": "Bezpieczny parking rowerowy przy Dworcu Głównym",
+    "problem_description": "Parking rowerowy przy Dworcu Głównym jest przepełniony, a rowery są tam kradzione.",
+    "location": "Dworzec Wrocław Główny",
+    "time_context": null,
+    "desired_outcome": "Bezpieczne i wystarczające miejsca na rowery przy dworcu, żeby łączyć rower z pociągiem.",
+    "requested_actions": [
+      "Rozbudowa parkingu typu Bike and Ride przy Dworcu Głównym.",
+      "Budowa zamykanego, strzeżonego parkingu rowerowego przy dworcu."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-bicycle-action-plan-2030"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "strategy_2030_not_covered_smoking_ban",
+  "description": "[poza korpusem, wroclaw-strategy-2030] Zakaz palenia na przystankach: korpus nie wspomina palenia ani wyrobów tytoniowych (sprawdzone wyszukiwaniem w bazie).",
+  "input": {
+    "title": "Zakaz palenia na przystankach",
+    "problem_description": "Na przystankach komunikacji miejskiej ludzie palą papierosy, a pasażerowie muszą wdychać dym.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Przystanki wolne od dymu tytoniowego.",
+    "requested_actions": [
+      "Wprowadzenie i egzekwowanie zakazu palenia na przystankach komunikacji miejskiej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true,
+    "forbidden_source_ids": [
+      "wroclaw-strategy-2030"
+    ]
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

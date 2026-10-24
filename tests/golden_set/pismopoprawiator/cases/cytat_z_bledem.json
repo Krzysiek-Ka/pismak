@@ -1,0 +1,31 @@
+{
+  "id": "cytat_z_bledem",
+  "description": "Błąd wewnątrz cytatu musi zostać; poprawiane są tylko błędy poza cytatem. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Miejskie Przedsiębiorstwo Komunikacyjne we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o zaktualizowanie informacji dla pasażerów na przystanku Plac Wróblewskiego\n\n# WNIOSEK\n\nNa tablicy przy przystanku widnieje napis „Przystanek tymczasowo nieczyny”, choć autobusy zatrzymują sie tam codziennie.\n\nW uchwale budżetowej zapisano: „modernizacja przystanków na trasie linii 107 i 133”. Wnioskodawca prosi o aktualizacje informacji dla pasażerów [1].\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] E1: Wrocławska polityka mobilności, s. 11, https://www.wroclaw.pl/files/Wroclawska-Polityka-Mobilnosci.pdf\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "zatrzymują sie",
+        "right": [
+          "zatrzymują się"
+        ]
+      },
+      {
+        "wrong": "o aktualizacje informacji",
+        "right": [
+          "o aktualizację informacji"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "„Przystanek tymczasowo nieczyny”",
+      "„modernizacja przystanków na trasie linii 107 i 133”",
+      "[1]"
+    ],
+    "allowed_expansions": []
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

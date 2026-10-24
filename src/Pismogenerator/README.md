@@ -17,6 +17,12 @@ Pismogenerator przygotowuje projekt pisma na podstawie `CaseBrief`, źródeł pr
 
 Uwagi dla użytkownika zawsze stoją w nawiasach kwadratowych: `[DO UZUPEŁNIENIA: …]` i `[wymaga weryfikacji]`. Prompt prosi model o oznaczanie niepotwierdzonych twierdzeń znacznikiem `[wymaga weryfikacji]`. Renderer zamienia też zapis „(wymaga weryfikacji)” i samo „wymaga weryfikacji” poza nawiasami na `[wymaga weryfikacji]`. Nie dotyka zwrotu z przeczeniem („nie wymaga weryfikacji”).
 
+Renderer porządkuje też to, co model dopisuje wokół treści:
+- usuwa „wnioskuję o” z początku podsumowania wniosku, bo formuła już je zawiera;
+- zmniejsza pierwszą literę rzeczownika na początku podsumowania („Zwołanie” → „zwołanie”); skrótowce i nazwy zostają;
+- zamienia dosłowne `\n` na podziały wiersza;
+- usuwa formułę pożegnalną i podpis z końca argumentacji, bo renderer dodaje własne.
+
 Stałe elementy układu pisma (adresat, nadawca, formuła, podpis, nagłówek źródeł) są stałymi w `pismogenerator_helper_functions.py`. Korzysta z nich Pismopoprawiator, który na ich podstawie rozpoznaje akapity tylko do odczytu.
 
 Przepływ: `CaseBrief` + `EvidencePack` + materiały użytkownika → `DraftLetter` → walidacja → treść pisma Markdown.

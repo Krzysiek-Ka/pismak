@@ -1,0 +1,41 @@
+{
+  "id": "bike-05",
+  "description": "Rozdział II.1 „Cele strategiczne” (PDF s. 5, wydruk s. 4). Pytanie nie nazywa dokumentu ani tematu (rower), a poprawna odpowiedź wymaga zastrzeżenia „podróży niepieszych”.",
+  "input": "Jaki cel średnioterminowy wyznaczono na 2015 r.?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          5
+        ],
+        "quote": "Celem strategicznym w perspektywie średnioterminowej jest osiągniecie w roku 2015 co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych realizowanych w Mieście."
+      }
+    ],
+    "evidence": [
+      {
+        "label": "cel-2015-10%-niepieszych",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          5
+        ],
+        "all_of": [
+          "2015 co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "liczby",
+      "daty",
+      "bez-nazwy-dokumentu",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Co najmniej 10% udziału ruchu rowerowego, liczony w podróżach niepieszych, a nie we wszystkich podróżach."
+  ]
+}

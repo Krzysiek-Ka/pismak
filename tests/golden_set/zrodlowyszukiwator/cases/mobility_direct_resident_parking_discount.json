@@ -1,0 +1,37 @@
+{
+  "id": "mobility_direct_resident_parking_discount",
+  "description": "[bezpośrednio, wroclaw-mobility-policy-2013] Ulga parkingowa dla mieszkańców: polityka parkingowa centrum wprost przewiduje preferencje cenowe dla stałych mieszkańców strefy płatnego parkowania.",
+  "input": {
+    "title": "Ulga w strefie płatnego parkowania dla mieszkańców centrum",
+    "problem_description": "Mieszkańcy centrum płacą za postój pod własnym domem tyle samo co osoby przyjezdne.",
+    "location": "centrum Wrocławia",
+    "time_context": null,
+    "desired_outcome": "Niższe opłaty za parkowanie dla stałych mieszkańców strefy płatnego parkowania.",
+    "requested_actions": [
+      "Wprowadzenie preferencyjnych opłat dla stałych mieszkańców strefy płatnego parkowania."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "accessibility_standards",
+  "description": "Standardy dostępności mają wymiary w metrach i przypisy z odwołaniami do przepisów, których nie wolno zgubić.",
+  "input": {
+    "filename": "03_Wroclawskie_standardy_dostepnosci_przestrzeni_miejskich.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "Obniżenie krawężnika na przejściu dla pieszych powinno zostać wykonane na długości co najmniej 2,00 m",
+      "automaty biletowe"
+    ]
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

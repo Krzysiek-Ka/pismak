@@ -1,0 +1,54 @@
+{
+  "id": "bike-08",
+  "description": "Trudny negatyw z pułapką liczbową: standardy dostępności (PDF s. 32) mają „2,00 m” i „2,50 m” obok szerokości drogi dla rowerów, ale jako próg wymogu bufora, a nie minimum. Polityka tylko odsyła do osobnego dokumentu standardów.",
+  "input": "Jaką minimalną szerokość drogi rowerowej określa polityka rowerowa?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": false,
+    "expected_sources": [],
+    "evidence": [],
+    "acceptable_document_ids": [],
+    "absence_check": {
+      "searched_documents": [
+        "wroclaw-strategy-2050-2025",
+        "wroclaw-strategy-2030",
+        "wroclaw-bicycle-policy-2010",
+        "wroclaw-mobility-policy-2013",
+        "wroclaw-bicycle-action-plan-2030",
+        "wroclaw-tram-program-2-0",
+        "wroclaw-accessibility-standards"
+      ],
+      "searched_terms": [
+        "szerokość",
+        "minimalna szerokość",
+        "droga dla rowerów",
+        "droga rowerowa",
+        "ścieżka rowerowa",
+        "pas rowerowy",
+        "Standardy projektowe i wykonawcze",
+        "parametry techniczne",
+        "CROW"
+      ],
+      "answer_patterns": [
+        "(minimaln\\w*|najmniejsz\\w*) szerokoś\\w*.{0,80}(drog\\w* (dla )?rower|ścież\\w* rower|pas\\w* (dla )?rower|tras\\w* rower)",
+        "(drog\\w* (dla )?rower\\w*|ścież\\w* rower\\w*|pas\\w* (dla )?rower\\w*).{0,80}szerokoś\\w* (co najmniej|min\\w*|nie mniejsz\\w*)",
+        "szerokoś\\w* (drog\\w* (dla )?rower|ścież\\w* rower|pas\\w* (dla )?rower)\\w*.{0,80}\\d+([,.]\\d+)? ?m\\b"
+      ],
+      "related_but_insufficient": [
+        "Polityka Rowerowa Wrocławia, s. 6: odesłanie do „Standardów projektowych i wykonawczych dla systemu rowerowego miasta Wrocławia” (dokumentu nie ma w korpusie)",
+        "Wrocławskie standardy dostępności, s. 32: droga dla rowerów oddzielona buforem, gdy jej szerokość przekracza 2,00 m (jednokierunkowa) lub 2,50 m (dwukierunkowa) — próg, nie minimum",
+        "Wrocławskie standardy dostępności, s. 39–40: trasa wolna od przeszkód przy stojakach rowerowych o szerokości co najmniej 1,60 m (dotyczy dojścia, nie drogi dla rowerów)",
+        "Plan działań rowerowych do 2030 roku, s. 4: wymogi CROW bez parametrów szerokości"
+      ]
+    },
+    "tags": [
+      "trudny-negatyw",
+      "liczby",
+      "pułapka-leksykalna",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Polityka Rowerowa Wrocławia nie podaje parametrów technicznych — odsyła do „Standardów projektowych i wykonawczych dla systemu rowerowego miasta Wrocławia” (s. 6), których nie ma w korpusie. Wrocławskie standardy dostępności podają tylko szerokości, od których droga dla rowerów musi być oddzielona od chodnika buforem (2,00 m i 2,50 m), a nie szerokość minimalną."
+  ]
+}

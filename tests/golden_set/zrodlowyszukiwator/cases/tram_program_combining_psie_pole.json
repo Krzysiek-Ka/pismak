@@ -1,0 +1,39 @@
+{
+  "id": "tram_program_combining_psie_pole",
+  "description": "[łączenie informacji, wroclaw-tram-program-2-0] Dojazd z Psiego Pola wymaga zapisów o wariantach tramwaju na Psie Pole (studium korytarzowe) i o buspasie na ul. Krzywoustego.",
+  "input": {
+    "title": "Lepszy dojazd z Psiego Pola do centrum",
+    "problem_description": "Z Psiego Pola do centrum jedzie się długo autobusami, które stoją w korkach na ulicy Krzywoustego.",
+    "location": "Wrocław, Psie Pole, ul. Krzywoustego",
+    "time_context": null,
+    "desired_outcome": "Szybszy i bardziej niezawodny dojazd z Psiego Pola do centrum.",
+    "requested_actions": [
+      "Przygotowanie budowy tramwaju na Psie Pole.",
+      "Wydzielenie buspasa na ulicy Krzywoustego do czasu budowy tramwaju."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-tram-program-2-0"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

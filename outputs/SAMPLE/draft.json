@@ -1,0 +1,21 @@
+{
+  "recipient": "Prezydent Wrocławia",
+  "sender": "",
+  "request_summary": "Ocena sytuacji i ewentualne podjęcie działań w sprawie doniesień o latających spodkach, zajęciu Hydropolis oraz Hali Targowej, a także zniknięcia krasnali z Rynku.",
+  "argumentation_markdown": "\\\\nWrocławianie od pewnego czasu zgłaszają obawy dotyczące obecności niezidentyfikowanych obiektów nad miastem, zajęcia ważnych instytucji miejskich (Hydropolis i Hala Targowa) oraz tajemniczego zniknięcia kilkunastu krasnali z Rynku. W świetle tych doniesień, konieczne jest przeprowadzenie szczegółowej oceny sytuacji przez władze miasta, aby zapewnić bezpieczeństwo mieszkańców i określić ewentualne działania naprawcze.",
+  "sources": [
+    "E1",
+    "U1",
+    "U2",
+    "U3"
+  ],
+  "claims_requiring_verification": [
+    "Czy obiekt na pl. Grunwaldzkim to latający spodek?",
+    "Czy zniknięcie krasnali z Rynku jest wiarygodne?"
+  ],
+  "missing_fields": [
+    "Brak szczegółów dotyczących obiektu na pl. Grunwaldzkim.",
+    "Brak dowodów na zajęcie Hydropolis i Hali Targowej."
+  ],
+  "assumptions_used": []
+}

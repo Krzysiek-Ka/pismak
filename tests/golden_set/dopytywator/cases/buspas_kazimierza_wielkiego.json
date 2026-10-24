@@ -1,0 +1,51 @@
+{
+  "id": "buspas_kazimierza_wielkiego",
+  "description": "Krótki opis z jednym postulatem i odpowiedziami podawanymi po kolei, niezależnie od pytań (jak w E2E). Sprawdza, czy Dopytywator doprecyzowuje postulat w limicie pytań i nie zamienia obserwacji użytkownika (bez pomiarów) w dowody.",
+  "input": "Chciałbym wprowadzenia buspasa na ulicy Kazimierza Wielkiego we Wrocławiu.",
+  "user_answers": [
+    "Aktualnie więcej osób porusza się tam komunikacją miejską niż samochodami.",
+    "Są tam korki, przez które komunikacja miejska jedzie wolniej.",
+    "To absurd, że tak centralnie położona ulica pełni funkcję drogi tranzytowej.",
+    "Chodzi mi o ulicę Kazimierza Wielkiego w centrum Wrocławia.",
+    "Zależy mi na buspasie w obu kierunkach, o ile będzie to możliwe.",
+    "Najważniejsze jest dla mnie zwiększenie punktualności i przewidywalności przejazdu komunikacji miejskiej.",
+    "Nie mam własnych pomiarów ruchu — to moje obserwacje z codziennego poruszania się po mieście.",
+    "Chciałbym ograniczyć ruch samochodów, które nie muszą przejeżdżać przez centrum.",
+    "Nie postuluję całkowitego zamknięcia ulicy dla samochodów.",
+    "Należy uwzględnić wpływ zmian na dostawy, mieszkańców, służby i pozostały ruch.",
+    "Chciałbym, żeby miasto przeanalizowało możliwe warianty i udostępniło dane uzasadniające decyzję.",
+    "Pismo powinno być konkretne i rzeczowe, bez agresywnego tonu."
+  ],
+  "limits": {
+    "max_questions": 4
+  },
+  "expected": {
+    "brief_ready": true,
+    "min_requested_actions": 1,
+    "must_mention": [
+      "Kazimierza Wielkiego",
+      [
+        "buspas",
+        "bus-pas",
+        "pas autobus",
+        "pas dla autobus",
+        "pas dla komunikacji",
+        "pasa autobus",
+        "pasa dla autobus"
+      ]
+    ],
+    "forbidden_claim_statuses": [
+      "supported_by_user_evidence"
+    ],
+    "no_new_numbers": true,
+    "null_fields": [
+      "available_evidence"
+    ]
+  },
+  "manual_review": [
+    "Brief nie przedstawia korków ani większego ruchu komunikacji miejskiej jako potwierdzonych faktów.",
+    "Postulat dotyczy buspasa; brief nie dodaje zamknięcia ulicy, którego użytkownik nie chce.",
+    "Pytania nie powtarzają informacji, które padły już w rozmowie.",
+    "Pytania asystenta są pytaniami do użytkownika, a nie opisem celu pytania."
+  ]
+}

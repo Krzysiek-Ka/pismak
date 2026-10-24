@@ -1,4 +1,4 @@
-"""Tests for the Streamlit UI service adapters."""
+"""Tests for the Wyswietlator service adapters."""
 
 from __future__ import annotations
 
@@ -27,7 +27,6 @@ from pydantic import ValidationError
 from src._shared.context_budget import LLMInputLimitError
 from src._shared.llm_runtime import LLMBusyError
 from src._shared.serwer import LLMConfigurationError, LLMResponseError
-from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
 from src.Pismopoprawiator.structures import Correction, CorrectionResult
@@ -36,8 +35,11 @@ from src.Zrodlowyszukiwator.rag_retrieval import DatabaseConnectionError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WYSWIETLATOR_DIR = PROJECT_ROOT / "src" / "Wyswietlator"
+
+
 if str(WYSWIETLATOR_DIR) not in sys.path:
     sys.path.insert(0, str(WYSWIETLATOR_DIR))
+
 
 services = importlib.import_module("services")
 
@@ -61,21 +63,21 @@ def log_as(session_id: str, message: str) -> None:
     services.LOGGER.info(message, extra={"session_id": session_id})
 
 
-def make_brief(**overrides: object) -> CaseBrief:
-    values: dict[str, object] = {
-        "title": "Sprawa",
-        "problem_description": "Problem z dostępem.",
-        "desired_outcome": "Przywrócenie dostępu.",
-        "requested_actions": ["Sprawdzenie sprawy"],
-    }
-    values.update(overrides)
-    return CaseBrief(**values)
-
-
 def make_empty_pack() -> EvidencePack:
     return EvidencePack(
         query_summary="Brak wyników",
         research_plan=ResearchPlan(case_summary="Brak wyników", intents=[]),
+    )
+
+
+OPENROUTER_REQUEST = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+
+
+def status_error(error_class: type[Exception], status_code: int) -> Exception:
+    return error_class(
+        f"Error code: {status_code} - {{'error': 'sk-or-v1-tajny upstream detail'}}",
+        response=httpx.Response(status_code, request=OPENROUTER_REQUEST),
+        body=None,
     )
 
 
@@ -227,6 +229,55 @@ class TestLlmErrorMessage:
         assert "4096 tokenów" in message
         assert "details" not in message
 
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (status_error(AuthenticationError, 401), "OpenRouter odrzucił dostęp aplikacji"),
+            (status_error(PermissionDeniedError, 403), "OpenRouter odrzucił dostęp aplikacji"),
+            (status_error(RateLimitError, 429), "z powodu limitu"),
+            (status_error(BadRequestError, 400), "nie obsłużył wymaganej odpowiedzi strukturalnej"),
+            (status_error(InternalServerError, 503), "chwilowo niedostępna"),
+            (APITimeoutError(request=OPENROUTER_REQUEST), "Przekroczono czas oczekiwania"),
+            (APIConnectionError(request=OPENROUTER_REQUEST), "Nie udało się połączyć z usługą"),
+        ],
+        ids=["401", "403", "429", "400", "503", "timeout", "connection"],
+    )
+    def test_llm_error_message__explains_each_provider_failure_without_its_details(
+        self, error: Exception, expected: str
+    ) -> None:
+        """Verify each OpenRouter failure gets its own hint and never the upstream message."""
+        message = services.llm_error_message(error)
+
+        assert expected in message
+        assert "sk-or-v1" not in message
+        assert "upstream" not in message
+
+    def test_llm_error_message__busy_local_model_suggests_retrying_or_openrouter(self) -> None:
+        """Verify a case that waited too long learns the model is busy, not that it failed."""
+        message = services.llm_error_message(
+            LLMBusyError("Lokalny model był zajęty dłużej niż 900 s.")
+        )
+
+        assert "zajęty obsługą innych spraw" in message
+        assert "OpenRouter" in message
+        assert "900" not in message
+
+    def test_llm_error_message__does_not_call_a_timeout_a_connection_failure(self) -> None:
+        """Verify a slow model is not reported as unreachable, though it subclasses that error."""
+        timeout = services.llm_error_message(APITimeoutError(request=OPENROUTER_REQUEST))
+        connection = services.llm_error_message(APIConnectionError(request=OPENROUTER_REQUEST))
+
+        assert timeout != connection
+
+    @pytest.mark.parametrize("status_code", [404, 422])
+    def test_llm_error_message__uses_the_general_message_for_other_client_errors(
+        self, status_code: int
+    ) -> None:
+        """Verify an unexpected 4xx is not presented as a temporary server outage."""
+        message = services.llm_error_message(status_error(APIStatusError, status_code))
+
+        assert message.startswith("Wystąpił błąd podczas przetwarzania sprawy")
+
 
 class TestGetOpenaiClient:
     def test_get_openai_client__gives_local_model_fifteen_minutes_without_sdk_retries(
@@ -304,7 +355,7 @@ class TestErrorLocation:
             location = services.error_location(error)
 
         assert location is not None
-        assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
+        assert location.startswith("tests/unit_test/Wyswietlator/test_services.py:")
         assert "in raise_validation_error" in location
 
     def test_error_location__skips_packages_installed_inside_the_project(self) -> None:
@@ -319,7 +370,7 @@ class TestErrorLocation:
             location = services.error_location(error)
 
         assert location is not None
-        assert location.startswith("tests/unit_test/wyswietlator/test_services.py:")
+        assert location.startswith("tests/unit_test/Wyswietlator/test_services.py:")
         assert "in parse_invalid_json" in location
 
 
@@ -371,7 +422,12 @@ class TestValidateUserMessage:
         monkeypatch.delenv("PISMAK_CONTEXT_TOKENS", raising=False)
         limit = services.conversation_char_limit("ollama")
 
-        services.validate_user_message("a" * 100, conversation_chars=limit - 100, provider="ollama")
+        assert (
+            services.validate_user_message(
+                "a" * 100, conversation_chars=limit - 100, provider="ollama"
+            )
+            is None
+        )
 
     def test_validate_user_message__reports_zero_room_when_conversation_already_overflows(
         self, monkeypatch
@@ -508,6 +564,61 @@ class TestBuildZrodlowyszukiwator:
 
         with pytest.raises(RuntimeError, match=r"^Brak DATABASE_URL w \.env\.$"):
             services.build_zrodlowyszukiwator(client=object(), model="test")
+
+    def test_build_zrodlowyszukiwator__rejects_an_unknown_provider_before_the_database(
+        self, monkeypatch
+    ) -> None:
+        """Verify a typo in the provider fails fast instead of opening a connection."""
+        monkeypatch.setattr(
+            services, "RetrievalRepository", lambda url: pytest.fail("must not connect")
+        )
+
+        with pytest.raises(ValueError, match="Nieznany dostawca modelu: azure"):
+            services.build_zrodlowyszukiwator(client=object(), model="m", provider="azure")
+
+    def test_build_zrodlowyszukiwator__reports_an_empty_rag_database(self, monkeypatch) -> None:
+        """Verify an un-ingested database is named as such instead of returning no sources."""
+
+        class EmptyRepository:
+            def __init__(self, database_url: str) -> None:
+                pass
+
+            def counts(self) -> tuple[int, int]:
+                return 0, 0
+
+        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
+        monkeypatch.setattr(services, "RetrievalRepository", EmptyRepository)
+
+        with pytest.raises(RuntimeError, match="Baza RAG jest pusta"):
+            services.build_zrodlowyszukiwator(client=object(), model="m")
+
+    def test_build_zrodlowyszukiwator__lets_the_local_model_fall_back(self, monkeypatch) -> None:
+        """Verify planner and reranker may use deterministic fallbacks only on Ollama."""
+        captures: dict[str, dict] = {}
+
+        def capture(name):
+            return lambda **kwargs: captures.setdefault(name, kwargs)
+
+        class Repository:
+            def __init__(self, database_url: str) -> None:
+                pass
+
+            def counts(self) -> tuple[int, int]:
+                return 1, 1
+
+        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
+        monkeypatch.setattr(services, "RetrievalRepository", Repository)
+        for name in ("OllamaEmbedder", "LLMQueryPlanner", "LLMReranker", "HybridRetriever"):
+            monkeypatch.setattr(services, name, capture(name))
+        monkeypatch.setattr(services, "BriefToEvidencePipeline", capture("pipeline"))
+        monkeypatch.setattr(services, "detect_context_tokens", lambda *args, **kwargs: 8192)
+
+        services.build_zrodlowyszukiwator(client=object(), model="pismak-bielik", session_id="s1")
+
+        assert captures["LLMQueryPlanner"]["allow_fallback"] is True
+        assert captures["LLMReranker"]["allow_fallback"] is True
+        assert captures["HybridRetriever"]["session_id"] == "s1"
+        assert captures["pipeline"]["evidence_k"] == 6
 
 
 class TestRenderLetter:
@@ -789,144 +900,6 @@ class TestConfigureLogging:
         (case_log,) = logs.glob("pismak_*.log")
         assert case_log.read_text(encoding="utf-8").count("after cleanup") == 1
 
-
-class TestCloseCaseLogging:
-    def test_close_case_logging__sends_a_late_record_of_a_finished_case_to_the_shared_file(
-        self, tmp_path: Path, logs: Path
-    ) -> None:
-        """Verify "Nowa sprawa" ends the case file without dropping what still arrives for it."""
-        services.configure_logging(tmp_path, "case-a")
-        log_as("case-a", "during the case")
-
-        services.close_case_logging("case-a")
-        log_as("case-a", "after the case was closed")
-
-        (case_log,) = logs.glob("pismak_*.log")
-        assert "after the case was closed" not in case_log.read_text(encoding="utf-8")
-        shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
-        assert "after the case was closed" in shared
-
-
-OPENROUTER_REQUEST = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
-
-
-def status_error(error_class: type[Exception], status_code: int) -> Exception:
-    return error_class(
-        f"Error code: {status_code} - {{'error': 'sk-or-v1-tajny upstream detail'}}",
-        response=httpx.Response(status_code, request=OPENROUTER_REQUEST),
-        body=None,
-    )
-
-
-class TestLlmErrorMessageForProviderErrors:
-    @pytest.mark.parametrize(
-        ("error", "expected"),
-        [
-            (status_error(AuthenticationError, 401), "OpenRouter odrzucił dostęp aplikacji"),
-            (status_error(PermissionDeniedError, 403), "OpenRouter odrzucił dostęp aplikacji"),
-            (status_error(RateLimitError, 429), "z powodu limitu"),
-            (status_error(BadRequestError, 400), "nie obsłużył wymaganej odpowiedzi strukturalnej"),
-            (status_error(InternalServerError, 503), "chwilowo niedostępna"),
-            (APITimeoutError(request=OPENROUTER_REQUEST), "Przekroczono czas oczekiwania"),
-            (APIConnectionError(request=OPENROUTER_REQUEST), "Nie udało się połączyć z usługą"),
-        ],
-        ids=["401", "403", "429", "400", "503", "timeout", "connection"],
-    )
-    def test_llm_error_message__explains_each_provider_failure_without_its_details(
-        self, error: Exception, expected: str
-    ) -> None:
-        """Verify each OpenRouter failure gets its own hint and never the upstream message."""
-        message = services.llm_error_message(error)
-
-        assert expected in message
-        assert "sk-or-v1" not in message
-        assert "upstream" not in message
-
-    def test_llm_error_message__busy_local_model_suggests_retrying_or_openrouter(self) -> None:
-        """Verify a case that waited too long learns the model is busy, not that it failed."""
-        message = services.llm_error_message(
-            LLMBusyError("Lokalny model był zajęty dłużej niż 900 s.")
-        )
-
-        assert "zajęty obsługą innych spraw" in message
-        assert "OpenRouter" in message
-        assert "900" not in message
-
-    def test_llm_error_message__does_not_call_a_timeout_a_connection_failure(self) -> None:
-        """Verify a slow model is not reported as unreachable, though it subclasses that error."""
-        timeout = services.llm_error_message(APITimeoutError(request=OPENROUTER_REQUEST))
-        connection = services.llm_error_message(APIConnectionError(request=OPENROUTER_REQUEST))
-
-        assert timeout != connection
-
-    @pytest.mark.parametrize("status_code", [404, 422])
-    def test_llm_error_message__uses_the_general_message_for_other_client_errors(
-        self, status_code: int
-    ) -> None:
-        """Verify an unexpected 4xx is not presented as a temporary server outage."""
-        message = services.llm_error_message(status_error(APIStatusError, status_code))
-
-        assert message.startswith("Wystąpił błąd podczas przetwarzania sprawy")
-
-
-class TestBuildZrodlowyszukiwatorChecks:
-    def test_build_zrodlowyszukiwator__rejects_an_unknown_provider_before_the_database(
-        self, monkeypatch
-    ) -> None:
-        """Verify a typo in the provider fails fast instead of opening a connection."""
-        monkeypatch.setattr(
-            services, "RetrievalRepository", lambda url: pytest.fail("must not connect")
-        )
-
-        with pytest.raises(ValueError, match="Nieznany dostawca modelu: azure"):
-            services.build_zrodlowyszukiwator(client=object(), model="m", provider="azure")
-
-    def test_build_zrodlowyszukiwator__reports_an_empty_rag_database(self, monkeypatch) -> None:
-        """Verify an un-ingested database is named as such instead of returning no sources."""
-
-        class EmptyRepository:
-            def __init__(self, database_url: str) -> None:
-                pass
-
-            def counts(self) -> tuple[int, int]:
-                return 0, 0
-
-        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
-        monkeypatch.setattr(services, "RetrievalRepository", EmptyRepository)
-
-        with pytest.raises(RuntimeError, match="Baza RAG jest pusta"):
-            services.build_zrodlowyszukiwator(client=object(), model="m")
-
-    def test_build_zrodlowyszukiwator__lets_the_local_model_fall_back(self, monkeypatch) -> None:
-        """Verify planner and reranker may use deterministic fallbacks only on Ollama."""
-        captures: dict[str, dict] = {}
-
-        def capture(name):
-            return lambda **kwargs: captures.setdefault(name, kwargs)
-
-        class Repository:
-            def __init__(self, database_url: str) -> None:
-                pass
-
-            def counts(self) -> tuple[int, int]:
-                return 1, 1
-
-        monkeypatch.setenv("DATABASE_URL", "postgresql://test")
-        monkeypatch.setattr(services, "RetrievalRepository", Repository)
-        for name in ("OllamaEmbedder", "LLMQueryPlanner", "LLMReranker", "HybridRetriever"):
-            monkeypatch.setattr(services, name, capture(name))
-        monkeypatch.setattr(services, "BriefToEvidencePipeline", capture("pipeline"))
-        monkeypatch.setattr(services, "detect_context_tokens", lambda *args, **kwargs: 8192)
-
-        services.build_zrodlowyszukiwator(client=object(), model="pismak-bielik", session_id="s1")
-
-        assert captures["LLMQueryPlanner"]["allow_fallback"] is True
-        assert captures["LLMReranker"]["allow_fallback"] is True
-        assert captures["HybridRetriever"]["session_id"] == "s1"
-        assert captures["pipeline"]["evidence_k"] == 6
-
-
-class TestCaseLogHandlerFailures:
     def test_configure_logging__a_failed_log_write_does_not_break_the_case(
         self, tmp_path: Path, monkeypatch
     ) -> None:
@@ -943,3 +916,20 @@ class TestCaseLogHandlerFailures:
             detach_log_handler(tmp_path)
 
         assert [record.getMessage() for record in handled] == ["zdarzenie sprawy"]
+
+
+class TestCloseCaseLogging:
+    def test_close_case_logging__sends_a_late_record_of_a_finished_case_to_the_shared_file(
+        self, tmp_path: Path, logs: Path
+    ) -> None:
+        """Verify "Nowa sprawa" ends the case file without dropping what still arrives for it."""
+        services.configure_logging(tmp_path, "case-a")
+        log_as("case-a", "during the case")
+
+        services.close_case_logging("case-a")
+        log_as("case-a", "after the case was closed")
+
+        (case_log,) = logs.glob("pismak_*.log")
+        assert "after the case was closed" not in case_log.read_text(encoding="utf-8")
+        shared = (logs / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+        assert "after the case was closed" in shared

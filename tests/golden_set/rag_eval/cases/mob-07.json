@@ -1,0 +1,94 @@
+{
+  "id": "mob-07",
+  "description": "Zapisy z trzech części dokumentu: zasada realizacji nr 5 (PDF s. 5), obszar „transport zbiorowy” (s. 7) i obszar „transport samochodowy osobowy” (s. 11). Typowe pytanie przy pisaniu wniosku: dokument nie używa słowa „buspas” ani „pas”, tylko „korytarzy komunikacyjnych” i „priorytetu”.",
+  "input": "Na jakie zapisy polityki można się powołać we wniosku o wydzielenie pasa dla komunikacji zbiorowej?",
+  "expected": {
+    "document_id": "wroclaw-mobility-policy-2013",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          5
+        ],
+        "quote": "preferowanie rozbudowy infrastruktury transportu zbiorowego oraz rowerowej i pieszej w stosunku do infrastruktury dla transportu samochodowego indywidualnego"
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          7
+        ],
+        "quote": "kreowanie priorytetu transportu zbiorowego"
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          7
+        ],
+        "quote": "wydzielanie specjalnych korytarzy komunikacyjnych dla transportu zbiorowego"
+      },
+      {
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "quote": "stosowanie efektywnych systemów zarządzania i sterowania ruchem z uwzględnieniem priorytetu dla komunikacji zbiorowej"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "zasada-preferowania-transportu-zbiorowego",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          5
+        ],
+        "all_of": [
+          "preferowanie rozbudowy infrastruktury transportu zbiorowego",
+          "w stosunku do infrastruktury dla transportu samochodowego indywidualnego"
+        ]
+      },
+      {
+        "label": "priorytet-transportu-zbiorowego",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          7
+        ],
+        "all_of": [
+          "kreowanie priorytetu transportu zbiorowego"
+        ]
+      },
+      {
+        "label": "wydzielone-korytarze",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          7
+        ],
+        "all_of": [
+          "wydzielanie specjalnych korytarzy komunikacyjnych dla transportu zbiorowego"
+        ]
+      },
+      {
+        "label": "sterowanie-ruchem-z-priorytetem",
+        "document_id": "wroclaw-mobility-policy-2013",
+        "pages": [
+          11
+        ],
+        "all_of": [
+          "sterowania ruchem z uwzględnieniem priorytetu dla komunikacji zbiorowej"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "wiele-dowodów",
+      "zasady",
+      "synonimy",
+      "argumentacja",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Zasada preferowania infrastruktury transportu zbiorowego wobec samochodowej (s. 5). Kreowanie priorytetu transportu zbiorowego i wydzielanie dla niego specjalnych korytarzy (s. 7). Sterowanie ruchem z priorytetem dla komunikacji zbiorowej (s. 11)."
+  ]
+}

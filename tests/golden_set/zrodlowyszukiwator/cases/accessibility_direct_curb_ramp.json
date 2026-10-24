@@ -1,0 +1,37 @@
+{
+  "id": "accessibility_direct_curb_ramp",
+  "description": "[bezpośrednio, wroclaw-accessibility-standards] Obniżenie krawężnika na przejściu: standardy wymagają strefy obniżenia na długości co najmniej 2,00 m.",
+  "input": {
+    "title": "Obniżenie krawężnika na przejściu dla pieszych",
+    "problem_description": "Na przejściu dla pieszych przy przychodni krawężnik nie jest obniżony i osoby na wózkach nie mogą przejechać.",
+    "location": "Wrocław, ul. Kłodnicka",
+    "time_context": null,
+    "desired_outcome": "Przejście dostępne dla osób na wózkach i z wózkami dziecięcymi.",
+    "requested_actions": [
+      "Obniżenie krawężnika na całej długości przejścia dla pieszych przy przychodni."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-accessibility-standards"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "id": "przejscie_przy_szkole",
+  "description": "Przejście przy szkole: przecinki przed „że” i „który”, spacja przed przecinkiem. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Dróg i Utrzymania Miasta we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o wyznaczenie przejścia dla pieszych przy Szkole Podstawowej nr 42\n\n# WNIOSEK\n\nDzieci ze Szkoły Podstawowej nr 42 codziennie przechodzą przez ul. Bardzką w miejscu bez oznakowania. Uważam że brak przejścia stwarza realne zagrożenie.\n\nNa odcinku obowiązuje ograniczenie do 50 km/h, a kierowcy często je przekraczają [wymaga weryfikacji]. Przejście które zostałoby wyznaczone przy wejściu do szkoły , poprawiłoby bezpieczeństwo uczniów.\n\nWniosek dotyczy terenu działki [DO UZUPEŁNIENIA: numer działki]. Zajęcia w szkole rozpoczynają się 1 września 2026 r.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "Uważam że",
+        "right": [
+          "Uważam, że"
+        ]
+      },
+      {
+        "wrong": "Przejście które",
+        "right": [
+          "Przejście, które"
+        ]
+      },
+      {
+        "wrong": "szkoły , poprawiłoby",
+        "right": [
+          "szkoły, poprawiłoby"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "Szkoły Podstawowej",
+      "42",
+      "Bardzką",
+      "50",
+      "[wymaga weryfikacji]",
+      "[DO UZUPEŁNIENIA: numer działki]",
+      "1 września 2026"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "Podstawowej nr 42 codziennie",
+        "expansion": "Podstawowej numer 42 codziennie",
+        "seen_in_real_run": false
+      },
+      {
+        "fragment": "przez ul. Bardzką",
+        "expansion": "przez ulicę Bardzką",
+        "seen_in_real_run": false
+      },
+      {
+        "fragment": "do 50 km/h",
+        "expansion": "do 50 kilometrów na godzinę",
+        "seen_in_real_run": false
+      },
+      {
+        "fragment": "1 września 2026 r.",
+        "expansion": "1 września 2026 roku.",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

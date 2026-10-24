@@ -1,0 +1,37 @@
+{
+  "id": "bike_policy_direct_modal_share_target",
+  "description": "[bezpośrednio, wroclaw-bicycle-policy-2010] Postulat rozliczenia celu udziału ruchu rowerowego; odpowiedź stoi w jednym miejscu rozdziału o celach strategicznych.",
+  "input": {
+    "title": "Rozliczenie celu udziału ruchu rowerowego",
+    "problem_description": "Miasto wyznaczyło cel udziału ruchu rowerowego w podróżach, ale mieszkańcy nie wiedzą, czy go osiągnięto.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Jawna informacja, czy cel udziału ruchu rowerowego w ogólnej liczbie podróży został osiągnięty.",
+    "requested_actions": [
+      "Opublikowanie danych o udziale ruchu rowerowego w podróżach w porównaniu z celem miasta."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

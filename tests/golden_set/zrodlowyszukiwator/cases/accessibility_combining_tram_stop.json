@@ -1,0 +1,39 @@
+{
+  "id": "accessibility_combining_tram_stop",
+  "description": "[łączenie informacji, wroclaw-accessibility-standards] Dostępny przystanek wymaga kilku zapisów standardów: pas prowadzący i pole uwagi, dostępne automaty biletowe, informacja na wyświetlaczach.",
+  "input": {
+    "title": "Dostępny przystanek tramwajowy dla osób niewidomych",
+    "problem_description": "Na przystanku tramwajowym nie ma ścieżki dotykowej, a automat biletowy stoi na drodze i jest za wysoko.",
+    "location": "Wrocław, przystanek tramwajowy",
+    "time_context": null,
+    "desired_outcome": "Przystanek, z którego mogą samodzielnie korzystać osoby niewidome i na wózkach.",
+    "requested_actions": [
+      "Wykonanie pasa prowadzącego i pola uwagi na przystanku.",
+      "Przeniesienie i dostosowanie automatu biletowego do wymagań dostępności."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-accessibility-standards"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy."
+  ]
+}

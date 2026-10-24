@@ -1,0 +1,16 @@
+{
+  "id": "strategy_2030",
+  "description": "Strategia 2030 (nieobowiązująca) ma wskaźniki liczbowe w infografikach; dokument zostaje w indeksie, ale wyszukiwanie go pomija.",
+  "input": {
+    "filename": "00_Strategia_2030.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "W 2016 r. wynosiło 110 proc. normy",
+      "Przeciwdziałajmy wykluczeniu komunikacyjnemu peryferyjnych osiedli"
+    ]
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

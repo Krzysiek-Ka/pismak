@@ -23,13 +23,21 @@ from src.Zrodlowyszukiwator.brief_to_evidence.models import (
 from src.Zrodlowyszukiwator.rag_retrieval import DatabaseConnectionError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
 WYSWIETLATOR_DIR = PROJECT_ROOT / "src" / "Wyswietlator"
+
+
 if str(WYSWIETLATOR_DIR) not in sys.path:
     sys.path.insert(0, str(WYSWIETLATOR_DIR))
 
+
 services = importlib.import_module("services")
 
+
 MODEL_ERROR = "szczegół wewnętrzny: host=10.1.2.3 plik=C:\\tajne\\modul.py"
+
+
 DATABASE_ERROR = (
     "Nie można połączyć się z lokalną bazą PostgreSQL (127.0.0.1:5432). "
     "Uruchom Docker Desktop i `docker compose up -d postgres`."
@@ -81,99 +89,20 @@ def case_log(project_root: Path) -> str:
     )
 
 
-class TestUnhandledErrors:
-    def test_app__unhandled_error_is_hidden_on_the_page_and_written_to_the_shared_log(
-        self, tmp_path
-    ) -> None:
-        """Verify Streamlit's own error handling shows no details and loses none of them."""
-        script = (
-            "from pathlib import Path\n"
-            "import services\n"
-            f"services.configure_logging(Path(r'{tmp_path}'), 'case-x')\n"
-            "raise RuntimeError('tajny szczegół w C:/sekret/plik.py')\n"
-        )
-        # Te same wartości ustawia .streamlit/config.toml; tu jawnie, by test nie zależał
-        # od katalogu, z którego uruchomiono pytest.
-        settings = {"client.showErrorDetails": "none", "logger.enableRich": False}
-        originals = {name: config.get_option(name) for name in settings}
-        for name, value in settings.items():
-            config.set_option(name, value)
-
-        try:
-            app_test = AppTest.from_string(script, default_timeout=30).run()
-
-            shown = shown_text(app_test)
-            assert len(app_test.exception) == 1
-            for hidden in ("tajny szczegół", "sekret", "RuntimeError", "Traceback"):
-                assert hidden not in shown
-
-            log = (tmp_path / "logs" / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
-            assert "RuntimeError: tajny szczegół w C:/sekret/plik.py" in log
-            assert "Traceback (most recent call last)" in log
-        finally:
-            for name, value in originals.items():
-                config.set_option(name, value)
-            detach_log_handler(tmp_path)
-
-
-class TestErrorReporting:
-    def test_app__model_failure_shows_a_general_message_and_logs_the_details(
-        self, app, tmp_path
-    ) -> None:
-        """Verify a failed interview turn tells the user nothing internal and the log everything."""
-        app.run()
-        app.chat_input[0].set_value("Opis sprawy").run()
-
-        shown = shown_text(app)
-        assert "Wystąpił błąd podczas przetwarzania sprawy" in shown
-        for hidden in ("szczegół wewnętrzny", "10.1.2.3", "modul.py", "Miejsce błędu", "Traceback"):
-            assert hidden not in shown
-
-        log = case_log(tmp_path)
-        assert "interview_failed" in log
-        assert "error_type=RuntimeError" in log
-        assert re.search(r"error_location=\S+\.py:\d+ in create ", log)
-        assert MODEL_ERROR in log
-        assert "Traceback (most recent call last)" in log
-
-    def test_app__database_failure_shows_a_general_message_and_logs_host_and_cause(
-        self, app, tmp_path, monkeypatch
-    ) -> None:
-        """Verify an unreachable database is named to the operator only, with its root cause."""
-
-        def unavailable(**kwargs):
-            try:
-                raise ConnectionRefusedError("connection to server at 127.0.0.1 refused")
-            except ConnectionRefusedError as cause:
-                raise DatabaseConnectionError(DATABASE_ERROR) from cause
-
-        monkeypatch.setattr(services, "build_zrodlowyszukiwator", unavailable)
-        app.session_state["case_brief"] = CaseBrief(
-            title="Sprawa",
-            problem_description="Problem",
-            desired_outcome="Rozwiązanie",
-            requested_actions=["Sprawdzenie"],
-        )
-        app.run()
-        next(b for b in app.button if b.label == "Znajdź źródła i wygeneruj pismo").click().run()
-
-        shown = shown_text(app)
-        assert "Źródłowyszukiwacz jest obecnie niedostępny" in shown
-        for hidden in ("127.0.0.1", "5432", "Docker", "PostgreSQL", "Miejsce błędu"):
-            assert hidden not in shown
-
-        log = case_log(tmp_path)
-        assert "pipeline_failed" in log
-        assert "error_type=DatabaseConnectionError" in log
-        assert DATABASE_ERROR in log
-        assert "ConnectionRefusedError: connection to server at 127.0.0.1 refused" in log
-
-
 INTERVIEW = "InterviewTurnResult"
+
+
 BRIEF = "CaseBrief"
+
+
 DRAFT = "DraftLetter"
+
+
 CORRECTION = "CorrectionResponse"
+
+
 GENERATE_LABEL = "Znajdź źródła i wygeneruj pismo"
+
 
 QUESTION = {
     "short_summary": "Brak przejścia przy szkole.",
@@ -182,6 +111,8 @@ QUESTION = {
     "missing_topics": ["lokalizacja"],
     "ready_to_build_brief": False,
 }
+
+
 READY = {
     "short_summary": "Sprawa jest jasna.",
     "next_question": None,
@@ -189,12 +120,16 @@ READY = {
     "missing_topics": [],
     "ready_to_build_brief": True,
 }
+
+
 CASE_BRIEF = {
     "title": "Przejście przy szkole",
     "problem_description": "Dzieci przechodzą przez ulicę bez przejścia.",
     "desired_outcome": "Wyznaczenie przejścia dla pieszych.",
     "requested_actions": ["Wyznaczenie przejścia"],
 }
+
+
 VALID_DRAFT = {
     "recipient": "Zarząd Dróg i Utrzymania Miasta",
     "request_summary": "wyznaczenie przejścia dla pieszych przy szkole",
@@ -332,7 +267,113 @@ def click(app_test: AppTest, label: str) -> AppTest:
     return next(b for b in app_test.button if b.label == label).click().run()
 
 
-class TestFirstRender:
+def correction_fix(oryginal: str, poprawka: str, kategoria: str = "ortografia") -> dict:
+    return {
+        "akapit": "A5",
+        "oryginal": oryginal,
+        "poprawka": poprawka,
+        "kategoria": kategoria,
+        "uzasadnienie": "błąd językowy",
+    }
+
+
+TYPO_DRAFT = {
+    **VALID_DRAFT,
+    "argumentation_markdown": VALID_DRAFT["argumentation_markdown"].replace(
+        "przechodzą", "przechodza"
+    ),
+}
+
+
+class TestAppUnhandledError:
+    def test_app__unhandled_error_is_hidden_on_the_page_and_written_to_the_shared_log(
+        self, tmp_path
+    ) -> None:
+        """Verify Streamlit's own error handling shows no details and loses none of them."""
+        script = (
+            "from pathlib import Path\n"
+            "import services\n"
+            f"services.configure_logging(Path(r'{tmp_path}'), 'case-x')\n"
+            "raise RuntimeError('tajny szczegół w C:/sekret/plik.py')\n"
+        )
+        # Te same wartości ustawia .streamlit/config.toml; tu jawnie, by test nie zależał
+        # od katalogu, z którego uruchomiono pytest.
+        settings = {"client.showErrorDetails": "none", "logger.enableRich": False}
+        originals = {name: config.get_option(name) for name in settings}
+        for name, value in settings.items():
+            config.set_option(name, value)
+
+        try:
+            app_test = AppTest.from_string(script, default_timeout=30).run()
+
+            shown = shown_text(app_test)
+            assert len(app_test.exception) == 1
+            for hidden in ("tajny szczegół", "sekret", "RuntimeError", "Traceback"):
+                assert hidden not in shown
+
+            log = (tmp_path / "logs" / services.UNCAUGHT_ERROR_LOG_NAME).read_text(encoding="utf-8")
+            assert "RuntimeError: tajny szczegół w C:/sekret/plik.py" in log
+            assert "Traceback (most recent call last)" in log
+        finally:
+            for name, value in originals.items():
+                config.set_option(name, value)
+            detach_log_handler(tmp_path)
+
+
+class TestAppErrorReporting:
+    def test_app__model_failure_shows_a_general_message_and_logs_the_details(
+        self, app, tmp_path
+    ) -> None:
+        """Verify a failed interview turn tells the user nothing internal and the log everything."""
+        app.run()
+        app.chat_input[0].set_value("Opis sprawy").run()
+
+        shown = shown_text(app)
+        assert "Wystąpił błąd podczas przetwarzania sprawy" in shown
+        for hidden in ("szczegół wewnętrzny", "10.1.2.3", "modul.py", "Miejsce błędu", "Traceback"):
+            assert hidden not in shown
+
+        log = case_log(tmp_path)
+        assert "interview_failed" in log
+        assert "error_type=RuntimeError" in log
+        assert re.search(r"error_location=\S+\.py:\d+ in create ", log)
+        assert MODEL_ERROR in log
+        assert "Traceback (most recent call last)" in log
+
+    def test_app__database_failure_shows_a_general_message_and_logs_host_and_cause(
+        self, app, tmp_path, monkeypatch
+    ) -> None:
+        """Verify an unreachable database is named to the operator only, with its root cause."""
+
+        def unavailable(**kwargs):
+            try:
+                raise ConnectionRefusedError("connection to server at 127.0.0.1 refused")
+            except ConnectionRefusedError as cause:
+                raise DatabaseConnectionError(DATABASE_ERROR) from cause
+
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", unavailable)
+        app.session_state["case_brief"] = CaseBrief(
+            title="Sprawa",
+            problem_description="Problem",
+            desired_outcome="Rozwiązanie",
+            requested_actions=["Sprawdzenie"],
+        )
+        app.run()
+        next(b for b in app.button if b.label == "Znajdź źródła i wygeneruj pismo").click().run()
+
+        shown = shown_text(app)
+        assert "Źródłowyszukiwacz jest obecnie niedostępny" in shown
+        for hidden in ("127.0.0.1", "5432", "Docker", "PostgreSQL", "Miejsce błędu"):
+            assert hidden not in shown
+
+        log = case_log(tmp_path)
+        assert "pipeline_failed" in log
+        assert "error_type=DatabaseConnectionError" in log
+        assert DATABASE_ERROR in log
+        assert "ConnectionRefusedError: connection to server at 127.0.0.1 refused" in log
+
+
+class TestAppFirstRender:
     def test_app__first_render_offers_a_new_case_without_errors(self, ui) -> None:
         """Verify an opened page is ready for a case description and calls no model yet."""
         app_test, completions = ui()
@@ -388,7 +429,7 @@ class TestFirstRender:
         assert "model_list_failed" in case_log(tmp_path)
 
 
-class TestConsent:
+class TestAppConsent:
     def test_app__message_is_not_processed_without_server_storage_consent(
         self, ui, tmp_path
     ) -> None:
@@ -469,7 +510,7 @@ class TestConsent:
         assert app_test.session_state["letter_markdown"] is None
 
 
-class TestMessageLimits:
+class TestAppMessageLimits:
     def test_app__message_over_the_limit_is_rejected_and_not_added_to_the_case(self, ui) -> None:
         """Verify an oversized message is refused before it enters the history or the model."""
         app_test, completions = ui()
@@ -510,7 +551,7 @@ class TestMessageLimits:
         assert completions.calls == []
 
 
-class TestInterview:
+class TestAppInterviewTurn:
     def test_app__model_question_is_added_and_locks_the_interview_settings(self, ui) -> None:
         """Verify a question is shown and provider, model and limit cannot change mid-interview."""
         app_test, completions = ui({INTERVIEW: [QUESTION]})
@@ -662,8 +703,10 @@ class TestInterview:
         assert "error_type=LLMBusyError" in case_log(tmp_path)
 
 
-class TestNewCase:
-    def test_app__new_case_clears_the_case_and_starts_a_new_session(self, ui) -> None:
+class TestResetCase:
+    def test_reset_case__new_case_button_clears_the_case_and_keeps_provider_settings(
+        self, ui
+    ) -> None:
         """Verify 'Nowa sprawa' drops the case data but keeps the chosen provider settings."""
         app_test, _ = ui({INTERVIEW: [QUESTION]})
         app_test.run()
@@ -680,7 +723,7 @@ class TestNewCase:
         assert app_test.chat_input[0].placeholder == "Opisz sprawę własnymi słowami..."
 
 
-class TestSessionIsolation:
+class TestAppSessionIsolation:
     def test_app__two_sessions_keep_their_conversations_logs_and_outputs_apart(
         self, ui, tmp_path
     ) -> None:
@@ -712,7 +755,7 @@ class TestSessionIsolation:
             assert sum(session_id in log for log in logs) == 1
 
 
-class TestPipeline:
+class TestAppPipelineRun:
     def test_app__pipeline_renders_the_letter_and_saves_every_artifact(
         self, ui, tmp_path, monkeypatch
     ) -> None:
@@ -877,25 +920,7 @@ class TestPipeline:
         assert "Cele > Bezpieczeństwo" in captions
 
 
-def correction_fix(oryginal: str, poprawka: str, kategoria: str = "ortografia") -> dict:
-    return {
-        "akapit": "A5",
-        "oryginal": oryginal,
-        "poprawka": poprawka,
-        "kategoria": kategoria,
-        "uzasadnienie": "błąd językowy",
-    }
-
-
-TYPO_DRAFT = {
-    **VALID_DRAFT,
-    "argumentation_markdown": VALID_DRAFT["argumentation_markdown"].replace(
-        "przechodzą", "przechodza"
-    ),
-}
-
-
-class TestPismopoprawiator:
+class TestAppCorrection:
     def test_app__correction_is_on_by_default_and_both_versions_are_kept(
         self, ui, tmp_path, monkeypatch
     ) -> None:
@@ -932,7 +957,8 @@ class TestPismopoprawiator:
         assert (run_dir / "letter_bez_korekty.md").read_text(encoding="utf-8") == original
         saved = json.loads((run_dir / "korekta.json").read_text(encoding="utf-8"))
         assert saved["status"] == "corrected"
-        assert saved["applied"][0]["poprawka"] == "codziennie przechodzą"
+        # Poprawka jest przycięta do zmienionego wyrazu.
+        assert saved["applied"][0]["poprawka"] == "przechodzą"
         assert saved["suggestions"][0]["kategoria"] == "styl"
         assert "original_text" not in saved
         models = json.loads((run_dir / "models.json").read_text(encoding="utf-8"))
@@ -959,7 +985,7 @@ class TestPismopoprawiator:
         assert "-Dzieci codziennie przechodza" in diff
         assert "+Dzieci codziennie przechodzą" in diff
         [applied, rejected] = [frame.value for frame in app_test.dataframe]
-        assert list(applied["Jest"]) == ["codziennie przechodzą"]
+        assert list(applied["Jest"]) == ["przechodzą"]
         assert list(rejected["Powód odrzucenia"]) == [
             "zmienia liczby i daty: usuwa „1”; dodaje „2”"
         ]

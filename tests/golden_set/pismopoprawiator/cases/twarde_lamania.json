@@ -1,0 +1,44 @@
+{
+  "id": "twarde_lamania",
+  "description": "Akapit z twardymi łamaniami wierszy, jak w odpowiedziach Bielika. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Ekosystem Wrocław\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o ustawienie nowych koszy na śmieci na pl. Grunwaldzkim\n\n# WNIOSEK\n\n**Opis problemu:**\\\nNa pl. Grunwaldzkim brakuje koszy na śmieci, przez co odpady leża na chodnikach.\\\n**Postulat:**\\\nProszę o ustawienie co najmniej 10 nowych koszy [wymaga weryfikacji].\\\n**Uzasadnienie:**\\\nCzystość przestrzeni publicznej wpływa na komfort mieszkańców i turystów, ktorzy odwiedzają tę okolicę.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "odpady leża",
+        "right": [
+          "odpady leżą"
+        ]
+      },
+      {
+        "wrong": "turystów, ktorzy",
+        "right": [
+          "turystów, którzy"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "**Opis problemu:**\\\n",
+      "**Postulat:**\\\n",
+      "Grunwaldzkim",
+      "10 nowych koszy",
+      "[wymaga weryfikacji]"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "śmieci na pl. Grunwaldzkim",
+        "expansion": "śmieci na placu Grunwaldzkim",
+        "seen_in_real_run": true
+      },
+      {
+        "fragment": "Na pl. Grunwaldzkim brakuje",
+        "expansion": "Na placu Grunwaldzkim brakuje",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

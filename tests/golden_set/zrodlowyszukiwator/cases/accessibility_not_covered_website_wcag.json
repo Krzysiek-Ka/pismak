@@ -1,0 +1,35 @@
+{
+  "id": "accessibility_not_covered_website_wcag",
+  "description": "[poza korpusem, wroclaw-accessibility-standards] Dostępność strony internetowej urzędu (WCAG, deklaracja dostępności): standardy dotyczą przestrzeni fizycznej; korpus nie mówi o dostępności cyfrowej (sprawdzone wyszukiwaniem w bazie).",
+  "input": {
+    "title": "Dostępność strony internetowej urzędu dla osób niewidomych",
+    "problem_description": "Strona internetowa urzędu nie działa z czytnikiem ekranu i nie ma deklaracji dostępności.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Strona urzędu zgodna z wytycznymi WCAG.",
+    "requested_actions": [
+      "Dostosowanie strony internetowej urzędu do wytycznych WCAG i opublikowanie deklaracji dostępności."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

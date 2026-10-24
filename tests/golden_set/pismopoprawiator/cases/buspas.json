@@ -1,0 +1,49 @@
+{
+  "id": "buspas",
+  "description": "Buspas: literówki, łączna pisownia, podwójna spacja. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Dróg i Utrzymania Miasta we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o wprowadzenie buspasa na ulicy Kazimierza Wielkiego we Wrocławiu\n\n# WNIOSEK\n\nNa ul. Kazimierza Wielkiego autobusy stoją w korkach, ktore wydłużają przejazd. Według obserwacji wnioskodawcy w godzinach szczytu przejazd odcinka trwa ponad 15 minut [wymaga weryfikacji].\n\nWrocławska polityka mobilności wskazuje, że transport publiczny powinien mieć pierwszeństwo przed ruchem samochodowym [1]. Buspas napewno skróciłby czas przejazdu linii autobusowych.\n\nNie postuluję całkowitego zamknięcia ulicy dla samochodów. Proszę o przeanalizowanie wariantów i udostępnienie danych, które  uzasadnią decyzję.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] E1: Wrocławska polityka mobilności, s. 11, https://www.wroclaw.pl/files/Wroclawska-Polityka-Mobilnosci.pdf\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "korkach, ktore",
+        "right": [
+          "korkach, które"
+        ]
+      },
+      {
+        "wrong": "napewno",
+        "right": [
+          "na pewno"
+        ]
+      },
+      {
+        "wrong": "które  uzasadnią",
+        "right": [
+          "które uzasadnią"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "Kazimierza Wielkiego",
+      "Według obserwacji",
+      "15 minut",
+      "[wymaga weryfikacji]",
+      "[1]",
+      "Nie postuluję",
+      "powinien",
+      "Proszę o przeanalizowanie",
+      "wnioskuję o wprowadzenie"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "Na ul. Kazimierza Wielkiego",
+        "expansion": "Na ulicy Kazimierza Wielkiego",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

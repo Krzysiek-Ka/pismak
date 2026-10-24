@@ -1,0 +1,35 @@
+{
+  "id": "czyste_pismo",
+  "description": "Pismo bez błędów: model nie powinien niczego zmieniać. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Dróg i Utrzymania Miasta we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o zmianę programu sygnalizacji na skrzyżowaniu ul. Legnickiej\n\n# WNIOSEK\n\nNa skrzyżowaniu ul. Legnickiej i ul. Na Ostatnim Groszu brakuje sygnalizacji dla rowerzystów. Według obserwacji wnioskodawcy rowerzyści czekają tam nawet 3 minuty [wymaga weryfikacji].\n\nWrocławska polityka mobilności wskazuje, że ruch rowerowy powinien być traktowany na równi z innymi środkami transportu [1]. Nie wnoszę o przebudowę skrzyżowania, a jedynie o zmianę programu sygnalizacji.\n\nProszę o informację, czy taka zmiana jest możliwa i w jakim terminie mogłaby zostać wprowadzona.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] E1: Wrocławska polityka mobilności, s. 11, https://www.wroclaw.pl/files/Wroclawska-Polityka-Mobilnosci.pdf\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [],
+    "protected_strings": [
+      "Legnickiej",
+      "Na Ostatnim Groszu",
+      "Według obserwacji",
+      "3 minuty",
+      "[wymaga weryfikacji]",
+      "Nie wnoszę",
+      "powinien",
+      "mogłaby",
+      "[1]"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "ul. Legnickiej i ul. Na Ostatnim Groszu",
+        "expansion": "ulic Legnickiej i Na Ostatnim Groszu",
+        "seen_in_real_run": true
+      },
+      {
+        "fragment": "na skrzyżowaniu ul. Legnickiej",
+        "expansion": "na skrzyżowaniu ulicy Legnickiej",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

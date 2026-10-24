@@ -151,7 +151,7 @@ class TestBuildDraft:
 
         assert result.sender == ""
 
-    def test_build_draft__returns_draft_when_validation_passes(self, monkeypatch) -> None:
+    def test_build_draft__valid_answer_returns_the_draft(self, monkeypatch) -> None:
         """Verify the draft is generated and returned when validation does not raise errors."""
 
         class FakeLLM:
@@ -190,7 +190,7 @@ class TestBuildDraft:
         assert isinstance(result, DraftLetter)
         assert result.recipient == "Urząd"
 
-    def test_build_draft__passes_stage_output_token_limit(self, monkeypatch) -> None:
+    def test_build_draft__model_call_uses_the_module_output_token_limit(self, monkeypatch) -> None:
         """Verify letter generation uses its larger, dedicated output token budget."""
         captured: dict[str, object] = {}
 
@@ -255,7 +255,9 @@ class TestBuildDraft:
 
         assert captured["user_prompt"] == draft_user_prompt(make_brief(), pack, [])
 
-    def test_build_draft__includes_validation_details_in_exception(self, monkeypatch) -> None:
+    def test_build_draft__invalid_draft_raises_with_the_errors_and_the_draft(
+        self, monkeypatch
+    ) -> None:
         """Verify rejected model sources are preserved for the UI and diagnostic log."""
 
         class FakeLLM:
@@ -291,9 +293,32 @@ class TestBuildDraft:
         assert error.value.draft is not None
         assert error.value.draft.sources == ["U1", "U2"]
 
+    def test_build_draft__asks_for_a_schema_with_the_ids_of_this_case(self) -> None:
+        """Verify build_draft passes the evidence and user-material IDs and returns DraftLetter."""
+        captured: dict[str, object] = {}
+
+        class FakeLLM:
+            def generate_structured(self, **kwargs):
+                captured.update(kwargs)
+                return kwargs["response_model"](
+                    recipient="Urząd",
+                    request_summary="dostęp do dokumentacji",
+                    argumentation_markdown="A" * 200,
+                    sources=["E1", "U1"],
+                )
+
+        brief = make_brief().model_copy(update={"available_evidence": ["Zdjęcie", "  "]})
+
+        result = pismogenerator.build_draft(brief, make_evidence_pack(), FakeLLM())
+
+        schema = captured["response_model"].model_json_schema()
+        assert schema["properties"]["sources"]["items"]["enum"] == ["E1", "U1"]
+        assert type(result) is DraftLetter
+        assert result.sources == ["E1", "U1"]
+
 
 class TestBuildLetter:
-    def test_build_letter__renders_document_markup(self) -> None:
+    def test_build_letter__valid_draft_renders_every_section(self) -> None:
         """Verify the final letter includes address, summary, sources, and verification blocks."""
         draft = DraftLetter(
             recipient="Dyrektor Urzędu",
@@ -317,6 +342,19 @@ class TestBuildLetter:
         assert "## Źródła" in result
         assert "### Informacje wymagające weryfikacji przed wysłaniem" in result
         assert "Raport miejski" in result
+
+    def test_build_letter__numbers_user_materials_like_build_draft(self) -> None:
+        """Verify a blank material does not shift U1 to the wrong text in the notebook path."""
+        draft = DraftLetter(
+            recipient="Urząd",
+            request_summary="dostęp do dokumentacji",
+            argumentation_markdown="A" * 200,
+            sources=["U1"],
+        )
+
+        letter = pismogenerator.build_letter(draft, make_evidence_pack(), ["  ", " Zdjęcie "])
+
+        assert "- [1] U1: Zdjęcie" in letter
 
 
 class TestDraftLetterModel:
@@ -347,41 +385,3 @@ class TestDraftLetterModel:
         schema = model.model_json_schema()
 
         assert schema["properties"]["sources"]["maxItems"] == 0
-
-    def test_build_draft__asks_for_a_schema_with_the_ids_of_this_case(self) -> None:
-        """Verify build_draft passes the evidence and user-material IDs and returns DraftLetter."""
-        captured: dict[str, object] = {}
-
-        class FakeLLM:
-            def generate_structured(self, **kwargs):
-                captured.update(kwargs)
-                return kwargs["response_model"](
-                    recipient="Urząd",
-                    request_summary="dostęp do dokumentacji",
-                    argumentation_markdown="A" * 200,
-                    sources=["E1", "U1"],
-                )
-
-        brief = make_brief().model_copy(update={"available_evidence": ["Zdjęcie", "  "]})
-
-        result = pismogenerator.build_draft(brief, make_evidence_pack(), FakeLLM())
-
-        schema = captured["response_model"].model_json_schema()
-        assert schema["properties"]["sources"]["items"]["enum"] == ["E1", "U1"]
-        assert type(result) is DraftLetter
-        assert result.sources == ["E1", "U1"]
-
-
-class TestBuildLetterUserEvidence:
-    def test_build_letter__numbers_user_materials_like_build_draft(self) -> None:
-        """Verify a blank material does not shift U1 to the wrong text in the notebook path."""
-        draft = DraftLetter(
-            recipient="Urząd",
-            request_summary="dostęp do dokumentacji",
-            argumentation_markdown="A" * 200,
-            sources=["U1"],
-        )
-
-        letter = pismogenerator.build_letter(draft, make_evidence_pack(), ["  ", " Zdjęcie "])
-
-        assert "- [1] U1: Zdjęcie" in letter

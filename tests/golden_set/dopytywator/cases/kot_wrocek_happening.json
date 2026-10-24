@@ -1,0 +1,61 @@
+{
+  "id": "kot_wrocek_happening",
+  "description": "Satyryczny opis (kot prezydentem) z wysokim limitem pytań. Sprawdza, czy wywiad mieści się w limicie, a brief nie zamienia żartu w dosłowne żądanie dymisji prezydenta i zachowuje rzeczywisty problem (szczury).",
+  "input": "Chciałbym, aby prezydent Wrocławia, Jacek Sutryk, abdykował ze stanowiska i namaścił na swojego następcę Kota Wrocka. Dzięki temu raz na zawsze opanujemy plagę szczurów!",
+  "user_answers": [
+    "Ma to być akcja humorystyczna, happening artystyczny.",
+    "Tak, chciałbym, aby Kot Wrocek został prezydentem miasta.",
+    "Chodzi przede wszystkim o zwrócenie uwagi na problem szczurów we Wrocławiu.",
+    "Nie traktuję tego dosłownie — to satyra i sposób na nagłośnienie problemu.",
+    "Chcielibyśmy zorganizować happening w centrum Wrocławia, w miejscu widocznym dla przechodniów.",
+    "Nie mamy jeszcze ustalonego terminu ani konkretnej lokalizacji.",
+    "Chcemy, żeby mieszkańcy mogli się przyłączyć i robić sobie zdjęcia.",
+    "Ton powinien być ironiczny i zabawny, ale bez obrażania konkretnych osób.",
+    "Główny przekaz jest taki, że problem szczurów wymaga skuteczniejszych działań miasta.",
+    "Możemy przygotować transparenty, ulotki i przebranie kota.",
+    "Organizatorami będą prawdopodobnie mieszkańcy działający nieformalnie.",
+    "Chciałbym też wiedzieć, jakie działania miasto faktycznie podejmuje w sprawie szczurów."
+  ],
+  "limits": {
+    "max_questions": 12
+  },
+  "expected": {
+    "min_requested_actions": 1,
+    "must_mention": [
+      [
+        "Wrocek",
+        "Wrocka"
+      ],
+      "szczur",
+      [
+        "happening",
+        "satyr",
+        "humor",
+        "żart",
+        "ironi",
+        "artystyczn",
+        "zabaw",
+        "przebrani",
+        "symboliczn"
+      ]
+    ],
+    "requested_actions_must_not_mention": [
+      "abdyk",
+      "ustąpi",
+      "rezygnac",
+      "odwoła",
+      "namaszcz",
+      "dymisj"
+    ],
+    "no_new_numbers": true,
+    "null_fields": [
+      "available_evidence"
+    ]
+  },
+  "manual_review": [
+    "Brief opisuje sprawę jako happening lub satyrę, a nie jako żądanie polityczne.",
+    "Wywiad kończy się, gdy informacje wystarczają, zamiast zużywać wszystkie 12 pytań.",
+    "Brief nie wymyśla działań miasta w sprawie szczurów.",
+    "Pytania asystenta są pytaniami do użytkownika, a nie opisem celu pytania."
+  ]
+}

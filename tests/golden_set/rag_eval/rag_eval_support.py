@@ -1,12 +1,16 @@
 """
 Ewaluacja retrievalu RAG Pismaka: zbiór pytań, ocena dowodów, metryki i raport.
 
-Moduł nie łączy się z bazą. Korzystają z niego testy zbioru (uruchamiane także w CI)
-oraz ewaluacja na żywym indeksie w test_rag_retrieval_eval.py.
+Moduł nie łączy się z bazą. Korzystają z niego testy zbioru i ewaluacja na żywym indeksie
+w test_rag_retrieval_eval.py (oba tylko ręcznie, marker `golden`). Przypadki leżą w
+cases/<id>.json w układzie złotych zbiorów (.github/copilot-instructions.md): pytanie w
+`input`, uzasadnienie w `description`, sprawdzalne pola w `expected`, oczekiwana odpowiedź
+(do oceny przez człowieka) w `manual_review`.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections import Counter
@@ -21,9 +25,10 @@ from src.Zrodlowyszukiwator.rag_ingestion.models import DocumentMetadata
 from src.Zrodlowyszukiwator.rag_ingestion.pdf_extractor import repair_legacy_polish_glyphs
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATASET_PATH = Path(__file__).resolve().parent / "data" / "rag_eval_questions.jsonl"
+CASES_DIR = Path(__file__).resolve().parent / "cases"
 RAW_DIR = PROJECT_ROOT / "src" / "Zrodlowyszukiwator" / "RAG" / "RAW"
-REPORTS_DIR = PROJECT_ROOT / "outputs" / "rag_eval"
+REPORTS_DIR = Path(__file__).resolve().parent / "results"
+EXPECTED_ANSWER_PREFIX = "Oczekiwana odpowiedź: "
 
 # Wartości z konfiguracji produkcyjnej (Wyswietlator.services.build_zrodlowyszukiwator):
 # reranker dostaje 20 kandydatów, a EvidencePack zawiera 6 fragmentów, najwyżej 3 z dokumentu.
@@ -105,10 +110,32 @@ class EvalQuestion(BaseModel):
         return {s.document_id for s in self.expected_sources} | set(self.acceptable_document_ids)
 
 
-def load_questions(path: Path = DATASET_PATH) -> list[EvalQuestion]:
-    """Load and validate the JSONL question set."""
-    lines = path.read_text(encoding="utf-8").splitlines()
-    return [EvalQuestion.model_validate_json(line) for line in lines if line.strip()]
+def question_from_case(case: dict[str, Any]) -> EvalQuestion:
+    """Turn one golden-set case file into the question the evaluation scores."""
+    unknown = set(case) - {"id", "description", "input", "expected", "manual_review"}
+    if unknown:
+        raise ValueError(f"{case.get('id')}: nieznane pola {sorted(unknown)}")
+    [answer] = [r for r in case["manual_review"] if r.startswith(EXPECTED_ANSWER_PREFIX)]
+    return EvalQuestion.model_validate(
+        {
+            "id": case["id"],
+            "question": case["input"],
+            "rationale": case["description"],
+            "expected_answer": answer.removeprefix(EXPECTED_ANSWER_PREFIX),
+            **case["expected"],
+        }
+    )
+
+
+def load_questions(cases_dir: Path = CASES_DIR) -> list[EvalQuestion]:
+    """Load and validate cases/<id>.json; the file name must be the case id."""
+    questions = []
+    for path in sorted(cases_dir.glob("*.json")):
+        question = question_from_case(json.loads(path.read_text(encoding="utf-8")))
+        if question.id != path.stem:
+            raise ValueError(f"{path.name}: id {question.id!r} różni się od nazwy pliku")
+        questions.append(question)
+    return questions
 
 
 # ---------------------------------------------------------------------------

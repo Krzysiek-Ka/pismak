@@ -1,0 +1,32 @@
+{
+  "applied": [],
+  "rejected": [
+    {
+      "correction": {
+        "akapit": "A5",
+        "oryginal": "Wrocławianie od pewnego czasu zgłaszają obawy dotyczące obecności niezidenifikowanych obiektów nad miastem, zajęcia ważnych instytucji miejskich (Hydropolis i Halę Targową) or az tajemniczego zniknięcia kilkunastu krasnali z Rynku. W świetle tych doniień, konieczne jest przeprowadzenie szczegółowej oceny sytuacji przez władze miasta, aby zapewnić bezpieczeństwo mieszkańców i określić ewentualne działania naprawcze.",
+        "poprawka": "Wrocławianie od pewnego czasu zgłaszają obawy dotyczące obecności nieuidentyfikowanych obiektów nad miastem, zajęcia ważnych instytucji miejskich (Hydropolis oraz Hali Targowej) oraz tajemniczego zniknięcia kilkunastu krasnali z Rynku. W świetle tych doniesień, konieczne jest przeprowadzenie szczegółowej oceny sytuacji przez władze miasta, aby zapewnić bezpieczeństwo mieszkańców i określić ewentualne działania naprawcze.",
+        "kategoria": "ortografia",
+        "uzasadnienie": "Poprawne formy: 'niezidentyfikowanych', 'zgłaszają', 'Hali Targowej', 'doniesień' zamiast 'doniosłych doniień', 'szczegółowej oceny' zamiast 'szczegółowej oceny'."
+      },
+      "reason": "fragment ma 418 znaków (limit 200)"
+    }
+  ],
+  "suggestions": [
+    {
+      "akapit": "A3",
+      "oryginal": "Ocena sytuacji i ewentualne podjęcie działań w sprawie doniesień o latających spodkach, zajęciu Hydropolis oraz Hali Targowej, a także zniknięcia",
+      "poprawka": "ocenę sytuacji i ewentualne podjęcie działań w sprawie doniosłych incydentów związanych z latającymi spodkami, zajęciem Hydropolis oraz Hali Targowej, a także tajemniczego zniknięcia kilkunastu",
+      "kategoria": "styl",
+      "uzasadnienie": "Zmiana słów na bardziej odpowiednie: 'kochanego miasta' zamiast 'kochanego', 'doniosłych incydentów' zamiast 'doniosłych doniień', 'związanych z latającymi spodkami' zamiast 'latających spodkach', 'zajęciem Hydropolis oraz Hali Targowej' zamiast 'zajęciu Hydropolis or az Hali Targowej', 'tajemniczego zniknięcia kilkunastu krasnali z Rynku' zamiast 'zniknięcia krasnali z Rynku'."
+    }
+  ],
+  "status": "unchanged",
+  "mode": "whole",
+  "provider": "ollama",
+  "model": "pismak-bielik:latest",
+  "context_tokens": 8192,
+  "calls": 1,
+  "elapsed_seconds": 104.355,
+  "errors": []
+}

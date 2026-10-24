@@ -1,0 +1,47 @@
+{
+  "id": "liczby_i_daty",
+  "description": "Remont wiaduktu: spacje przy datach i skrótach, kwoty, godziny, paragrafy. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Inwestycji Miejskich we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o udostępnienie harmonogramu remontu wiaduktu na ul. Grabiszyńskiej\n\n# WNIOSEK\n\nRemont wiaduktu na ul. Grabiszyńskiej trwa od marca 2025r. i według zapowiedzi potrwa do 30 czerwca 2027 r. Objazd wydłuża dojazd o ok.10 minut.\n\nKoszt inwestycji wynosi 1,5 mln zł, a utrudnienia obowiązują codziennie w godzinach 6:00–22:00. Zgodnie z § 3 ust. 2 regulaminu przewoźnik powinien informować pasażerów o zmianach.\n\nProszę o udostępnienie harmonogramu prac oraz informacji, czy termin zakończenia jest nadal aktualny.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "2025r.",
+        "right": [
+          "2025 r.",
+          "2025 roku"
+        ]
+      },
+      {
+        "wrong": "ok.10 minut",
+        "right": [
+          "ok. 10 minut",
+          "około 10 minut"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "Grabiszyńskiej",
+      "30 czerwca 2027",
+      "1,5",
+      "6:00–22:00",
+      "§ 3",
+      "powinien"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "wiaduktu na ul. Grabiszyńskiej trwa",
+        "expansion": "wiaduktu na ulicy Grabiszyńskiej trwa",
+        "seen_in_real_run": false
+      },
+      {
+        "fragment": "1,5 mln zł",
+        "expansion": "1,5 miliona złotych",
+        "seen_in_real_run": true
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}

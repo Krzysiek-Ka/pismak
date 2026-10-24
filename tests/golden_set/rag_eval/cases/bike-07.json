@@ -1,0 +1,137 @@
+{
+  "id": "bike-07",
+  "description": "Rozdział IV.7 „Instrumenty organizacyjne” (PDF s. 8–9, wydruk s. 7–8). Pytanie o listę: pełna odpowiedź wymaga dziewięciu faktów z dwóch stron, więc mierzy pokrycie (recall) dłuższego fragmentu.",
+  "input": "Kto odpowiada za wdrażanie polityki rowerowej i jakie ma zadania?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": true,
+    "expected_sources": [
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "quote": "Rada ds. rozwoju ruchu rowerowego w Mieście, która składa się z przedstawicieli wydziałów Urzędu Miejskiego Wrocławia i jednostek organizacyjnych Gminy związanych z wdrażaniem Polityki Rowerowej Wrocławia oraz przedstawicieli organizacji pozarządowych działających na rzecz rozwoju ruchu rowerowego."
+      },
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "quote": "Koordynator (oficer rowerowy) oraz Sekcja ds. rozwoju ruchu rowerowego w strukturach Urzędu Miejskiego Wrocławia."
+      },
+      {
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          9
+        ],
+        "quote": "prowadzenie kampanii promujących jazdę rowerem"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "rada-skład",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "Rada ds. rozwoju ruchu rowerowego",
+          "organizacji pozarządowych"
+        ]
+      },
+      {
+        "label": "rada-wytyczne",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "przygotowywanie wytycznych dotyczących infrastruktury rowerowej"
+        ]
+      },
+      {
+        "label": "rada-opiniowanie",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "opiniowanie koncepcji i projektów drogowych w zakresie udogodnień dla rowerzystów"
+        ]
+      },
+      {
+        "label": "rada-audyt",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "zasad realizacji audytu rowerowego"
+        ]
+      },
+      {
+        "label": "rada-monitoring",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "monitoring wdrażania Polityki Rowerowej Wrocławia"
+        ]
+      },
+      {
+        "label": "oficer-i-sekcja",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "oficer rowerowy",
+          "Sekcja ds. rozwoju ruchu rowerowego"
+        ]
+      },
+      {
+        "label": "oficer-roczne-plany",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          8
+        ],
+        "all_of": [
+          "opracowywanie corocznych planów rowerowych"
+        ]
+      },
+      {
+        "label": "oficer-kampanie",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          9
+        ],
+        "all_of": [
+          "prowadzenie kampanii promujących jazdę rowerem"
+        ]
+      },
+      {
+        "label": "oficer-współpraca-z-ngo",
+        "document_id": "wroclaw-bicycle-policy-2010",
+        "pages": [
+          9
+        ],
+        "all_of": [
+          "współpraca z organizacjami pozarządowymi"
+        ]
+      }
+    ],
+    "acceptable_document_ids": [],
+    "absence_check": null,
+    "tags": [
+      "obowiązki",
+      "wiele-dowodów",
+      "lista",
+      "formalny"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Rada ds. rozwoju ruchu rowerowego, złożona z wydziałów UMW, jednostek gminy i organizacji pozarządowych. Przygotowuje wytyczne, opiniuje projekty drogowe, opracowuje zasady audytu rowerowego i monitoruje wdrażanie. Działania koordynuje oficer rowerowy z Sekcją w UMW: projekty 4-letnich Programów Rowerowych, roczne plany, kampanie, współpraca z NGO."
+  ]
+}

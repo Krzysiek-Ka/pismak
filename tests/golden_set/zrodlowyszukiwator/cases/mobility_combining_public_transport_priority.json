@@ -1,0 +1,40 @@
+{
+  "id": "mobility_combining_public_transport_priority",
+  "description": "[łączenie informacji, wroclaw-mobility-policy-2013] Priorytet dla komunikacji zbiorowej opisują trzy części dokumentu: zasada preferowania infrastruktury, kreowanie priorytetu z wydzielonymi korytarzami i sterowanie ruchem.",
+  "input": {
+    "title": "Priorytet dla tramwajów i autobusów",
+    "problem_description": "Tramwaje i autobusy stoją na skrzyżowaniach i w korkach razem z samochodami.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Szybsza i bardziej niezawodna komunikacja zbiorowa.",
+    "requested_actions": [
+      "Wydzielenie pasów i torowisk dla komunikacji zbiorowej na głównych ulicach.",
+      "Wprowadzenie priorytetu dla tramwajów i autobusów w sygnalizacji świetlnej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ],
+    "min_fragments_from_expected": 2
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Fragmenty obejmują i wydzielone korytarze, i sterowanie ruchem."
+  ]
+}

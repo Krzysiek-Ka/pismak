@@ -1,0 +1,35 @@
+{
+  "id": "action_plan_not_covered_ebike_subsidy",
+  "description": "[poza korpusem, wroclaw-bicycle-action-plan-2030] Dopłaty do zakupu rowerów elektrycznych: korpus nie wspomina ani rowerów elektrycznych, ani dopłat do rowerów (sprawdzone wyszukiwaniem w bazie).",
+  "input": {
+    "title": "Dopłaty do zakupu rowerów elektrycznych",
+    "problem_description": "Rowery elektryczne są drogie, a mogłyby zastąpić samochód w dojazdach do pracy.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Miejski program dopłat do zakupu rowerów elektrycznych.",
+    "requested_actions": [
+      "Uruchomienie programu dopłat do zakupu rowerów elektrycznych dla mieszkańców."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy."
+  ]
+}

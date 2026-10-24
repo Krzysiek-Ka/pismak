@@ -1,0 +1,19 @@
+{
+  "id": "mobility_policy_2013",
+  "description": "Polityka mobilności (dokument w repozytorium) ma poprawne kodowanie i punktory z fontu symbolicznego; naprawa fontu nie może się włączyć.",
+  "input": {
+    "filename": "01_Wroclawska_polityka_mobilnosci.pdf"
+  },
+  "expected": {
+    "phrases_present": [
+      "nie mniej niż 60%",
+      "preferencji cenowych dla stałych mieszkańców strefy płatnego parkowania",
+      "wydzielanie specjalnych korytarzy komunikacyjnych dla transportu zbiorowego"
+    ],
+    "legacy_glyphs_repaired": false,
+    "no_running_lines_removed": true
+  },
+  "manual_review": [
+    "Ścieżki sekcji (section_path) w details odpowiadają rozdziałom dokumentu, a nie przypadkowym liniom."
+  ]
+}

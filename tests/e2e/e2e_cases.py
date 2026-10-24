@@ -1,76 +1,39 @@
 """
-Konfiguracja testów E2E: lista uruchomień (które modele na których etapach) i sprawy.
+Konfiguracja testów E2E: uruchomienia (który model na którym etapie) i sprawy.
 
-Żeby zmienić kombinacje modeli, edytuj tylko listę URUCHOMIENIA poniżej. Każdy wpis jest
-uruchamiany na każdej sprawie z CASES (albo na sprawach podanych w "sprawy").
+Sprawy leżą w tests/e2e/cases/<id>.json w układzie złotych zbiorów: opis sprawy w `input`,
+odpowiedzi użytkownika w `user_answers` (podawane po kolei, celowo niedopasowane do pytań:
+test sprawdza, czy Dopytywator radzi sobie z częściowo nieadekwatnymi odpowiedziami), limit
+pytań w `limits`, słowa-klucze i oczekiwania w `expected`, ocena człowieka w `manual_review`.
+Grupy słów-kluczy służą wyłącznie do ostrzeżeń w raporcie (WARN), a nie do oceny PASS/FAIL.
 
-Odpowiedzi w sprawach celowo nie są dopasowane do pytań modelu: test sprawdza, czy
-Dopytywator radzi sobie z częściowo nieadekwatnymi odpowiedziami. Grupy słów-kluczy służą
-wyłącznie do ostrzeżeń w raporcie (WARN), a nie do oceny PASS/FAIL.
+Uruchomienia pochodzą z konfiguracji projektu (tests/golden_set/golden_support.py): każdy
+dostawca obsługuje wszystkie etapy, jak w standardzie testów. PISMAK_GOLDEN_PROVIDERS zawęża
+dostawców. Opcjonalne uruchomienia mieszane podaje się w PISMAK_E2E_MIXED jako listę wpisów
+rozdzielonych przecinkami, każdy w formie
+`dopytywator/zrodlowyszukiwacz/pismogenerator[/pismopoprawiator]`, np. "pllum/bielik/openrouter".
+Model to skrót ("bielik", "pllum", "openrouter"), dowolny model Ollamy albo
+"openrouter:<id modelu>"; "brak" jako czwarty element wyłącza korektę.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# URUCHOMIENIA — tę listę edytuj
-#
-#   nazwa              nazwa uruchomienia: litery, cyfry, „_” i „-”; musi być unikalna
-#   dopytywator        model Dopytywatora (wywiad i CaseBrief)
-#   zrodlowyszukiwacz  model Źródłowyszukiwacza (planner i reranker; embeddingi zawsze bge-m3)
-#   pismogenerator     model Pismogeneratora
-#   pismopoprawiator   opcjonalnie: model korekty językowej; domyślnie model Pismogeneratora,
-#                      "brak" wyłącza korektę (jak przełącznik „Korekta językowa” w aplikacji)
-#   sprawy             opcjonalnie: lista spraw, np. ["buspas"]; domyślnie wszystkie z CASES
-#
-# Model to jedno z:
-#   "bielik", "pllum", "openrouter"     skróty z MODELE niżej
-#   "qwen2.5:7b"                        dowolny inny model zarejestrowany w Ollamie
-#   "openrouter:<id modelu>"            konkretny model OpenRouter, np.
-#                                       "openrouter:meta-llama/llama-3.3-70b-instruct:free"
-#
-# Uruchomienia idą w kolejności z listy. Szybkie (OpenRouter) warto mieć na początku.
+from tests.golden_set.golden_support import configured_providers, load_cases
 
-URUCHOMIENIA = [
-    {
-        "nazwa": "openrouter",
-        "dopytywator": "openrouter",
-        "zrodlowyszukiwacz": "openrouter",
-        "pismogenerator": "openrouter",
-    },
-    {
-        "nazwa": "bielik",
-        "dopytywator": "bielik",
-        "zrodlowyszukiwacz": "bielik",
-        "pismogenerator": "bielik",
-    },
-    {
-        "nazwa": "pllum",
-        "dopytywator": "pllum",
-        "zrodlowyszukiwacz": "pllum",
-        "pismogenerator": "pllum",
-    },
-    {
-        "nazwa": "mix_pllum_bielik_openrouter",
-        "dopytywator": "pllum",
-        "zrodlowyszukiwacz": "bielik",
-        "pismogenerator": "openrouter",
-    },
-    {
-        "nazwa": "mix_bielik_pllum_openrouter",
-        "dopytywator": "bielik",
-        "zrodlowyszukiwacz": "pllum",
-        "pismogenerator": "openrouter",
-    },
-    {
-        "nazwa": "mix_pllum_openrouter_bielik",
-        "dopytywator": "pllum",
-        "zrodlowyszukiwacz": "openrouter",
-        "pismogenerator": "bielik",
-    },
-]
+E2E_DIR = Path(__file__).resolve().parent
+SUPPORTED_EXPECTED = {
+    "key_info",
+    "humor_markers",
+    "literal_demand_markers",
+    "user_has_no_measurements",
+    "expects_early_end",
+    "expected_evidence_status",
+}
 
 # ---------------------------------------------------------------------------
 
@@ -101,6 +64,8 @@ class Case:
     # Czy oczekujemy zakończenia wywiadu przed limitem pytań.
     expects_early_end: bool = False
     expected_evidence_status: tuple[str, ...] = field(default_factory=tuple)
+    manual_review: tuple[str, ...] = ()
+    max_questions: int = 12
 
 
 @dataclass(frozen=True)
@@ -135,18 +100,21 @@ class Setup:
         return " → ".join(f"{stage}: {provider.label}" for stage, provider in self.stages)
 
 
-OPENROUTER = Provider(
-    "openrouter", "openrouter", "openrouter/free", "OpenRouter (losowy darmowy model)"
-)
-BIELIK = Provider("bielik", "ollama", "pismak-bielik:latest", "Lokalny Bielik (Ollama)")
-PLLUM = Provider("pllum", "ollama", "pismak-pllum:latest", "Lokalny PLLuM (Ollama)")
+def _provider(label: str, provider: str, model: str) -> Provider:
+    where = "OpenRouter (losowy darmowy model)" if provider == "openrouter" else f"{model} (Ollama)"
+    return Provider(label, provider, model, where)
 
-# Skróty dostępne w URUCHOMIENIA.
-MODELE = {provider.id: provider for provider in (BIELIK, PLLUM, OPENROUTER)}
+
+# Skróty modeli: modele projektu z modele/<nazwa>/Modelfile i router OpenRouter.
+MODELE = {p.label: _provider(p.label, p.provider, p.model) for p in configured_providers()}
+OPENROUTER = MODELE.get("openrouter") or _provider("openrouter", "openrouter", "openrouter/free")
+BIELIK = MODELE.get("bielik") or _provider("bielik", "ollama", "pismak-bielik:latest")
+PLLUM = MODELE.get("pllum") or _provider("pllum", "ollama", "pismak-pllum:latest")
 
 OPENROUTER_PREFIX = "openrouter:"
 NO_CORRECTION = "brak"
 _REQUIRED_KEYS = ("nazwa", "dopytywator", "zrodlowyszukiwacz", "pismogenerator")
+_STAGE_KEYS = ("dopytywator", "zrodlowyszukiwacz", "pismogenerator", "pismopoprawiator")
 _OPTIONAL_KEYS = ("pismopoprawiator", "sprawy")
 _NAME = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -204,112 +172,66 @@ def build_setups(entries: list[dict], case_ids: list[str]) -> tuple[Setup, ...]:
     return tuple(setups)
 
 
-HUMOR_MARKERS = (
-    "happening",
-    "satyr",
-    "humor",
-    "żart",
-    "ironi",
-    "artystyczn",
-    "zabaw",
-    "przebrani",
-    "symboliczn",
+def _case(raw) -> Case:
+    """Turn a case file into the Case the E2E driver and evaluators use."""
+    title, _, what = raw.description.partition(": ")
+    expected = raw.expected
+    return Case(
+        id=raw.id,
+        title=title,
+        description=raw.input,
+        answers=tuple(raw.user_answers),
+        what_is_tested=what or raw.description,
+        key_info={name: tuple(variants) for name, variants in expected.get("key_info", {}).items()},
+        humor_markers=tuple(expected.get("humor_markers", ())),
+        literal_demand_markers=tuple(expected.get("literal_demand_markers", ())),
+        user_has_no_measurements=bool(expected.get("user_has_no_measurements", False)),
+        expects_early_end=bool(expected.get("expects_early_end", False)),
+        expected_evidence_status=tuple(expected.get("expected_evidence_status", ())),
+        manual_review=tuple(raw.manual_review),
+        max_questions=int(raw.limits["max_questions"]),
+    )
+
+
+CASES = tuple(
+    _case(raw)
+    for raw in load_cases(
+        E2E_DIR, supported_expected=SUPPORTED_EXPECTED, required_limits={"max_questions"}
+    )
 )
 
-CASES = (
-    Case(
-        id="kot_wrocek",
-        title="Happening z Kotem Wrockiem",
-        description=(
-            "Chciałbym, aby prezydent Wrocławia, Jacek Sutryk, abdykował ze stanowiska i "
-            "namaścił na swojego następcę Kota Wrocka. Dzięki temu raz na zawsze opanujemy "
-            "plagę szczurów!"
-        ),
-        answers=(
-            "Ma to być akcja humorystyczna, happening artystyczny.",
-            "Tak, chciałbym, aby Kot Wrocek został prezydentem miasta.",
-            "Chodzi przede wszystkim o zwrócenie uwagi na problem szczurów we Wrocławiu.",
-            "Nie traktuję tego dosłownie — to satyra i sposób na nagłośnienie problemu.",
-            "Chcielibyśmy zorganizować happening w centrum Wrocławia, w miejscu widocznym "
-            "dla przechodniów.",
-            "Nie mamy jeszcze ustalonego terminu ani konkretnej lokalizacji.",
-            "Chcemy, żeby mieszkańcy mogli się przyłączyć i robić sobie zdjęcia.",
-            "Ton powinien być ironiczny i zabawny, ale bez obrażania konkretnych osób.",
-            "Główny przekaz jest taki, że problem szczurów wymaga skuteczniejszych działań miasta.",
-            "Możemy przygotować transparenty, ulotki i przebranie kota.",
-            "Organizatorami będą prawdopodobnie mieszkańcy działający nieformalnie.",
-            "Chciałbym też wiedzieć, jakie działania miasto faktycznie podejmuje w sprawie "
-            "szczurów.",
-        ),
-        what_is_tested=(
-            "Czy Dopytywator zbiera wystarczające informacje i kończy rozmowę przed "
-            "wykorzystaniem wszystkich 12 odpowiedzi, nie traktuje żartu jako dosłownego "
-            "postulatu politycznego i nie wymyśla faktów."
-        ),
-        key_info={
-            "Kot Wrocek": ("wrocek", "wrocka"),
-            "problem szczurów": ("szczur",),
-            "Wrocław": ("wrocław",),
-            "satyryczny charakter (happening)": HUMOR_MARKERS,
-        },
-        humor_markers=HUMOR_MARKERS,
-        literal_demand_markers=("abdyk", "ustąpi", "rezygnac", "odwoła", "namaszcz", "dymisj"),
-        expects_early_end=True,
-    ),
-    Case(
-        id="buspas",
-        title="Buspas na ulicy Kazimierza Wielkiego",
-        description="Chciałbym wprowadzenia buspasa na ulicy Kazimierza Wielkiego we Wrocławiu.",
-        answers=(
-            "Aktualnie więcej osób porusza się tam komunikacją miejską niż samochodami.",
-            "Są tam korki, przez które komunikacja miejska jedzie wolniej.",
-            "To absurd, że tak centralnie położona ulica pełni funkcję drogi tranzytowej.",
-            "Chodzi mi o ulicę Kazimierza Wielkiego w centrum Wrocławia.",
-            "Zależy mi na buspasie w obu kierunkach, o ile będzie to możliwe.",
-            "Najważniejsze jest dla mnie zwiększenie punktualności i przewidywalności "
-            "przejazdu komunikacji miejskiej.",
-            "Nie mam własnych pomiarów ruchu — to moje obserwacje z codziennego poruszania się "
-            "po mieście.",
-            "Chciałbym ograniczyć ruch samochodów, które nie muszą przejeżdżać przez centrum.",
-            "Nie postuluję całkowitego zamknięcia ulicy dla samochodów.",
-            "Należy uwzględnić wpływ zmian na dostawy, mieszkańców, służby i pozostały ruch.",
-            "Chciałbym, żeby miasto przeanalizowało możliwe warianty i udostępniło dane "
-            "uzasadniające decyzję.",
-            "Pismo powinno być konkretne i rzeczowe, bez agresywnego tonu.",
-        ),
-        what_is_tested=(
-            "Czy model doprecyzowuje konkretny postulat, odróżnia obserwacje użytkownika od "
-            "potwierdzonych danych i przygotowuje brief nadający się do wyszukiwania źródeł "
-            "i wygenerowania pisma."
-        ),
-        key_info={
-            "ulica Kazimierza Wielkiego": ("kazimierza wielkiego",),
-            "buspas": (
-                "buspas",
-                "bus-pas",
-                "pas autobus",
-                "pas dla autobus",
-                "pas dla komunikacji",
-                "pas bus",
-                "pasa autobus",
-                "pasa dla autobus",
-                "pasa dla komunikacji",
-            ),
-            "komunikacja miejska": ("komunikacj", "autobus", "tramwaj", "transport publiczn"),
-            "Wrocław": ("wrocław",),
-        },
-        user_has_no_measurements=True,
-        expected_evidence_status=("supported",),
-    ),
-)
+
+def mixed_entries(value: str) -> list[dict]:
+    """Turn PISMAK_E2E_MIXED ("a/b/c[/d], ...") into URUCHOMIENIA-style entries."""
+    entries = []
+    for item in (part.strip() for part in value.split(",")):
+        if not item:
+            continue
+        models = [m.strip() for m in item.split("/")]
+        if len(models) not in (3, 4):
+            raise ValueError(f"PISMAK_E2E_MIXED: „{item}” musi mieć 3 albo 4 modele rozdzielone /")
+        entry = dict(zip(_STAGE_KEYS, models))
+        entry["nazwa"] = "mix_" + "_".join(re.sub(r"[^A-Za-z0-9]+", "", m) for m in models)
+        entries.append(entry)
+    return entries
+
+
+def configured_entries() -> list[dict]:
+    """Return one run per configured provider, then the optional mixed runs."""
+    entries = [
+        {"nazwa": label, "dopytywator": label, "zrodlowyszukiwacz": label, "pismogenerator": label}
+        for label in MODELE
+    ]
+    return entries + mixed_entries(os.getenv("PISMAK_E2E_MIXED", ""))
+
 
 # Lista sprawdzana przy zbieraniu testów: błąd we wpisie zatrzymuje pytest z opisem, który wpis
 # poprawić, zanim ruszy jakikolwiek model.
-SETUPS = build_setups(URUCHOMIENIA, [case.id for case in CASES])
+SETUPS = build_setups(configured_entries(), [case.id for case in CASES])
 
 
 def run_plan() -> list[tuple[Setup, Case]]:
-    """Return every (setup, case) pair to run, in the order of URUCHOMIENIA and CASES."""
+    """Return every (setup, case) pair to run, in the order of the setups and CASES."""
     return [
         (setup, case)
         for setup in SETUPS

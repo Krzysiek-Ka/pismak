@@ -1,0 +1,59 @@
+{
+  "id": "bike-03",
+  "description": "Trudny negatyw: korpus zawiera bliskie fragmenty o rowerze miejskim, a Plan działań rowerowych (s. 37) — zasadę darmowych pierwszych 20 minut, ale bez cen i stawek. System powinien rozpoznać brak cennika zamiast przedstawić te fragmenty jako odpowiedź. Do 23.10.2026 pytanie brzmiało „…i czy pierwsze minuty są za darmo?”; po dodaniu Planu korpus odpowiada na tę część, więc ją usunięto — wyniki bike-03 sprzed tej daty nie są wprost porównywalne.",
+  "input": "Ile kosztuje wypożyczenie roweru miejskiego we Wrocławiu?",
+  "expected": {
+    "document_id": "wroclaw-bicycle-policy-2010",
+    "answerable": false,
+    "expected_sources": [],
+    "evidence": [],
+    "acceptable_document_ids": [],
+    "absence_check": {
+      "searched_documents": [
+        "wroclaw-strategy-2050-2025",
+        "wroclaw-strategy-2030",
+        "wroclaw-bicycle-policy-2010",
+        "wroclaw-mobility-policy-2013",
+        "wroclaw-bicycle-action-plan-2030",
+        "wroclaw-tram-program-2-0",
+        "wroclaw-accessibility-standards"
+      ],
+      "searched_terms": [
+        "rower miejski",
+        "wypożyczalnia rowerów",
+        "nextbike",
+        "WRM",
+        "zł",
+        "abonament",
+        "cennik",
+        "taryfa",
+        "opłata",
+        "bezpłatny",
+        "darmowy",
+        "minut"
+      ],
+      "answer_patterns": [
+        "rower\\w* miejsk\\w*.{0,150}\\d+([,.]\\d+)? ?(zł|pln)\\b",
+        "\\d+([,.]\\d+)? ?(zł|pln)\\b.{0,150}rower\\w* miejsk",
+        "wypożycz\\w*.{0,150}\\d+([,.]\\d+)? ?(zł|pln)\\b",
+        "(cennik\\w*|taryf\\w*|opłat\\w*).{0,100}(rower\\w* miejsk|wypożyczal\\w* rower)",
+        "abonament\\w*.{0,100}\\d+([,.]\\d+)? ?(zł|pln)\\b"
+      ],
+      "related_but_insufficient": [
+        "Polityka Rowerowa, s. 9: wskaźnik „liczba rowerów dostępnych w wypożyczalni rowerów miejskich” (bez cen)",
+        "Wrocławska polityka mobilności, s. 9: „rozwijanie systemu wypożyczalni rowerów” (kierunek działania)",
+        "Strategia Wrocław 2050, s. 119–120: „stacja roweru miejskiego” jako element węzła przesiadkowego",
+        "Plan działań rowerowych do 2030 roku, s. 37: darmowe korzystanie z roweru w pierwszych 20 minutach wypożyczenia; abonamenty tylko jako możliwy kierunek rozwoju (bez cen)",
+        "Plan działań rowerowych do 2030 roku, s. 10: miejska wypożyczalnia rowerów działa od 10 lat (bez cen)"
+      ]
+    },
+    "tags": [
+      "trudny-negatyw",
+      "potoczny",
+      "dystraktor"
+    ]
+  },
+  "manual_review": [
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Żaden z dokumentów nie podaje cennika ani stawek opłat za rower miejski. Plan działań rowerowych do 2030 roku mówi tylko, że korzystanie z roweru jest darmowe w pierwszych 20 minutach wypożyczenia (s. 37), a polityki wspominają wypożyczalnię jako element systemu."
+  ]
+}

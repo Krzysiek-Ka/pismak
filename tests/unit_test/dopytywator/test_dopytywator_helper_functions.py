@@ -7,7 +7,8 @@ from src.Dopytywator.dopytywator_helper_functions import (
 
 
 class TestConversationToText:
-    def test_conversation_to_text__formats_user_and_agent_messages(self) -> None:
+    def test_conversation_to_text__user_and_assistant_messages_get_speaker_labels(self) -> None:
+        """Verify each message gets its speaker label and a blank line, so the model can tell the user's words from its own questions."""
         messages = [
             structures.ConversationMessage(role="user", content="Cześć"),
             structures.ConversationMessage(role="assistant", content="Dzień dobry"),
@@ -19,7 +20,8 @@ class TestConversationToText:
 
 
 class TestValidateBriefReadiness:
-    def test_validate_brief_readiness__returns_missing_field_errors(self) -> None:
+    def test_validate_brief_readiness__blank_required_fields_return_one_error_each(self) -> None:
+        """Verify every empty required field is named, including a list holding only blank actions."""
         brief = structures.CaseBrief(
             title="",
             problem_description="",
@@ -36,7 +38,8 @@ class TestValidateBriefReadiness:
             "Brak co najmniej jednego konkretnego postulatu",
         ]
 
-    def test_validate_brief_readiness__accepts_complete_brief(self) -> None:
+    def test_validate_brief_readiness__complete_brief_returns_no_errors(self) -> None:
+        """Verify a brief with every required field passes, so the UI shows no false gap warning."""
         brief = structures.CaseBrief(
             title="Prawo do dostępu do informacji",
             problem_description="Wniosek o informacje nie został rozpatrzony.",
@@ -48,7 +51,8 @@ class TestValidateBriefReadiness:
 
 
 class TestPrintCaseBrief:
-    def test_print_case_brief__renders_key_sections_and_claims(self, capsys) -> None:
+    def test_print_case_brief__full_brief_prints_every_section_and_claim(self, capsys) -> None:
+        """Verify the console summary shows each field, list and claim with its status and declared evidence."""
         brief = structures.CaseBrief(
             title="Brak dostępu do pomieszczeń",
             problem_description="Nie można korzystać z pomieszczeń rekreacyjnych.",

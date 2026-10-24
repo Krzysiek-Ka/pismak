@@ -1,0 +1,126 @@
+{
+  "query_summary": "Weryfikacja doniesień o latających spodkach i zajęciu Hydropolis oraz Hali Targowej, a także ocena zniknięcia krasnali z Rynku.",
+  "research_plan": {
+    "case_summary": "Weryfikacja doniesień o latających spodkach i zajęciu Hydropolis oraz Hali Targowej, a także ocena zniknięcia krasnali z Rynku.",
+    "intents": [
+      {
+        "semantic_query": "Czy istnieją oficjalne dokumenty miejskie dotyczące obserwacji UFO w Wrocławiu? (np. raporty policyjne, komunikaty urzędu miasta)",
+        "lexical_query": "latające spodki Wrocław Hydropolis Hali Targowej",
+        "purpose": "Zweryfikowanie doniesień o obserwacjach UFO i ich wpływu na bezpieczeństwo mieszkańców.",
+        "priority": 1
+      },
+      {
+        "semantic_query": "Czy władze miasta Wrocławia opracowały strategie zarządzania kryzysowego w przypadku pojawienia się obcych cywilizacji?",
+        "lexical_query": "obce cywilizacje zarządzanie kryzysowe Wrocław",
+        "purpose": "Ocena gotowości władz na potencjalne zagrożenie ze strony kosmitów.",
+        "priority": 2
+      },
+      {
+        "semantic_query": "Czy w miejskich dokumentach znajdują się informacje o zniknięciu krasnali z Rynku i ich potencjalnym wpływie na bezpieczeństwo?",
+        "lexical_query": "zniknięcie krasnali Rynek",
+        "purpose": "Ocena wiarygodności doniesień o zniknięciu krasnali i ich wpływu na mieszkańców.",
+        "priority": 3
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "evidence_id": "E1",
+      "chunk_id": "wroclaw-strategy-2050-2025:00394:083ff6371566",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 213,
+      "page_end": 214,
+      "section_path": [
+        "m. Martwi nas, że rośnie liczba samochodów we Wrocławiu. W 2023 roku było ich już",
+        "Jak powstała Strategia"
+      ],
+      "excerpt": "Jak powstała Strategia\n\nEfektem ich prac, prowadzonych w kolejnych iteracjach i formach (opinie, analizy, diagnozy, warsztaty, wywiady pogłębione, ankiety, warsztaty kalibracyjne i konkretyzujące), były opracowania analityczne i raporty: • listopad 2021 r. – opracowanie wielodziedzinowych scenariuszy przyszłości; • grudzień 2021 r. – analiza dokumentów i danych statystycznych oraz sformułowanie wstępnych tez i niezbędnych elementów do diagnozy przestrzennej miasta; • styczeń 2022 r. – komunikat z badań potrzeb Strategii rozwoju Wrocławia do 2050 r.; • czerwiec 2022 r. – uzupełnienie wielodziedzinowych scenariuszy przyszłości o suplement: Konsekwencje wojny w Ukrainie dla Wrocławia; • październik 2022 r. – Raport Młodzi we Wrocławiu i o Wrocławiu. Raport z badań warsztatowych w ramach prac nad Strategią Wrocław 2050; • 2022 r. – Diagnoza przestrzenna dla wybranych gmin Wrocławskiego Obszaru Metropolitalnego; • 2022 r. – Diagnoza przestrzenna Wrocławia; • 2022 r. – Diagnoza społeczno-gospodarcza obszaru Wrocławia; • maj 2023 r. – Warsztaty futures literacy – wartości istotne dla Wrocławia. Raport końcowy; • czerwiec 2023 r. – Propozycja celów szczegółowych oraz działań kierunkowych. Podsumowanie warsztatu eksperckiego; • wrzesień 2023 r. – Wartości istotne dla Wrocławia w ramach prac nad Strategią „Wrocław 2050”. Podsumowanie warsztatu eksperckiego; • listopad 2023 r. – Sztuczna inteligencja a kompetencje i zawody przyszłości. Podsumowanie warsztatów przeprowadzonych w ramach Seminarium eksperckiego z warsztatami pt. „Sztuczna inteligencja dla rozwoju miast i obszarów metropolitalnych – perspektywa młodzieży”; • 2023 r. – aktualizacja Diagnozy przestrzennej Wrocławia; • 2023 r. – aktualizacja Diagnozy społeczno-gospodarczej obszaru Wrocławia; • 2023 r. – Warunki i jakość życia we Wrocławiu – nowi mieszkańcy i mieszkańcy miasta. Podsumowanie badań ilościowych i jakościowych; • marzec 2024 r. – raport Kalibracja Strategii Wrocław 2050 Greenhat; • marzec 2024 r. – Raport z warsztatów „Wartości w nowej strategii Wrocławia” SWPS; • luty 2025 r. – Raport „Warsztaty konkretyzujące zapisy Strategii Wrocław 2050”. Strategia „Wrocław 2050” jest spójna m.in. z dokumentami: a. europejskimi: • Agenda Miejska dla Unii Europejskiej, • Karta Lipska i Nowa Karta Lipska, • Europejski Zielony Ład,\n\nJak powstała Strategia\n\n• Agenda Terytorialna 2030, • Agenda ONZ na rzecz Zrównoważonego Rozwoju 2030 (SDG); b. krajowymi: • Krajowa Polityka Miejska 2030, • Krajowy Plan Odbudowy, • Umowa Partnerstwa dla realizacji polityki spójności 2021–2027 w Polsce, • Strategia na rzecz Odpowiedzialnego Rozwoju do roku 2020 (z perspektywą do roku 2030), • Krajowa Strategia Rozwoju Regionalnego 2030, • Strategia Rozwoju Kapitału Ludzkiego 2030, • Strategia Zrównoważonego Rozwoju Transportu do 2030 roku, • Polityka ekologiczna państwa 2030 – strategia rozwoju w obszarze środowiska i gospodarki wodnej, • Polityka Energetyczna Polski do 2040 roku;",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.0428161663216011,
+      "rerank_score": 40,
+      "relevance_reason": "Wyjaśnia proces tworzenia Strategii Rozwoju Wrocławia 'Wrocław 2050'.",
+      "matched_intents": [
+        "Q1: Zweryfikowanie doniesień o obserwacjach UFO i ich wpływu na bezpieczeństwo mieszkańców.",
+        "Q2: Ocena gotowości władz na potencjalne zagrożenie ze strony kosmitów."
+      ]
+    },
+    {
+      "evidence_id": "E2",
+      "chunk_id": "wroclaw-strategy-2050-2025:00398:7ad891049961",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 217,
+      "page_end": 218,
+      "section_path": [
+        "c. regionalnymi:",
+        "Załączniki nr 1"
+      ],
+      "excerpt": "Dokumenty wykonawcze (polityki, programy, plany działań) według celów Strategii. Dokumenty obejmujące wszystkie cele Strategii: • Portfel Projektów Inwestycyjnych (PPI), • Założenia polityki społeczno-gospodarczej Wrocławia. Wysoka jakość życia w dobrej przestrzeni: • uchwała w sprawie uchwalenia Studium uwarunkowań i kierunków zagospodarowania przestrzennego Wrocławia, • akty planowania przestrzennego, • uchwała w sprawie utworzenia parku kulturowego „Stare Miasto”, • uchwała w sprawie wyznaczenia obszaru zdegradowanego i obszaru rewitalizacji, • zarządzenie w sprawie wprowadzenia Strategii Gospodarowania Wodami Opadowymi i Roztopowymi we Wrocławiu, • uchwała w sprawie Wrocławskiej Strategii Rozwoju Elektromobilności, • uchwała w sprawie polityki rowerowej Wrocławia,\n\nZałączniki nr 1\n\n• uchwała w sprawie Wrocławskiej polityki mobilności, • Wrocławski Program Tramwajowo-Autobusowy na lata 2024–2032, • uchwała w sprawie Planu adaptacji Miasta Wrocław do zmian klimatu do roku 2030, • zarządzenie w sprawie opracowania i monitorowania realizacji Planu Eksploatacji Miejskiej Infrastruktury Drogowej, • uchwała w sprawie Planu zrównoważonego rozwoju publicznego transportu zbiorowego Wrocławia na lata 2023–2027, • uchwała w sprawie Planu Zrównoważonej Mobilności dla Miejskiego Obszaru Funkcjonalnego Wrocławia, • zarządzenie w sprawie ochrony drzew i rozwoju terenów zieleni Wrocławia, • Standardy utrzymania terenów zieleni w miastach. Mocna krajowa i międzynarodowa pozycja Wrocławia: • uchwała w sprawie strategii rozwoju Wrocławia pod nazwą „Przedsiębiorczy Wrocław 2030”, • zarządzenie w sprawie przyjęcia i wdrażania Lokalnego Programu Rozwoju Ekonomii Społecznej Miasta Wrocławia, • zarządzenie w sprawie wprowadzenia do realizacji Programu Rozwoju Turystyki dla Miasta Wrocławia 2024–2030, • uchwała w sprawie przystąpienia Miasta Wrocławia do Związku Miast Polskich, • uchwała w sprawie przestąpienia Miasta Wrocławia do Globalnego Parlamentu",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.027884615384615386,
+      "rerank_score": 40,
+      "relevance_reason": "Wymienia dokumenty wykonawcze Strategii Rozwoju Wrocławia 'Wrocław 2050'.",
+      "matched_intents": [
+        "Q1: Zweryfikowanie doniesień o obserwacjach UFO i ich wpływu na bezpieczeństwo mieszkańców.",
+        "Q2: Ocena gotowości władz na potencjalne zagrożenie ze strony kosmitów."
+      ]
+    },
+    {
+      "evidence_id": "E3",
+      "chunk_id": "wroclaw-strategy-2050-2025:00399:68055028eef9",
+      "document_id": "wroclaw-strategy-2050-2025",
+      "document_title": "Strategia Rozwoju Wrocławia „Wrocław 2050”",
+      "document_kind": "strategy",
+      "hierarchy_rank": 100,
+      "legal_form": "resolution",
+      "adoption_act_number": "XXIV/463/25",
+      "adoption_date": "2025-10-20",
+      "is_active": true,
+      "lifecycle_status": "current",
+      "page_start": 218,
+      "page_end": 218,
+      "section_path": [
+        "c. regionalnymi:",
+        "Burmistrzów"
+      ],
+      "excerpt": "• uchwała w sprawie Wrocławskiej polityki mobilności, • Wrocławski Program Tramwajowo-Autobusowy na lata 2024–2032, • uchwała w sprawie Planu adaptacji Miasta Wrocław do zmian klimatu do roku 2030, • zarządzenie w sprawie opracowania i monitorowania realizacji Planu Eksploatacji Miejskiej Infrastruktury Drogowej, • uchwała w sprawie Planu zrównoważonego rozwoju publicznego transportu zbiorowego Wrocławia na lata 2023–2027, • uchwała w sprawie Planu Zrównoważonej Mobilności dla Miejskiego Obszaru Funkcjonalnego Wrocławia, • zarządzenie w sprawie ochrony drzew i rozwoju terenów zieleni Wrocławia, • Standardy utrzymania terenów zieleni w miastach. Mocna krajowa i międzynarodowa pozycja Wrocławia: • uchwała w sprawie strategii rozwoju Wrocławia pod nazwą „Przedsiębiorczy Wrocław 2030”, • zarządzenie w sprawie przyjęcia i wdrażania Lokalnego Programu Rozwoju Ekonomii Społecznej Miasta Wrocławia, • zarządzenie w sprawie wprowadzenia do realizacji Programu Rozwoju Turystyki dla Miasta Wrocławia 2024–2030, • uchwała w sprawie przystąpienia Miasta Wrocławia do Związku Miast Polskich, • uchwała w sprawie przestąpienia Miasta Wrocławia do Globalnego Parlamentu\n\nBurmistrzów\n\nBezpieczne, odporne na kryzysy i neutralne klimatycznie miasto: • uchwała w spawie uchwalenia Programu Poprawy Bezpieczeństwa we Wrocławiu w latach 2025-2028, • uchwała w sprawie przyjęcia Programu usuwania azbestu i wyrobów zawierających azbest dla miasta Wrocławia na lata 2012–2032, • uchwała w sprawie Programu ochrony środowiska przed hałasem dla miasta Wrocławia, • uchwała w sprawie Planu Gospodarki Niskoemisyjnej dla Zintegrowanych Inwestycji Terytorialnych Wrocławskiego Obszaru Funkcjonalnego, • uchwała w sprawie Planu działań na rzecz zrównoważonej energii i klimatu (SECAP), • uchwała w sprawie Programu opieki nad zwierzętami bezdomnymi oraz zapobiegania bezdomności zwierząt na terenie Gminy Wrocław,",
+      "source_url": "https://www.wroclaw.pl/beta2/files/dokumenty/755409/Projekt_dokumentu_Strategia_Rozwoju_Wroclawia_Wroclaw_2050.pdf",
+      "source_filename": "00_Strategia-rozwoju-Wroclawia-Wroclaw-2050.pdf",
+      "retrieval_score": 0.02818070818070818,
+      "rerank_score": 40,
+      "relevance_reason": "Wymienia dokumenty wykonawcze Strategii Rozwoju Wrocławia 'Wrocław 2050'.",
+      "matched_intents": [
+        "Q1: Zweryfikowanie doniesień o obserwacjach UFO i ich wpływu na bezpieczeństwo mieszkańców.",
+        "Q2: Ocena gotowości władz na potencjalne zagrożenie ze strony kosmitów."
+      ]
+    }
+  ],
+  "evidence_status": "supported",
+  "unsupported_topics": [
+    "Ocena wiarygodności doniesień o zniknięciu krasnali i ich wpływu na mieszkańców."
+  ],
+  "search_notes": [
+    "Liczba zapytań: 3",
+    "Kandydaci po hybrid retrieval: 20",
+    "Źródła w EvidencePack: 3",
+    "Ocena wsparcia źródeł: supported",
+    "hierarchy_rank jest metadanym/tie-breakerem, a nie oceną mocy prawnej."
+  ]
+}

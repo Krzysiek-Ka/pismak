@@ -1,0 +1,43 @@
+{
+  "id": "modalnosc_i_przeczenia",
+  "description": "Nawierzchnia ul. Krakowskiej: ogonki i spacja obok przeczeń i modalności. Pismo złożone rendererem aplikacji, z wstawionymi błędami językowymi obok elementów chronionych. Wynik zależy tylko od naruszeń treści; naprawione błędy i poprawki nadmiarowe trafiają do raportu.",
+  "input": "**Adresat:** Zarząd Dróg i Utrzymania Miasta we Wrocławiu\n\n**Nadawca:**\n\nJako wieloletni mieszkaniec naszego kochanego miasta, wnioskuję o przegląd nawierzchni na ul. Krakowskiej\n\n# WNIOSEK\n\nMiasto powinno niezwłocznie przeanalizowac stan nawierzchni na ul. Krakowskiej. Nie twierdzę, że droga jest nieprzejezdna, ale może stwarzać zagrożenie dla rowerzystów [wymaga weryfikacji].\n\nNależy rozważyć przynajmniej tymczasowe oznakowanie ubytków. Prawdopodobnie wystarczyłaby naprawa kilku  odcinków, a nie remont całej ulicy.\n\nZ poważaniem,\n\n[imię i nazwisko]\n\n---\n\n## Źródła\n\n- [1] U1: Obserwacje wnioskodawcy z codziennych przejazdów.\n\n---\n\n## Sekcja kontrolna\n\n### Informacje wymagające weryfikacji przed wysłaniem\n\n- Dane liczbowe podane przez wnioskodawcę.\n\n### Brakujące pola\n\n- Brak.\n\n### Założenia redakcyjne modelu\n\n- Brak.",
+  "expected": {
+    "seeded_errors": [
+      {
+        "wrong": "przeanalizowac",
+        "right": [
+          "przeanalizować"
+        ]
+      },
+      {
+        "wrong": "kilku  odcinków",
+        "right": [
+          "kilku odcinków"
+        ]
+      }
+    ],
+    "protected_strings": [
+      "powinno",
+      "Nie twierdzę",
+      "nieprzejezdna",
+      "może stwarzać",
+      "Należy rozważyć",
+      "Prawdopodobnie",
+      "a nie remont",
+      "Krakowskiej",
+      "[wymaga weryfikacji]"
+    ],
+    "allowed_expansions": [
+      {
+        "fragment": "nawierzchni na ul. Krakowskiej.",
+        "expansion": "nawierzchni na ulicy Krakowskiej.",
+        "seen_in_real_run": false
+      }
+    ]
+  },
+  "manual_review": [
+    "Poprawki spoza wstawionych błędów (details.<tryb>.extra) nie zmieniają sensu zdań.",
+    "Odrzucone poprawki (details.<tryb>.rejected) zostały odrzucone słusznie."
+  ]
+}
