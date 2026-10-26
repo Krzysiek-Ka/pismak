@@ -1,0 +1,37 @@
+{
+  "id": "rag_eval_mob_08",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-08: „Czy polityka mobilności przewiduje buspas na ul. Kazimierza Wielkiego?” Trudny negatyw z nazwą ulicy, której nie ma w korpusie. Polityka zawiera bliskie, ogólne zapisy o korytarzach i priorytecie dla transportu zbiorowego, a Program Tramwajowy 2.0 — buspas na innej ulicy. System powinien rozpoznać brak dowodu dla tej lokalizacji zamiast przedstawić ogólne zapisy jako odpowiedź.",
+  "input": {
+    "title": "Buspas na ul. Kazimierza Wielkiego w polityce mobilności",
+    "problem_description": "Chcę sprawdzić, czy polityka mobilności przewiduje buspas na ul. Kazimierza Wielkiego.",
+    "location": "Wrocław, ul. Kazimierza Wielkiego",
+    "time_context": null,
+    "desired_outcome": "Informacja, czy polityka mobilności przewiduje buspas na ul. Kazimierza Wielkiego.",
+    "requested_actions": [
+      "Wskazanie, czy polityka mobilności przewiduje buspas na ul. Kazimierza Wielkiego."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-08",
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy.",
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Polityka mobilności nie wskazuje konkretnych ulic ani lokalizacji buspasów — zawiera tylko ogólny kierunek wydzielania specjalnych korytarzy dla transportu zbiorowego (s. 7) i zapowiedź późniejszego określenia stref miasta (s. 14). Żaden dokument korpusu nie wspomina ul. Kazimierza Wielkiego."
+  ]
+}

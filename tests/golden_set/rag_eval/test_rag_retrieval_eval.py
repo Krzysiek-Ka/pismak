@@ -376,7 +376,8 @@ def run_evaluation(
             "model embeddingów": os.getenv("RAG_EMBEDDING_MODEL", "bge-m3"),
             "filtry": "RetrievalFilters() — domyślne produkcyjne (bez dokumentów jawnie nieaktywnych)",
             "limity": f"vector/lexical {CANDIDATE_K}, candidate_k {CANDIDATE_K}, evidence_k {EVIDENCE_K}, "
-            f"max_per_document {MAX_PER_DOCUMENT}",
+            f"max_per_document {MAX_PER_DOCUMENT}, kandydaci z dokumentu: najwyżej "
+            f"{pipeline.max_candidates_per_document}",
             "k": ", ".join(map(str, K_VALUES)),
             "reranker": reranker_model or "nie uruchomiono",
         },

@@ -77,8 +77,14 @@ class _FinishingClient:
 
 
 def selection(*items: tuple[str, int]) -> str:
+    """Return a reranker answer that quotes "Treść" from every selected candidate."""
     return json.dumps(
-        {"selected": [{"chunk_id": cid, "score": score, "reason": cid} for cid, score in items]}
+        {
+            "selected": [
+                {"chunk_id": cid, "postulate": 1, "quote": "Treść", "score": score, "reason": cid}
+                for cid, score in items
+            ]
+        }
     )
 
 
@@ -236,7 +242,9 @@ class TestLLMRerankerRerank:
     def test_rerank__two_invalid_answers_raise_and_log_the_schema_error(self, caplog) -> None:
         """Verify the raised error and the log both say what the model got wrong."""
         client = _ScriptedClient(None, '{"selected":[{"chunk_id":"chunk-1","score":500}]}')
-        reranker = LLMReranker(client=client, model="openrouter/free", allow_fallback=False)
+        reranker = LLMReranker(
+            client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
+        )
         logger = logging.getLogger("pismak")
         logger.addHandler(caplog.handler)
 
@@ -250,7 +258,7 @@ class TestLLMRerankerRerank:
         assert "selected.0.score" in str(error.value)
         failures = [r.getMessage() for r in caplog.records if "llm_request_failed" in r.msg]
         assert "attempt=1 retry_scheduled=true" in failures[0]
-        assert "pustą odpowiedź" in failures[0]
+        assert "Model nie zwrócił danych." in failures[0]
         assert "attempt=2 retry_scheduled=false" in failures[-1]
         assert "selected.0.score" in failures[-1]
         assert '\\"score\\":500' in caplog.text
@@ -307,8 +315,8 @@ class TestLLMRerankerRerank:
         """Verify fragments the model rates as merely similar are not presented as evidence."""
         payload = {
             "selected": [
-                {"chunk_id": "chunk-1", "score": 85, "reason": "popiera postulat"},
-                {"chunk_id": "chunk-2", "score": 20, "reason": "podobny temat"},
+                {"chunk_id": "chunk-1", "quote": "A", "score": 85, "reason": "popiera postulat"},
+                {"chunk_id": "chunk-2", "quote": "B", "score": 20, "reason": "podobny temat"},
             ]
         }
         client = _ScriptedClient(json.dumps(payload))
@@ -362,7 +370,7 @@ class TestLLMRerankerRerank:
 
     def test_rerank__keeps_a_fragment_scored_exactly_at_the_threshold(self) -> None:
         """Verify the minimum support score is inclusive."""
-        candidates = [make_candidate("c0", "A"), make_candidate("c1", "B")]
+        candidates = [make_candidate("c0", "Treść A"), make_candidate("c1", "Treść B")]
         client = _ScriptedClient(selection(("c0", 40), ("c1", 39)))
 
         result = LLMReranker(client=client, model="local").rerank(
@@ -373,7 +381,7 @@ class TestLLMRerankerRerank:
 
     def test_rerank__ignores_unknown_ids_mixed_with_known_ones(self) -> None:
         """Verify one invented ID does not discard the model's valid judgements."""
-        candidates = [make_candidate("c0", "A")]
+        candidates = [make_candidate("c0", "Treść A")]
         client = _ScriptedClient(selection(("invented", 95), ("c0", 60)))
 
         result = LLMReranker(client=client, model="local").rerank(
@@ -403,7 +411,7 @@ class TestLLMRerankerRerank:
         client = _FinishingClient((truncated, "length"), (truncated, "length"))
         reranker = LLMReranker(client=client, model="remote", allow_fallback=False)
 
-        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "Treść A")])
 
         assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c0"]
         assert result.assessed is True
@@ -433,7 +441,7 @@ class TestLLMRerankerRerank:
         client = _ScriptedClient(selection(("c0", 150)), selection(("c0", 90)))
         reranker = LLMReranker(client=client, model="remote", allow_fallback=False)
 
-        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "A")])
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c0", "Treść A")])
 
         assert [score for _, _, score in result.selected] == [90]
         assert "score" in client.chat.completions.calls[1]["messages"][1]["content"]
@@ -556,8 +564,8 @@ class TestLLMRerankerRerank:
                         payload = {
                             "selected": [
                                 {"chunk_id": "unknown", "score": 100, "reason": "x"},
-                                {"chunk_id": "E1", "score": 90, "reason": "ok"},
-                                {"chunk_id": "E1", "score": 80, "reason": "duplicate"},
+                                {"chunk_id": "E1", "quote": "Treść", "score": 90, "reason": "ok"},
+                                {"chunk_id": "E1", "quote": "Treść", "score": 80, "reason": "dup"},
                             ]
                         }
 
@@ -588,7 +596,7 @@ class TestLLMRerankerRerank:
         client = _ScriptedClient(fenced, selection(("c1", 80)))
         reranker = LLMReranker(client=client, model="openrouter/free", allow_fallback=False)
 
-        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+        result = reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "Treść")])
 
         assert result.assessed is True
         assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c1"]
@@ -609,35 +617,50 @@ class TestLLMRerankerRerank:
             ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS
         ] * 4
 
-    def test_rerank__openrouter_timeout_or_provider_error_is_raised_without_a_retry(
-        self, provider_error: Exception
+    def test_rerank__openrouter_transient_error_is_retried_once(
+        self, transient_provider_error: Exception
     ) -> None:
-        """Verify a remote failure is reported after one request instead of unassessed sources."""
+        """Verify a passing OpenRouter failure gets one more request before it is reported."""
 
         class Completions:
             calls = 0
 
             def create(self, **kwargs):
                 self.calls += 1
-                raise provider_error
+                raise transient_provider_error
 
         client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
-        reranker = LLMReranker(
+        component = LLMReranker(
             client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
         )
 
-        with pytest.raises(type(provider_error)):
-            reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+        with pytest.raises(type(transient_provider_error)):
+            component.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+
+        assert client.chat.completions.calls == 2
+
+    def test_rerank__openrouter_permanent_error_is_raised_without_a_retry(
+        self, permanent_provider_error: Exception
+    ) -> None:
+        """Verify a rejected request or the daily limit is reported after a single request."""
+
+        class Completions:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise permanent_provider_error
+
+        client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+        component = LLMReranker(
+            client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
+        )
+
+        with pytest.raises(type(permanent_provider_error)):
+            component.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
 
         assert client.chat.completions.calls == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BŁĄD: odpowiedź HTTP 200 z obiektem error (OpenRouter) ma choices=None; "
-            "_structured robi choices[0] i rzuca TypeError zamiast LLMResponseError"
-        ),
-    )
     def test_rerank__openrouter_answer_without_choices_raises_a_readable_error(self) -> None:
         """Verify a provider error sent with status 200 ends in the module's readable error."""
 
@@ -652,3 +675,163 @@ class TestLLMRerankerRerank:
 
         with pytest.raises(LLMResponseError):
             reranker.rerank(case_brief={}, candidates=[make_candidate("c1", "tekst")])
+
+
+HELMET_BRIEF = {
+    "desired_outcome": "Bezpieczniejsza jazda rowerem.",
+    "requested_actions": ["Wprowadzenie obowiązku jazdy w kasku.", "Więcej dróg rowerowych."],
+}
+
+
+def quoted(chunk_id: str, quote: str, *, postulate: int = 1, score: int = 90) -> dict:
+    return {
+        "chunk_id": chunk_id,
+        "postulate": postulate,
+        "quote": quote,
+        "score": score,
+        "reason": "Popiera postulat.",
+    }
+
+
+def rerank_quotes(candidates, *items: dict, key_concepts=None):
+    client = _ScriptedClient(json.dumps({"selected": list(items)}))
+    reranker = LLMReranker(client=client, model="local")
+    result = reranker.rerank(
+        case_brief=HELMET_BRIEF, candidates=candidates, key_concepts=key_concepts
+    )
+    return result, client
+
+
+class TestLLMRerankerQuoteSupport:
+    def test_rerank__quote_absent_from_the_fragment_is_not_support(self) -> None:
+        """Verify an invented quote cannot turn a topically similar fragment into evidence."""
+        candidates = [make_candidate("c1", "Miasto rozwija sieć dróg rowerowych.")]
+
+        result, _ = rerank_quotes(candidates, quoted("c1", "Miasto wprowadzi obowiązek kasku."))
+
+        assert result.selected == []
+        assert result.assessed is True
+
+    def test_rerank__quote_without_the_postulate_subject_is_not_support(self) -> None:
+        """Verify a real quote about bike paths does not support a helmet obligation."""
+        candidates = [
+            make_candidate("c1", "Miasto rozwija sieć dróg rowerowych."),
+            make_candidate("c2", "Zaleca się jazdę w kasku ochronnym."),
+        ]
+
+        result, _ = rerank_quotes(
+            candidates,
+            quoted("c1", "Miasto rozwija sieć dróg rowerowych.", score=95),
+            quoted("c2", "Zaleca się jazdę w kasku ochronnym."),
+            key_concepts={1: ["kask"], 2: ["droga rowerowa"]},
+        )
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c2"]
+
+    def test_rerank__wrong_postulate_number_is_checked_against_every_subject(self) -> None:
+        """Verify a misnumbered quote still counts when it names the subject of a postulate."""
+        candidates = [make_candidate("c1", "Miasto rozwija sieć dróg rowerowych.")]
+
+        result, _ = rerank_quotes(
+            candidates,
+            quoted("c1", "Miasto rozwija sieć dróg rowerowych.", postulate=7),
+            key_concepts={1: ["kask"], 2: ["droga rowerowa"]},
+        )
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c1"]
+
+    def test_rerank__quote_survives_other_quote_marks_hyphenation_and_an_ellipsis(self) -> None:
+        """Verify a faithful quote is not rejected for the PDF's punctuation and line breaks."""
+        text = (
+            "Rada „opiniuje projekty” drogowe — w szczególności udogodnienia dla rowe-\n"
+            "rzystów, a także prowadzi monitoring wdrażania Polityki."
+        )
+        quote = 'Rada "opiniuje projekty" drogowe - w szczególności udogodnienia dla rowerzystów … monitoring wdrażania Polityki.'
+
+        result, _ = rerank_quotes([make_candidate("c1", text)], quoted("c1", quote))
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c1"]
+
+    def test_rerank__quote_with_a_few_miscopied_polish_letters_is_support(self) -> None:
+        """Verify Bielik's garbled diacritics ("najskuteczniejszìyh") do not reject a real quote."""
+        text = (
+            "Polityka parkingowa jest jednym z najskuteczniejszych sposobów realizacji "
+            "polityki mobilności w mieście."
+        )
+        quote = (
+            "Polityka parkingowa jest jednym z najskuteczniejszìyh sposobów realizacji "
+            "polityki mobilności w mieście."
+        )
+
+        result, _ = rerank_quotes([make_candidate("c1", text)], quoted("c1", quote))
+
+        assert [chunk.chunk_id for chunk, _, _ in result.selected] == ["c1"]
+
+    def test_rerank__quote_taken_from_another_candidate_is_not_support(self) -> None:
+        """Verify a quote attributed to the wrong fragment does not make that fragment evidence."""
+        candidates = [
+            make_candidate("c1", "Politykę parkingową należy prowadzić w trzech sferach."),
+            make_candidate("c2", "W strefie centralnej należy dążyć do uspokojenia ruchu."),
+        ]
+
+        result, _ = rerank_quotes(
+            candidates, quoted("c1", "W strefie centralnej należy dążyć do uspokojenia ruchu.")
+        )
+
+        assert result.selected == []
+
+    def test_rerank__quote_parts_out_of_order_are_not_support(self) -> None:
+        """Verify an ellipsis cannot glue fragments of the text into a claim it does not make."""
+        text = "Miasto zbuduje parkingi. Kask nie jest obowiązkowy."
+
+        result, _ = rerank_quotes(
+            [make_candidate("c1", text)], quoted("c1", "Kask … zbuduje parkingi")
+        )
+
+        assert result.selected == []
+
+    def test_rerank__kept_fragment_reason_carries_the_checked_quote(self) -> None:
+        """Verify the user sees the sentence the model relied on next to its reason."""
+        candidates = [make_candidate("c1", "Zaleca się jazdę w kasku ochronnym.")]
+
+        result, _ = rerank_quotes(
+            candidates,
+            quoted("c1", "jazdę w kasku ochronnym"),
+            key_concepts={1: ["kask"]},
+        )
+
+        [(_, reason, _)] = result.selected
+        assert reason == "Popiera postulat. Cytat: „jazdę w kasku ochronnym”"
+
+    def test_rerank__prompt_lists_postulates_with_their_subjects(self) -> None:
+        """Verify the model is told what each postulate is about and which number it has."""
+        _, client = rerank_quotes(
+            [make_candidate("c1", "Treść")], key_concepts={1: ["kask"], 2: ["droga rowerowa"]}
+        )
+
+        payload = json.loads(client.chat.completions.calls[0]["messages"][1]["content"])
+        assert payload["postulates"] == [
+            {
+                "number": 1,
+                "text": "Wprowadzenie obowiązku jazdy w kasku.",
+                "key_concepts": ["kask"],
+            },
+            {"number": 2, "text": "Więcej dróg rowerowych.", "key_concepts": ["droga rowerowa"]},
+        ]
+
+    def test_rerank__brief_without_actions_uses_the_desired_outcome_as_postulate_one(
+        self,
+    ) -> None:
+        """Verify a brief with no requested actions still gives the model a postulate to cite."""
+        client = _ScriptedClient('{"selected": []}')
+        reranker = LLMReranker(client=client, model="local")
+
+        reranker.rerank(
+            case_brief={"desired_outcome": "Cichsza ulica.", "requested_actions": []},
+            candidates=[make_candidate("c1", "Treść")],
+        )
+
+        payload = json.loads(client.chat.completions.calls[0]["messages"][1]["content"])
+        assert payload["postulates"] == [
+            {"number": 1, "text": "Cichsza ulica.", "key_concepts": []}
+        ]

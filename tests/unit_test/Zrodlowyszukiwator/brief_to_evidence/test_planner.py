@@ -15,6 +15,7 @@ from src._shared.serwer import LLMOutputLimitError, LLMResponseError
 from src.Dopytywator.structures import CaseBrief
 from src.Zrodlowyszukiwator.brief_to_evidence.planner import (
     ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS,
+    ZRODLOWYSZUKIWACZ_PLANNER_SEED,
     LLMQueryPlanner,
 )
 
@@ -204,7 +205,9 @@ class TestLLMQueryPlannerPlan:
     def test_plan__retries_an_empty_response(self) -> None:
         """Verify a model that returns no content gets a second request."""
         client = _ScriptedClient(None, VALID_PLAN)
-        planner = LLMQueryPlanner(client=client, model="openrouter/free", allow_fallback=False)
+        planner = LLMQueryPlanner(
+            client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
+        )
 
         assert planner.plan(BRIEF).case_summary == "ok"
         assert len(client.chat.completions.calls) == 2
@@ -474,7 +477,10 @@ class TestLLMQueryPlannerPlan:
         assert json_schema["name"] == "ResearchPlan"
         assert json_schema["strict"] is True
         assert json_schema["schema"]["additionalProperties"] is False
-        assert set(json_schema["schema"]["required"]) == {"case_summary", "intents"}
+        assert set(json_schema["schema"]["required"]) == {"case_summary", "intents", "key_concepts"}
+        concepts = json_schema["schema"]["$defs"]["PostulateConcepts"]
+        assert set(concepts["required"]) == {"postulate", "concepts"}
+        assert concepts["additionalProperties"] is False
 
     def test_plan__openrouter_request_requires_providers_that_honour_the_schema(self) -> None:
         """Verify OpenRouter routes only to providers supporting response_format; Ollama gets none."""
@@ -488,6 +494,15 @@ class TestLLMQueryPlannerPlan:
             "provider": {"require_parameters": True}
         }
         assert "extra_body" not in ollama.chat.completions.calls[0]
+
+    def test_plan__ollama_request_uses_the_fixed_seed(self) -> None:
+        """Verify the local planner sends seed 47, so one brief always gives the same queries."""
+        client = _ScriptedClient(VALID_PLAN)
+
+        LLMQueryPlanner(client=client, model="m", provider="ollama").plan(BRIEF)
+
+        assert ZRODLOWYSZUKIWACZ_PLANNER_SEED == 47
+        assert client.chat.completions.calls[0]["seed"] == ZRODLOWYSZUKIWACZ_PLANNER_SEED
 
     def test_plan__truncation_log_shows_the_fitted_output_limit(
         self, pismak_log, monkeypatch
@@ -525,25 +540,47 @@ class TestLLMQueryPlannerPlan:
             ZRODLOWYSZUKIWACZ_PLANNER_MAX_OUTPUT_TOKENS
         ] * 4
 
-    def test_plan__openrouter_timeout_or_provider_error_is_raised_without_a_retry(
-        self, provider_error: Exception
+    def test_plan__openrouter_transient_error_is_retried_once(
+        self, transient_provider_error: Exception
     ) -> None:
-        """Verify a remote failure is reported after one request, without a fallback plan."""
+        """Verify a passing OpenRouter failure gets one more request before it is reported."""
 
         class Completions:
             calls = 0
 
             def create(self, **kwargs):
                 self.calls += 1
-                raise provider_error
+                raise transient_provider_error
 
         client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
-        planner = LLMQueryPlanner(
+        component = LLMQueryPlanner(
             client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
         )
 
-        with pytest.raises(type(provider_error)):
-            planner.plan(BRIEF)
+        with pytest.raises(type(transient_provider_error)):
+            component.plan(BRIEF)
+
+        assert client.chat.completions.calls == 2
+
+    def test_plan__openrouter_permanent_error_is_raised_without_a_retry(
+        self, permanent_provider_error: Exception
+    ) -> None:
+        """Verify a rejected request or the daily limit is reported after a single request."""
+
+        class Completions:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise permanent_provider_error
+
+        client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+        component = LLMQueryPlanner(
+            client=client, model="openrouter/free", provider="openrouter", allow_fallback=False
+        )
+
+        with pytest.raises(type(permanent_provider_error)):
+            component.plan(BRIEF)
 
         assert client.chat.completions.calls == 1
 
@@ -562,13 +599,15 @@ class TestLLMQueryPlannerPlan:
 
         assert [intent.semantic_query for intent in plan.intents] == ["Problem", "Rozwiązanie"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BŁĄD: odpowiedź HTTP 200 z obiektem error (OpenRouter) ma choices=None; "
-            "_llm_plan robi choices[0] i rzuca TypeError zamiast LLMResponseError"
-        ),
-    )
+    def test_plan__crashed_local_runner_returns_the_fallback_plan(self) -> None:
+        """Verify an empty Ollama answer is not repaired but still leaves search intents."""
+        client = _ScriptedClient(None, VALID_PLAN)
+
+        plan = LLMQueryPlanner(client=client, model="local").plan(BRIEF)
+
+        assert [intent.semantic_query for intent in plan.intents] == ["Problem", "Rozwiązanie"]
+        assert len(client.chat.completions.calls) == 1
+
     def test_plan__openrouter_answer_without_choices_raises_a_readable_error(self) -> None:
         """Verify a provider error sent with status 200 ends in the module's readable error."""
 

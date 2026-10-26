@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_bike_06",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-06: „Które dokumenty określają planistyczne i techniczne wymagania dla infrastruktury rowerowej?” Rozdział III.4 (PDF s. 6, wydruk s. 5). Odpowiedź to nazwy dokumentów i akt, który je przyjął. Na s. 7 te same tytuły stoją w dopełniaczu w innym kontekście (aktualizacja).",
+  "input": {
+    "title": "Dokumenty z wymaganiami dla infrastruktury rowerowej",
+    "problem_description": "Przy przebudowie ulicy chcę się powołać na dokumenty, które określają planistyczne i techniczne wymagania dla infrastruktury rowerowej, ale nie wiem, które to są.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Wiem, które dokumenty określają planistyczne i techniczne wymagania dla infrastruktury rowerowej.",
+    "requested_actions": [
+      "Wskazanie dokumentów, które określają planistyczne i techniczne wymagania dla infrastruktury rowerowej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-06",
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: „Koncepcja podstawowej sieci tras rowerowych we Wrocławiu” oraz „Standardy projektowe i wykonawcze dla systemu rowerowego miasta Wrocławia”. Oba przyjęto Zarządzeniem nr 5493/05 Prezydenta Wrocławia z 9 czerwca 2005 r."
+  ]
+}

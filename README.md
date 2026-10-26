@@ -105,7 +105,8 @@ z jakim oknem załadował model; dla OpenRouter korzysta z publicznej listy mode
 fragmenty źródeł, a zbyt długą rozmowę zgłasza w interfejsie.
 
 Okno modelu lokalnego ustala Ollama, a jej wartość domyślna bywa mała (np. 4096).
-Dlatego `Modelfile` ustawia pełne okno: `num_ctx` 8192 dla Bielika i 131 072 dla PLLuM.
+Dlatego `Modelfile` ustawia okno jawnie: `num_ctx` 8192 dla Bielika (pełne okno) i 32 768
+dla PLLuM (pełne 131 072 nie mieściło się w 16 GB RAM).
 Zmiana: popraw tę linię i ponów `ollama create`; bieżące okno pokazuje `ollama ps`.
 Większe okno to więcej pamięci i dłuższe odpowiedzi — na CPU pełny prompt potrafi
 liczyć się kilkanaście minut, stąd limit 15 minut na żądanie. Opcjonalny górny limit

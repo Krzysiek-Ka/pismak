@@ -15,9 +15,19 @@ from ..rag_retrieval.models import SearchIntent
 EvidenceStatus = Literal["supported", "unsupported", "unverified"]
 
 
+class PostulateConcepts(BaseModel):
+    """Przedmiot jednego postulatu: fragment, który o nim nie mówi, nie popiera postulatu."""
+
+    # Numer postulatu: pozycja w requested_actions od 1; bez postulatów 1 to desired_outcome.
+    postulate: int = Field(ge=1)
+    # 1–4 krótkie frazy z wariantami, np. ["kask", "obowiązek jazdy w kasku"].
+    concepts: list[str] = Field(default_factory=list)
+
+
 class ResearchPlan(BaseModel):
     case_summary: str
     intents: list[SearchIntent] = Field(default_factory=list)
+    key_concepts: list[PostulateConcepts] = Field(default_factory=list)
 
 
 class Evidence(BaseModel):

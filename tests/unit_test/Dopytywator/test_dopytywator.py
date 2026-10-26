@@ -25,6 +25,9 @@ READY = structures.InterviewTurnResult(
 )
 
 
+CONVERSATION = [structures.ConversationMessage(role="user", content="Brak dostępu")]
+
+
 class ScriptedLLM:
     """Return scripted interview turns and remember the prompts that requested them."""
 
@@ -167,16 +170,16 @@ class TestAskQuestions:
         assert len(prompts) == 3
         assert capsys.readouterr().out.count("Wpisz odpowiedź albo użyj /done lub /exit.") == 2
 
-    def test_ask_questions__exit_during_the_interview_stops_without_storing_the_command(
+    def test_ask_questions__exit_during_the_interview_discards_the_conversation(
         self, monkeypatch, capsys
     ) -> None:
-        """Verify /exit ends the questions at once and is not treated as an answer."""
+        """Verify /exit ends the questions at once and leaves nothing to build a brief from."""
         llm = ScriptedLLM(question("Gdzie?"), question("Nie powinno paść"))
         answer_with(monkeypatch, "/Exit")
 
         result = dopytywator.ask_questions("Brak przejścia", llm, max_interview_questions=3)
 
-        assert [m.content for m in result] == ["Brak przejścia", "Gdzie?"]
+        assert result == []
         assert len(llm.calls) == 1
         out = capsys.readouterr().out
         assert "Przerwano. CaseBrief nie został utworzony." in out
@@ -243,10 +246,24 @@ class TestBuildBrief:
             dopytywator.dopytywator_helper_functions, "print_case_brief", lambda brief: None
         )
 
-        case_brief = dopytywator.build_brief([], llm)
+        case_brief = dopytywator.build_brief(CONVERSATION, llm)
 
         assert isinstance(case_brief, structures.CaseBrief)
         assert case_brief.title == "Brak dostępu"
+
+    def test_build_brief__aborted_interview_returns_none_without_calling_the_model(
+        self, monkeypatch, capsys
+    ) -> None:
+        """Verify /exit in the notebook flow ends with no brief instead of one built from nothing."""
+        llm = ScriptedLLM()
+        answer_with(monkeypatch, "/exit")
+        conversation = dopytywator.ask_questions(
+            "Brak przejścia", ScriptedLLM(question("Gdzie?")), max_interview_questions=3
+        )
+
+        assert dopytywator.build_brief(conversation, llm) is None
+        assert llm.calls == []
+        assert "CaseBrief nie został utworzony" in capsys.readouterr().out
 
     def test_build_brief__model_call_uses_the_module_output_token_limit(self, monkeypatch) -> None:
         """Verify brief generation explicitly uses the Dopytywator's short-output budget."""
@@ -268,7 +285,7 @@ class TestBuildBrief:
             lambda brief: None,
         )
 
-        dopytywator.build_brief([], FakeLLM())
+        dopytywator.build_brief(CONVERSATION, FakeLLM())
 
         assert captured["max_output_tokens"] == DOPYTYWATOR_MAX_OUTPUT_TOKENS
 
@@ -290,7 +307,7 @@ class TestBuildBrief:
             dopytywator.dopytywator_helper_functions, "print_case_brief", lambda brief: None
         )
 
-        case_brief = dopytywator.build_brief([], FakeLLM())
+        case_brief = dopytywator.build_brief(CONVERSATION, FakeLLM())
 
         out = capsys.readouterr().out
         assert case_brief.title == "Sprawa"

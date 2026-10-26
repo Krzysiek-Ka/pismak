@@ -1,11 +1,12 @@
 import json
 import logging
 import os
+import re
 from collections.abc import Callable
 from time import perf_counter
 from typing import Any, Literal, TypeVar
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, InternalServerError, OpenAI
 from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, ValidationError
 from pydantic_core import from_json
@@ -18,6 +19,8 @@ DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 # są wyłączone, bo każde wysłałoby to samo wielominutowe żądanie od początku.
 OLLAMA_REQUEST_TIMEOUT_SECONDS = 900.0
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Darmowe modele rozumujące z openrouter/free przekraczały 60 s (złoty zbiór, 2026-10-24).
+OPENROUTER_REQUEST_TIMEOUT_SECONDS = 120.0
 OPENROUTER_MODEL = "openrouter/free"
 OPENROUTER_KEY_PLACEHOLDER = "sk-or-v1-WSTAW_TUTAJ_SWÓJ_KLUCZ"
 # Router openrouter/free wybierał też modele, które ignorują response_format. Z tym ustawieniem
@@ -26,6 +29,11 @@ OPENROUTER_ROUTING = {"provider": {"require_parameters": True}}
 ProviderName = Literal["ollama", "openrouter"]
 LOGGER = logging.getLogger("pismak")
 MAX_LOGGED_MODEL_RESPONSE_CHARS = 20_000
+REDACTED = "<ukryte>"
+# 'user_id': 'user_…' (repr słownika błędu) albo "user_id":"user_…" (JSON).
+_USER_ID = re.compile(r"""(['"]user_id['"]\s*:\s*['"])[^'"]+""")
+# „Not found for account 'sxpm…'” od dostawcy, także w escapowanym JSON-ie (\').
+_ACCOUNT_ID = re.compile(r"""(for account \\?['"])[^'"\\]+""")
 COMPACT_OUTPUT_INSTRUCTION = (
     "Poprzednia odpowiedź przekroczyła limit. Zwróć krótszą, zwięzłą odpowiedź "
     "z kompletem wymaganych pól i poprawną strukturą JSON. Skróć opisy i listy; "
@@ -138,7 +146,7 @@ def set_up_client(type: Literal["local"] | ProviderName = "local") -> OpenAI:
         return OpenAI(
             base_url=OPENROUTER_BASE_URL,
             api_key=api_key,
-            timeout=60.0,
+            timeout=OPENROUTER_REQUEST_TIMEOUT_SECONDS,
             max_retries=0,
         )
     raise ValueError(f"Nieznany dostawca modelu: {type}")
@@ -154,9 +162,21 @@ class LLMResponseError(RuntimeError):
 class LLMOutputLimitError(LLMResponseError):
     """Raised when the output token limit prevents a complete model response."""
 
-    def __init__(self, message: str, *, partial_response: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        partial_response: str | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.partial_response = partial_response
+        # Limit faktycznie wysłany w żądaniu, po dopasowaniu do okna kontekstu.
+        self.max_output_tokens = max_output_tokens
+
+
+class LLMServiceError(RuntimeError):
+    """Raised when the model server ended the request without any answer."""
 
 
 def structured_output_error_detail(error: Exception) -> str:
@@ -172,11 +192,18 @@ def structured_output_error_detail(error: Exception) -> str:
     return type(error).__name__
 
 
+def redact_account_ids(text: str) -> str:
+    """Hide the OpenRouter user id and the upstream provider's account id in an error text."""
+    text = _USER_ID.sub(r"\g<1>" + REDACTED, text)
+    return _ACCOUNT_ID.sub(r"\g<1>" + REDACTED, text)
+
+
 def error_log_detail(error: Exception) -> str:
     """Describe any failure on one log line; schema errors still omit rejected values."""
     if isinstance(error, (ValidationError, LLMResponseError)):
         return structured_output_error_detail(error)
-    return " ".join(str(error).split()) or type(error).__name__
+    # Błąd OpenRouter niesie user_id konta i identyfikator konta dostawcy (np. Nvidia).
+    return redact_account_ids(" ".join(str(error).split())) or type(error).__name__
 
 
 def recover_partial_structured_response(
@@ -193,8 +220,36 @@ def recover_partial_structured_response(
         return None
 
 
+def is_transient_provider_error(error: Exception) -> bool:
+    """Return whether an OpenRouter failure is worth one more request with the same prompt."""
+    # Timeout dziedziczy po APIConnectionError. „Provider returned error” (np. 404) oznacza
+    # błąd dostawcy wybranego przez router, który przy następnym żądaniu wybiera zwykle inny.
+    if isinstance(error, (APIConnectionError, InternalServerError)):
+        return True
+    return isinstance(error, APIStatusError) and "Provider returned error" in str(error)
+
+
+def provider_error_message(completion: Any) -> str:
+    """Describe a provider error sent in a 200 response that has no choices."""
+    extra = getattr(completion, "model_extra", None) or {}
+    error = extra.get("error") if isinstance(extra, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    detail = f": {redact_account_ids(message)}" if message else ""
+    return f"Dostawca modelu zwrócił błąd zamiast odpowiedzi{detail}."
+
+
+RetryKind = Literal["compact", "repair", "transient"]
+
+
 class LLMClient:
-    """Thin wrapper around the OpenAI-compatible client for structured responses."""
+    """
+    Jedyne miejsce wywołania modelu z odpowiedzią strukturalną w Pismaku.
+
+    Dopasowuje limit odpowiedzi do okna kontekstu, czeka w kolejce lokalnego modelu, waliduje
+    odpowiedź i wykonuje najwyżej jedno ponowienie: prośbę o krótszą odpowiedź po ucięciu,
+    naprawę schematu po niepoprawnej odpowiedzi albo to samo żądanie po chwilowym błędzie
+    OpenRouter. Planner, reranker i pozostałe etapy korzystają wyłącznie z tej klasy.
+    """
 
     def __init__(
         self,
@@ -216,6 +271,16 @@ class LLMClient:
         self.context_tokens = context_tokens
         self.last_model: str | None = None
 
+    def _retry_kind(self, error: Exception) -> RetryKind | None:
+        """Return how a failed first attempt is retried, or None when it is not retried."""
+        if isinstance(error, LLMOutputLimitError):
+            return "compact"
+        if isinstance(error, (ValidationError, LLMResponseError)):
+            return "repair"
+        if self.provider == "openrouter" and is_transient_provider_error(error):
+            return "transient"
+        return None
+
     def _call_structured(
         self,
         *,
@@ -224,6 +289,7 @@ class LLMClient:
         response_model: type[T],
         temperature: float,
         max_output_tokens: int,
+        seed: int | None,
         attempt: int,
     ) -> T:
         """Call the model with a structured response schema and return the parsed object."""
@@ -231,6 +297,9 @@ class LLMClient:
         response_content: str | None = None
         finish_reason: str | None = None
         completion: Any = None
+        # Seed tylko dla Ollamy: na OpenRouter require_parameters zawęziłby routing do dostawców
+        # obsługujących seed.
+        seed_option = {"seed": seed} if seed is not None and self.provider == "ollama" else {}
         try:
             # Limit wyjścia jest zmniejszany, gdy prompt zajmuje większą część okna kontekstu.
             max_output_tokens = fit_output_tokens(
@@ -256,24 +325,33 @@ class LLMClient:
                     response_format=type_to_response_format_param(response_model),
                     temperature=temperature,
                     max_tokens=max_output_tokens,
+                    **seed_option,
                     **provider_request_options(self.provider),
                 )
             self.last_model = getattr(completion, "model", None)
-            choice = completion.choices[0]
+            choices = getattr(completion, "choices", None)
+            if not choices:
+                # OpenRouter przekazuje błąd dostawcy także w odpowiedzi 200, bez choices.
+                raise LLMResponseError(provider_error_message(completion))
+            choice = choices[0]
             response_content = choice.message.content
             finish_reason = getattr(choice, "finish_reason", None)
             if finish_reason == "length":
                 raise LLMOutputLimitError(
                     "Model przekroczył limit tokenów odpowiedzi.",
                     partial_response=response_content,
+                    max_output_tokens=max_output_tokens,
                 )
             if response_content:
                 result = response_model.model_validate_json(response_content)
+            elif self.provider == "ollama":
+                # Gramatyka Ollamy nie pozwala na pustą odpowiedź; pusta oznacza, że proces
+                # modelu się zatrzymał (np. z braku pamięci), a ponowienie trafi w to samo.
+                raise LLMServiceError("Serwer modelu zakończył żądanie bez odpowiedzi.")
             else:
                 raise LLMResponseError("Model nie zwrócił danych.")
         except LLMOutputLimitError as exc:
             response_content = exc.partial_response
-            retry_scheduled = attempt == 1
             LOGGER.warning(
                 "llm_output_truncated stage=%s session_id=%s provider=%s model=%s "
                 "max_output_tokens=%d attempt=%d retry_scheduled=%s "
@@ -284,7 +362,7 @@ class LLMClient:
                 self.last_model or self.model_name,
                 max_output_tokens,
                 attempt,
-                str(retry_scheduled).lower(),
+                str(attempt == 1).lower(),
                 perf_counter() - started,
                 extra={"session_id": self.session_id},
             )
@@ -299,7 +377,7 @@ class LLMClient:
             )
             raise
         except Exception as exc:
-            retry_scheduled = attempt == 1 and isinstance(exc, (ValidationError, LLMResponseError))
+            retry_scheduled = attempt == 1 and self._retry_kind(exc) is not None
             # finish_reason=stop przy uciętym JSON-ie wskazuje na przerwanie po stronie serwera
             # modelu (np. brak pamięci), a nie na limit odpowiedzi.
             LOGGER.error(
@@ -348,6 +426,27 @@ class LLMClient:
         )
         return result
 
+    def _output_limit_error(
+        self, message: str, error: LLMOutputLimitError, started: float
+    ) -> LLMOutputLimitError:
+        """Log the final output-limit failure and return the error to raise."""
+        LOGGER.warning(
+            "llm_output_limit stage=%s session_id=%s provider=%s model=%s "
+            "max_output_tokens=%d elapsed_seconds=%.3f",
+            self.stage,
+            self.session_id or "-",
+            self.provider,
+            self.last_model or self.model_name,
+            error.max_output_tokens or 0,
+            perf_counter() - started,
+            extra={"session_id": self.session_id},
+        )
+        return LLMOutputLimitError(
+            message,
+            partial_response=error.partial_response,
+            max_output_tokens=error.max_output_tokens,
+        )
+
     def generate_structured(
         self,
         *,
@@ -357,70 +456,75 @@ class LLMClient:
         response_model: type[T],
         temperature: float = 0.0,
         max_output_tokens: int,
+        seed: int | None = None,
     ) -> T:
-        """Request structured output with an output-token cap and at most one repair."""
+        """Request structured output with an output-token cap and at most one retry."""
         if max_output_tokens <= 0:
             raise ValueError("max_output_tokens musi być dodatnie.")
+        started = perf_counter()
+        call = {
+            "system_prompt": system_prompt,
+            "response_model": response_model,
+            "max_output_tokens": max_output_tokens,
+            "seed": seed,
+        }
         try:
             return self._call_structured(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                response_model=response_model,
-                temperature=temperature,
-                max_output_tokens=max_output_tokens,
-                attempt=1,
+                **call, user_prompt=user_prompt, temperature=temperature, attempt=1
             )
-        except LLMOutputLimitError as first_error:
-            compact_prompt = user_prompt + "\n\n" + COMPACT_OUTPUT_INSTRUCTION
-            try:
-                return self._call_structured(
-                    system_prompt=system_prompt,
-                    user_prompt=compact_prompt,
-                    response_model=response_model,
-                    temperature=RETRY_TEMPERATURE,
-                    max_output_tokens=max_output_tokens,
-                    attempt=2,
-                )
-            except LLMOutputLimitError as retry_error:
-                partial_response = retry_error.partial_response or first_error.partial_response
-                recovered = recover_partial_structured_response(
-                    partial_response,
-                    response_model,
-                )
-                if recovered is not None:
-                    LOGGER.warning(
-                        "llm_partial_response_recovered stage=%s session_id=%s",
-                        self.stage,
-                        self.session_id or "-",
-                        extra={"session_id": self.session_id},
-                    )
-                    return recovered
-                raise LLMOutputLimitError(
-                    "Odpowiedź nadal przekracza limit. Jej części nie dało się "
-                    "zwalidować jako kompletnej struktury.",
-                    partial_response=partial_response,
-                ) from retry_error
-            except (ValidationError, LLMResponseError) as retry_error:
-                raise LLMOutputLimitError(
-                    "Skrócona odpowiedź nie spełniła wymaganego schematu.",
-                    partial_response=first_error.partial_response,
-                ) from retry_error
-        except (ValidationError, LLMResponseError) as first_error:
-            repair = repair_prompt.format(validation_errors=str(first_error))
-            try:
-                return self._call_structured(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt + "\n\n" + repair,
-                    response_model=response_model,
-                    temperature=RETRY_TEMPERATURE,
-                    max_output_tokens=max_output_tokens,
-                    attempt=2,
-                )
-            except LLMOutputLimitError:
+        except Exception as exc:
+            first_error = exc
+            kind = self._retry_kind(exc)
+            if kind is None:
                 raise
-            except (ValidationError, LLMResponseError) as second_error:
+
+        if kind == "compact":
+            retry_prompt = user_prompt + "\n\n" + COMPACT_OUTPUT_INSTRUCTION
+        elif kind == "repair":
+            detail = structured_output_error_detail(first_error)
+            retry_prompt = user_prompt + "\n\n" + repair_prompt.format(validation_errors=detail)
+        else:
+            retry_prompt = user_prompt
+        # Chwilowy błąd dostawcy to nie wina odpowiedzi, więc żądanie zostaje takie samo.
+        retry_temperature = temperature if kind == "transient" else RETRY_TEMPERATURE
+        try:
+            return self._call_structured(
+                **call, user_prompt=retry_prompt, temperature=retry_temperature, attempt=2
+            )
+        except LLMOutputLimitError as retry_error:
+            if retry_error.partial_response is None and isinstance(
+                first_error, LLMOutputLimitError
+            ):
+                retry_error.partial_response = first_error.partial_response
+            recovered = recover_partial_structured_response(
+                retry_error.partial_response, response_model
+            )
+            if recovered is not None:
+                LOGGER.warning(
+                    "llm_partial_response_recovered stage=%s session_id=%s",
+                    self.stage,
+                    self.session_id or "-",
+                    extra={"session_id": self.session_id},
+                )
+                return recovered
+            raise self._output_limit_error(
+                "Wynik modelu został ucięty i nie dało się go zwalidować jako kompletnej "
+                "struktury.",
+                retry_error,
+                started,
+            ) from retry_error
+        except (ValidationError, LLMResponseError) as retry_error:
+            detail = structured_output_error_detail(retry_error)
+            if isinstance(first_error, LLMOutputLimitError):
+                raise self._output_limit_error(
+                    "Skrócona odpowiedź nie spełniła wymaganego schematu.", first_error, started
+                ) from retry_error
+            if kind == "transient":
                 raise LLMResponseError(
-                    f"Model dwukrotnie zwrócił niepoprawny structured output dla "
-                    f"{response_model.__name__}. Ostatni błąd: "
-                    f"{structured_output_error_detail(second_error)}"
-                ) from second_error
+                    f"Model nie zwrócił poprawnego structured output dla "
+                    f"{response_model.__name__} po ponowieniu. Ostatni błąd: {detail}"
+                ) from retry_error
+            raise LLMResponseError(
+                f"Model dwukrotnie zwrócił niepoprawny structured output dla "
+                f"{response_model.__name__}. Ostatni błąd: {detail}"
+            ) from retry_error

@@ -79,7 +79,8 @@ def ask_questions(
 
             if answer.lower() == "/exit":
                 print("\nPrzerwano. CaseBrief nie został utworzony.")
-                break
+                # Pusta rozmowa, jak po /exit na starcie: build_brief nie zbuduje z niej briefu.
+                return []
             if answer.lower() == "/done":
                 print("\nKończę pytania i tworzę brief z dostępnych danych.")
                 break
@@ -152,8 +153,13 @@ def interview_step(
 def build_brief(
     messages: list[structures.ConversationMessage],
     llm: object,
-) -> structures.CaseBrief:
+) -> structures.CaseBrief | None:
     """Build a case brief from a complete conversation and print readiness warnings."""
+    # Przerwany (/exit) albo nierozpoczęty wywiad nie ma opisu sprawy, z którego model
+    # mógłby zbudować brief bez wymyślania.
+    if not any(message.role == "user" for message in messages):
+        print("Brak opisu sprawy — CaseBrief nie został utworzony.")
+        return None
     case_brief = generate_brief(messages, llm)
 
     readiness_errors = dopytywator_helper_functions.validate_brief_readiness(case_brief)

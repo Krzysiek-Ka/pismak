@@ -1,0 +1,38 @@
+{
+  "id": "rag_eval_mob_03",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-03: „Od kiedy we Wrocławiu ma obowiązywać strefa czystego transportu i które samochody nie będą mogły wjechać do centrum?” Trudny negatyw z pułapką leksykalną: korpus zawiera ogólny kierunek (strefy zależne od wpływu pojazdu na środowisko) oraz „normę EURO 5”, która dotyczy autobusów jako wskaźnika monitoringu, a nie zakazu wjazdu. Pytanie dotyczy terminu i kryteriów, których nie ma.",
+  "input": {
+    "title": "Termin i zasady strefy czystego transportu",
+    "problem_description": "Mam starszy samochód i nie wiem, od kiedy we Wrocławiu ma obowiązywać strefa czystego transportu ani które samochody nie będą mogły wjechać do centrum.",
+    "location": "Wrocław, centrum",
+    "time_context": null,
+    "desired_outcome": "Informacja, od kiedy ma obowiązywać strefa czystego transportu i które samochody nie będą mogły wjechać do centrum.",
+    "requested_actions": [
+      "Podanie, od kiedy we Wrocławiu ma obowiązywać strefa czystego transportu.",
+      "Wskazanie, które samochody nie będą mogły wjechać do centrum."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-03",
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy.",
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Żaden dokument nie wspomina strefy czystego transportu ani nie podaje terminu i kryteriów wjazdu. Polityka mobilności zapowiada tylko ogólnie „dążenie do wprowadzenia stref o ograniczonej dostępności uzależnionej od wpływu pojazdu na środowisko”."
+  ]
+}

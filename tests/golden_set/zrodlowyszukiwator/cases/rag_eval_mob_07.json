@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_07",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-07: „Na jakie zapisy polityki można się powołać we wniosku o wydzielenie pasa dla komunikacji zbiorowej?” Zapisy z trzech części dokumentu: zasada realizacji nr 5 (PDF s. 5), obszar „transport zbiorowy” (s. 7) i obszar „transport samochodowy osobowy” (s. 11). Typowe pytanie przy pisaniu wniosku: dokument nie używa słowa „buspas” ani „pas”, tylko „korytarzy komunikacyjnych” i „priorytetu”.",
+  "input": {
+    "title": "Wydzielenie pasa dla komunikacji zbiorowej",
+    "problem_description": "Autobusy na mojej ulicy stoją w korkach razem z samochodami. Chcę złożyć wniosek o wydzielenie pasa dla komunikacji zbiorowej i powołać się w nim na zapisy polityki.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Autobusy jeżdżą wydzielonym pasem i nie stoją w korkach.",
+    "requested_actions": [
+      "Wydzielenie pasa dla komunikacji zbiorowej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-07",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Zasada preferowania infrastruktury transportu zbiorowego wobec samochodowej (s. 5). Kreowanie priorytetu transportu zbiorowego i wydzielanie dla niego specjalnych korytarzy (s. 7). Sterowanie ruchem z priorytetem dla komunikacji zbiorowej (s. 11)."
+  ]
+}

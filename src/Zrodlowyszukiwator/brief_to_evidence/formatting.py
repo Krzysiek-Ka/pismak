@@ -53,6 +53,8 @@ def evidence_pack_to_markdown(
         pages = str(e.page_start) if e.page_start == e.page_end else f"{e.page_start}-{e.page_end}"
         excerpt = _truncate_at_boundary(e.excerpt, max_chars_per_evidence)
 
+        # Bez uzasadnienia rerankera: bywało zmyślone (PLLuM: Strategia 2050 „w kontekście
+        # planów budowy metra”), a pismo ma się opierać tylko na treści fragmentu.
         parts.append(
             f"""
 ## [{e.evidence_id}] {e.document_title}
@@ -61,7 +63,6 @@ def evidence_pack_to_markdown(
 - status obowiązywania: {_validity_label(e.is_active)}
 - strony PDF: {pages}
 - sekcja: {section}
-- powód trafności: {e.relevance_reason}
 - source_url: {e.source_url or "brak"}
 
 ### Fragment źródłowy

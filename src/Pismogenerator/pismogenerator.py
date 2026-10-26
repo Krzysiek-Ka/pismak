@@ -96,7 +96,15 @@ def build_draft(
         max_output_tokens=PISMOGENERATOR_MAX_OUTPUT_TOKENS,
     )
     # Renderer sam dodaje formułę nadawcy i podpis w Phase 0.
-    draft = structures.DraftLetter.model_validate(generated.model_dump() | {"sender": ""})
+    cleared = {"sender": ""}
+    # Prompt każe zostawić pustego adresata, gdy brief go nie wskazuje, a modele wpisywały
+    # „Urząd Miejski Wrocławia…”; pusty adresat to w piśmie znacznik do uzupełnienia.
+    if not (case_brief.addressee or "").strip() and not (case_brief.institution or "").strip():
+        cleared["recipient"] = ""
+    draft = pismogenerator_helper_functions.normalize_draft(
+        structures.DraftLetter.model_validate(generated.model_dump() | cleared),
+        allowed_source_ids,
+    )
 
     draft_errors = pismogenerator_helper_functions.validate_draft(
         draft=draft, case_brief=case_brief, evidence_pack=evidence_pack, user_evidence=user_evidence

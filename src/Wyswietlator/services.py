@@ -32,6 +32,7 @@ from src._shared.serwer import (
     LLMConfigurationError,
     LLMOutputLimitError,
     LLMResponseError,
+    LLMServiceError,
     error_log_detail,
     ollama_base_url,
     set_up_client,
@@ -235,7 +236,10 @@ def llm_error_message(error: Exception) -> str:
         return "Nie udało się połączyć z usługą modelu. Spróbuj ponownie za chwilę."
     if isinstance(error, BadRequestError):
         return "Wybrany model nie obsłużył wymaganej odpowiedzi strukturalnej."
-    if isinstance(error, APIStatusError) and error.status_code >= 500:
+    # Pusta odpowiedź z Ollamy oznacza zatrzymany proces modelu, nie złą odpowiedź modelu.
+    if isinstance(error, LLMServiceError) or (
+        isinstance(error, APIStatusError) and error.status_code >= 500
+    ):
         return "Usługa modelu jest chwilowo niedostępna. Spróbuj później."
     if isinstance(error, LLMInputLimitError):
         window = f" ({error.context_tokens} tokenów)" if error.context_tokens else ""

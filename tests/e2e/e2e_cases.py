@@ -106,7 +106,10 @@ def _provider(label: str, provider: str, model: str) -> Provider:
 
 
 # Skróty modeli: modele projektu z modele/<nazwa>/Modelfile i router OpenRouter.
-MODELE = {p.label: _provider(p.label, p.provider, p.model) for p in configured_providers()}
+MODELE = {
+    p.label: _provider(p.label, p.provider, p.model)
+    for p in configured_providers(include_openrouter=True)
+}
 OPENROUTER = MODELE.get("openrouter") or _provider("openrouter", "openrouter", "openrouter/free")
 BIELIK = MODELE.get("bielik") or _provider("bielik", "ollama", "pismak-bielik:latest")
 PLLUM = MODELE.get("pllum") or _provider("pllum", "ollama", "pismak-pllum:latest")

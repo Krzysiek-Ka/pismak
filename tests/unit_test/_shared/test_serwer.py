@@ -6,10 +6,12 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from openai import APITimeoutError
 
 from src._shared import llm_runtime, serwer
 from src._shared.context_budget import LLMInputLimitError, estimate_tokens
 from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
+from tests.unit_test.conftest import OPENROUTER_REQUEST
 
 
 def _completion(
@@ -159,7 +161,7 @@ class TestSetUpClient:
         assert calls == {
             "base_url": "https://openrouter.ai/api/v1",
             "api_key": "test-key",
-            "timeout": 60.0,
+            "timeout": 120.0,
             "max_retries": 0,
         }
         assert serwer.OPENROUTER_MODEL == "openrouter/free"
@@ -250,6 +252,38 @@ class TestLLMClientGenerateStructured:
 
         assert openrouter.calls[0]["extra_body"] == {"provider": {"require_parameters": True}}
         assert "extra_body" not in ollama.calls[0]
+
+    def test_generate_structured__seed_is_sent_to_ollama_on_every_attempt(self) -> None:
+        """Verify the first request and the schema repair both carry the caller's seed."""
+        completions = _Replies(_completion("nie JSON"), _completion('{"value": "ok"}'))
+
+        serwer.LLMClient(_client(completions), "m", provider="ollama").generate_structured(
+            system_prompt="s",
+            user_prompt="u",
+            response_model=_Answer,
+            max_output_tokens=512,
+            seed=47,
+        )
+
+        assert [call["seed"] for call in completions.calls] == [47, 47]
+
+    def test_generate_structured__seed_is_not_sent_to_openrouter_or_without_a_seed(self) -> None:
+        """Verify OpenRouter, where require_parameters would narrow routing, gets no seed."""
+        openrouter, unseeded = _Completions(), _Completions()
+
+        serwer.LLMClient(_client(openrouter), "m", provider="openrouter").generate_structured(
+            system_prompt="s",
+            user_prompt="u",
+            response_model=_Answer,
+            max_output_tokens=512,
+            seed=47,
+        )
+        serwer.LLMClient(_client(unseeded), "m", provider="ollama").generate_structured(
+            system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=512
+        )
+
+        assert "seed" not in openrouter.calls[0]
+        assert "seed" not in unseeded.calls[0]
 
     def test_generate_structured__json_cut_off_with_stop_logs_finish_reason_and_usage(self) -> None:
         """Verify a JSON cut off with finish_reason=stop can be told apart from a length limit."""
@@ -701,10 +735,10 @@ class TestLLMClientGenerateStructured:
 
         assert completions.calls == []
 
-    def test_generate_structured__empty_answer_is_repaired_once(self) -> None:
-        """Verify an empty message is treated as invalid output and repaired with the schema."""
+    def test_generate_structured__empty_openrouter_answer_is_repaired_once(self) -> None:
+        """Verify an empty remote message is treated as invalid output and repaired once."""
         completions = _Replies(_completion(None), _completion('{"value": "ok"}'))
-        llm = serwer.LLMClient(_client(completions), "m")
+        llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
 
         result = llm.generate_structured(
             system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
@@ -712,6 +746,38 @@ class TestLLMClientGenerateStructured:
 
         assert result == _Answer(value="ok")
         assert "Model nie zwrócił danych." in completions.calls[1]["messages"][1]["content"]
+
+    def test_generate_structured__empty_ollama_answer_raises_service_error_without_a_retry(
+        self,
+    ) -> None:
+        """Verify a crashed local runner is reported as unavailable instead of being repaired."""
+        completions = _Replies(_completion(None), _completion('{"value": "ok"}'))
+        llm = serwer.LLMClient(_client(completions), "pismak-pllum:latest", provider="ollama")
+
+        with pytest.raises(serwer.LLMServiceError, match="bez odpowiedzi"):
+            llm.generate_structured(
+                system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
+            )
+
+        assert len(completions.calls) == 1
+
+    def test_generate_structured__repair_prompt_names_the_error_without_the_rejected_value(
+        self,
+    ) -> None:
+        """Verify the repair request explains the schema error but does not echo the answer."""
+        completions = _Replies(
+            _completion('{"value": ["tajny-fragment-odpowiedzi"]}'),
+            _completion('{"value": "ok"}'),
+        )
+        llm = serwer.LLMClient(_client(completions), "m")
+
+        llm.generate_structured(
+            system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
+        )
+
+        repair = completions.calls[1]["messages"][1]["content"]
+        assert "value: Input should be a valid string (string_type)" in repair
+        assert "tajny-fragment-odpowiedzi" not in repair
 
     def test_generate_structured__compact_retry_breaking_the_schema_raises_output_limit_error(
         self,
@@ -770,7 +836,7 @@ class TestLLMClientGenerateStructured:
     ) -> None:
         """Verify an answer that is not the bare schema JSON gets exactly one repair request."""
         completions = _Replies(_completion(first_answer), _completion('{"value": "ok"}'))
-        llm = serwer.LLMClient(_client(completions), "m")
+        llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
 
         result = llm.generate_structured(
             system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
@@ -793,22 +859,95 @@ class TestLLMClientGenerateStructured:
 
         assert len(completions.calls) == 2
 
-    def test_generate_structured__timeout_or_provider_error_is_raised_without_a_retry(
-        self, provider_error: Exception
+    def test_generate_structured__transient_openrouter_error_is_retried_once_with_the_same_prompt(
+        self, transient_provider_error: Exception
     ) -> None:
-        """Verify a timeout or an HTTP error reaches the caller as is, after a single request."""
+        """Verify a passing OpenRouter failure gets one more identical request, which can succeed."""
+
+        class FailsOnce:
+            def __init__(self) -> None:
+                self.calls: list[dict] = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                if len(self.calls) == 1:
+                    raise transient_provider_error
+                return _completion('{"value": "ok"}')
+
+        completions = FailsOnce()
+        llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
+
+        result = llm.generate_structured(
+            system_prompt="s",
+            user_prompt="u",
+            response_model=_Answer,
+            temperature=0.2,
+            max_output_tokens=50,
+        )
+
+        assert result == _Answer(value="ok")
+        first, second = completions.calls
+        assert first["messages"] == second["messages"]
+        assert first["temperature"] == second["temperature"] == 0.2
+
+    def test_generate_structured__transient_error_twice_is_raised_after_one_retry(
+        self, transient_provider_error: Exception
+    ) -> None:
+        """Verify the retry is bounded: a second failure reaches the caller unchanged."""
 
         class Failing:
             calls = 0
 
             def create(self, **kwargs):
                 self.calls += 1
-                raise provider_error
+                raise transient_provider_error
 
         completions = Failing()
         llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
 
-        with pytest.raises(type(provider_error)):
+        with pytest.raises(type(transient_provider_error)):
+            llm.generate_structured(
+                system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
+            )
+
+        assert completions.calls == 2
+
+    def test_generate_structured__permanent_provider_error_is_raised_without_a_retry(
+        self, permanent_provider_error: Exception
+    ) -> None:
+        """Verify a rejected request, a bad key or the daily limit is not sent a second time."""
+
+        class Failing:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise permanent_provider_error
+
+        completions = Failing()
+        llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
+
+        with pytest.raises(type(permanent_provider_error)):
+            llm.generate_structured(
+                system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
+            )
+
+        assert completions.calls == 1
+
+    def test_generate_structured__ollama_timeout_is_raised_without_a_retry(self) -> None:
+        """Verify a local request that already took up to 15 minutes is not repeated."""
+
+        class Failing:
+            calls = 0
+
+            def create(self, **kwargs):
+                self.calls += 1
+                raise APITimeoutError(request=OPENROUTER_REQUEST)
+
+        completions = Failing()
+        llm = serwer.LLMClient(_client(completions), "pismak-bielik:latest", provider="ollama")
+
+        with pytest.raises(APITimeoutError):
             llm.generate_structured(
                 system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
             )
@@ -829,24 +968,38 @@ class TestLLMClientGenerateStructured:
 
         assert [call["max_tokens"] for call in truncated.calls + invalid.calls] == [321] * 4
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BŁĄD: odpowiedź HTTP 200 z obiektem error (OpenRouter) ma choices=None; "
-            "_call_structured robi choices[0] i rzuca TypeError zamiast LLMResponseError"
-        ),
-    )
     def test_generate_structured__answer_without_choices_raises_a_readable_error(self) -> None:
         """Verify a provider error sent with status 200 ends in the module's readable error."""
+        error = {"error": {"message": "Provider returned error", "code": 502}}
         completions = _Replies(
-            SimpleNamespace(model="m", choices=None), SimpleNamespace(model="m", choices=None)
+            SimpleNamespace(model="m", choices=None, model_extra=error),
+            SimpleNamespace(model="m", choices=None, model_extra=error),
         )
         llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
 
-        with pytest.raises(serwer.LLMResponseError):
+        with pytest.raises(serwer.LLMResponseError, match="dwukrotnie") as raised:
             llm.generate_structured(
                 system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
             )
+
+        assert "Dostawca modelu zwrócił błąd zamiast odpowiedzi: Provider returned error" in str(
+            raised.value
+        )
+        assert len(completions.calls) == 2
+
+    def test_generate_structured__answer_without_choices_is_repaired_once(self) -> None:
+        """Verify one provider error inside a 200 response costs one retry, not the stage."""
+        completions = _Replies(
+            SimpleNamespace(model="m", choices=None), _completion('{"value": "ok"}')
+        )
+        llm = serwer.LLMClient(_client(completions), "openrouter/free", provider="openrouter")
+
+        result = llm.generate_structured(
+            system_prompt="s", user_prompt="u", response_model=_Answer, max_output_tokens=50
+        )
+
+        assert result == _Answer(value="ok")
+        assert "Dostawca modelu zwrócił błąd" in completions.calls[1]["messages"][1]["content"]
 
 
 class TestStructuredOutputErrorDetail:
@@ -888,6 +1041,28 @@ class TestErrorLogDetail:
         detail = serwer.error_log_detail(RuntimeError("Error code: 429\n  rate limit exceeded"))
 
         assert detail == "Error code: 429 rate limit exceeded"
+
+    def test_error_log_detail__hides_openrouter_and_provider_account_ids(self) -> None:
+        """Verify a 404 relayed by OpenRouter keeps its text but not the account identifiers."""
+        error = RuntimeError(
+            "Error code: 404 - {'error': {'metadata': {'raw': '{\"detail\":\"Function "
+            "\\'f1\\': Not found for account \\'acct-TEST-0000\\'\"}', 'provider_name': "
+            "'Nvidia'}}, 'user_id': 'user_2abcDEF'}"
+        )
+
+        detail = serwer.error_log_detail(error)
+
+        assert "acct-TEST-0000" not in detail
+        assert "user_2abcDEF" not in detail
+        assert "Not found for account \\'<ukryte>" in detail
+        assert "'user_id': '<ukryte>'" in detail
+        assert "'provider_name': 'Nvidia'" in detail
+
+    def test_error_log_detail__hides_the_user_id_in_a_json_error_body(self) -> None:
+        """Verify the same id is hidden when the provider sends the error as JSON."""
+        detail = serwer.error_log_detail(RuntimeError('{"user_id":"user_2abcDEF","code":429}'))
+
+        assert detail == '{"user_id":"<ukryte>","code":429}'
 
     def test_error_log_detail__names_the_type_of_a_message_less_error(self) -> None:
         """Verify an exception raised without text still leaves something to search for."""

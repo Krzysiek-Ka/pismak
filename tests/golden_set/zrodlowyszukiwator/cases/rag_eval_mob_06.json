@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_06",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-06: „Co polityka mówi o przepustowości ulic prowadzących do centrum?” Obszar 9 „transport samochodowy osobowy” (PDF s. 11). Parafraza: „ulice prowadzące do centrum” zamiast „ulic wprowadzających ruch do obszaru śródmiejskiego”.",
+  "input": {
+    "title": "Przepustowość ulic prowadzących do centrum",
+    "problem_description": "Chcę zabrać głos w sprawie ruchu samochodowego w centrum i sprawdzić, co polityka mówi o przepustowości ulic prowadzących do centrum.",
+    "location": "Wrocław, centrum",
+    "time_context": null,
+    "desired_outcome": "Wiem, co polityka mówi o przepustowości ulic prowadzących do centrum.",
+    "requested_actions": [
+      "Wskazanie, co polityka mówi o przepustowości ulic prowadzących do centrum."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-06",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Miasto ma nie zwiększać przepustowości ulic wprowadzających ruch do śródmieścia i stopniowo ją zmniejszać. Rola samochodu ma być ograniczana, szczególnie w centrum."
+  ]
+}

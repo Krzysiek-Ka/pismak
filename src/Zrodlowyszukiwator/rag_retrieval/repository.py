@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any
 
 import numpy as np
@@ -36,6 +37,37 @@ def lexical_tsquery(text: str) -> str:
             terms.append(word if len(word) <= 5 else f"{word[: max(5, len(word) - 3)]}:*")
     # Różne formy tego samego słowa dają ten sam prefiks, więc duplikaty usuwamy na końcu.
     return " | ".join(list(dict.fromkeys(terms))[:MAX_LEXICAL_TERMS])
+
+
+def concept_stems(phrase: str) -> list[str]:
+    """Return the stems a concept phrase is matched by: its significant words, as prefixes."""
+    stems: list[str] = []
+    for word in re.findall(r"[^\W_]+", phrase.lower()):
+        if word.isdigit() or (len(word) >= 3 and word not in STOPWORDS):
+            # Te same końcówki co w lexical_tsquery; krótkie słowo jest prefiksem w całości,
+            # więc „kask” znajdzie też „kasku”.
+            stems.append(word if len(word) <= 5 else word[: max(5, len(word) - 3)])
+    return list(dict.fromkeys(stems))
+
+
+def fold_text(text: str) -> str:
+    """Lowercase and drop Polish diacritics, so "dróg" compares with "droga"."""
+    decomposed = unicodedata.normalize("NFKD", text.lower().replace("ł", "l"))
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def mentions_concept(text: str, phrase: str) -> bool:
+    """Return whether the text contains every significant word of the phrase, in any form."""
+    # Łagodniej niż concept_stems: oboczności („droga” → „dróg”, „szkoła” → „szkół”) zmieniają
+    # samogłoskę albo ostatnią literę rdzenia, a cytat ma pasować w każdej formie.
+    stems = []
+    for stem in concept_stems(fold_text(phrase)):
+        stems.append(stem[:4] if len(stem) == 5 and not stem.isdigit() else stem)
+    words = set(re.findall(r"[^\W_]+", fold_text(text)))
+    return bool(stems) and all(
+        stem in words if stem.isdigit() else any(word.startswith(stem) for word in words)
+        for stem in stems
+    )
 
 
 class DatabaseConnectionError(RuntimeError):
@@ -255,6 +287,24 @@ class RetrievalRepository:
             )
             for row in rows
         ]
+
+    def concept_share(self, phrase: str) -> float | None:
+        """Return the share of retrievable chunks that mention the phrase (None: no words)."""
+        stems = concept_stems(phrase)
+        if not stems:
+            return None
+        query = " & ".join(stem if stem.isdigit() else f"{stem}:*" for stem in stems)
+        sql = """
+            SELECT
+                count(*) FILTER (WHERE c.search_vector @@ to_tsquery('simple', %s)),
+                count(*)
+            FROM rag_chunks c
+            JOIN rag_documents d USING (document_id)
+            WHERE d.retrieval_enabled
+        """
+        with self.connect() as conn:
+            matching, total = conn.execute(sql, [query]).fetchone()
+        return matching / total if total else None
 
     def counts(self) -> tuple[int, int]:
         """Return the number of documents and chunks available for retrieval."""

@@ -763,7 +763,8 @@ class TestAppPipelineRun:
         pipeline = FakePipeline(make_evidence_pack())
         monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
         app_test, completions = ui({DRAFT: [VALID_DRAFT]})
-        with_brief(app_test).run()
+        # Adresat z briefu: bez niego build_draft czyści adresata wpisanego przez model.
+        with_brief(app_test, institution="Zarząd Dróg i Utrzymania Miasta").run()
 
         click(app_test, GENERATE_LABEL)
 
@@ -784,6 +785,23 @@ class TestAppPipelineRun:
         assert models["Planner"] == [{"provider": "ollama", "model": "fake/planner"}]
         assert "Reranker" not in models
         assert models["Pismogenerator"] == [{"provider": "ollama", "model": "fake/DraftLetter"}]
+
+    def test_app__found_sources_are_listed_by_the_ids_the_letter_uses(
+        self, ui, monkeypatch
+    ) -> None:
+        """Verify the source list says E2, as the letter's "[1] E2: …" does, not a second [1]."""
+        pipeline = FakePipeline(make_evidence_pack(evidence=2))
+        monkeypatch.setattr(services, "build_zrodlowyszukiwator", lambda **kw: (pipeline, 2, 63))
+        app_test, _ = ui({DRAFT: [{**VALID_DRAFT, "sources": ["E2"]}]})
+        with_brief(app_test).run()
+
+        click(app_test, GENERATE_LABEL)
+
+        rendered = [m.value for m in app_test.markdown]
+        assert "**E1: Wrocławska polityka mobilności — s. 3–4**" in rendered
+        assert "**E2: Wrocławska polityka mobilności — s. 3–4**" in rendered
+        assert not any(value.startswith("**[") for value in rendered)
+        assert "[1] E2: Wrocławska polityka mobilności" in app_test.session_state["letter_markdown"]
 
     def test_app__letter_shows_model_links_as_text_but_keeps_them_in_the_file(
         self, ui, tmp_path, monkeypatch

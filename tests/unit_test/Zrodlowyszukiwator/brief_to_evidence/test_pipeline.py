@@ -55,7 +55,9 @@ class FixedOutcomeReranker:
         self.select = select
         self.assessed = assessed
 
-    def rerank(self, *, case_brief: dict, candidates: list[RetrievedChunk]) -> RerankOutcome:
+    def rerank(
+        self, *, case_brief: dict, candidates: list[RetrievedChunk], key_concepts=None
+    ) -> RerankOutcome:
         selected = [(c, "Popiera postulat.", 80) for c in candidates] if self.select else []
         return RerankOutcome(selected=selected, assessed=self.assessed)
 
@@ -105,13 +107,60 @@ class FakeReranker:
         self.outcome = outcome
         self.calls = 0
 
-    def rerank(self, *, case_brief, candidates):
+    def rerank(self, *, case_brief, candidates, key_concepts=None):
         self.calls += 1
         if self.outcome is None:
             return RerankOutcome(
                 selected=[(c, "Wspiera sprawę.", 3) for c in candidates], assessed=True
             )
         return self.outcome
+
+
+class RecordingReranker:
+    """Remember the candidates it was given and select all of them."""
+
+    def __init__(self) -> None:
+        self.candidates: list[RetrievedChunk] = []
+
+    def rerank(self, *, case_brief, candidates, key_concepts=None):
+        self.candidates = list(candidates)
+        self.key_concepts = key_concepts
+        return RerankOutcome(selected=[(c, "Wspiera.", 80) for c in candidates], assessed=True)
+
+
+class ConceptPlanner:
+    """Plan one search and name the subject of two postulates."""
+
+    def plan(self, brief: dict) -> ResearchPlan:
+        return ResearchPlan.model_validate(
+            {
+                "case_summary": "Sprawa",
+                "intents": [INTENT.model_dump()],
+                "key_concepts": [
+                    {"postulate": 1, "concepts": ["kask", "rower", " ", "kask"]},
+                    {"postulate": 2, "concepts": ["stojak rowerowy"]},
+                ],
+            }
+        )
+
+
+class ShareRepository:
+    """Answer concept_share from a table; a phrase missing from it raises like a lost database."""
+
+    def __init__(self, shares: dict[str, float | None]) -> None:
+        self.shares = shares
+
+    def concept_share(self, phrase: str) -> float | None:
+        return self.shares[phrase]
+
+
+def concept_pipeline(shares: dict[str, float | None] | None) -> BriefToEvidencePipeline:
+    retriever = FakeRetriever([candidate("c1", "doc-1")])
+    if shares is not None:
+        retriever.repository = ShareRepository(shares)
+    return BriefToEvidencePipeline(
+        planner=ConceptPlanner(), retriever=retriever, reranker=RecordingReranker()
+    )
 
 
 def pipeline(candidates, *, purposes=("problem",), reranker=None, **limits):
@@ -174,7 +223,7 @@ class FixedReranker:
         self.count = count
         self.assessed = assessed
 
-    def rerank(self, *, case_brief, candidates):
+    def rerank(self, *, case_brief, candidates, key_concepts=None):
         selected = [(c, "Popiera postulat.", 80) for c in candidates[: self.count]]
         return RerankOutcome(selected=selected, assessed=self.assessed)
 
@@ -184,6 +233,49 @@ def leading_document_candidates() -> list[RetrievedChunk]:
     return [make_chunk(f"A{i}", "doc-a") for i in range(8)] + [
         make_chunk(f"B{i}", "doc-b") for i in range(3)
     ]
+
+
+class TestBriefToEvidencePipelineConcepts:
+    def test_run__gives_the_reranker_postulate_subjects_without_corpus_wide_words(self) -> None:
+        """Verify "rower", found in a third of the corpus, cannot anchor a helmet postulate."""
+        evidence_pipeline = concept_pipeline({"kask": 0.0, "rower": 0.3, "stojak rowerowy": 0.01})
+
+        evidence_pipeline.run({})
+
+        assert evidence_pipeline.reranker.key_concepts == {1: ["kask"], 2: ["stojak rowerowy"]}
+
+    def test_run__phrase_without_significant_words_is_not_a_subject(self) -> None:
+        """Verify a phrase the share query cannot measure is dropped, not kept as a match-all."""
+        evidence_pipeline = concept_pipeline({"kask": None, "rower": None, "stojak rowerowy": 0.0})
+
+        evidence_pipeline.run({})
+
+        assert evidence_pipeline.reranker.key_concepts == {2: ["stojak rowerowy"]}
+
+    def test_run__keeps_every_subject_when_the_corpus_share_is_unavailable(self) -> None:
+        """Verify a retriever without the database still sends the planner's subjects."""
+        evidence_pipeline = concept_pipeline(None)
+
+        evidence_pipeline.run({})
+
+        assert evidence_pipeline.reranker.key_concepts == {
+            1: ["kask", "rower"],
+            2: ["stojak rowerowy"],
+        }
+
+    def test_run__keeps_a_subject_whose_share_query_fails(self) -> None:
+        """Verify a database error does not silently drop the anchor that blocks weak support."""
+        evidence_pipeline = concept_pipeline({"rower": 0.3})
+
+        evidence_pipeline.run({})
+
+        assert evidence_pipeline.reranker.key_concepts == {1: ["kask"], 2: ["stojak rowerowy"]}
+
+    def test_run__notes_name_the_subject_of_each_postulate(self) -> None:
+        """Verify the pack says which subjects the support was checked against."""
+        pack = concept_pipeline({"kask": 0.0, "rower": 0.3, "stojak rowerowy": 0.01}).run({})
+
+        assert "Przedmiot postulatów: 1: kask; 2: stojak rowerowy" in pack.search_notes
 
 
 class TestBriefToEvidencePipelineRun:
@@ -271,13 +363,30 @@ class TestBriefToEvidencePipelineRun:
         assert pack.evidence_status == "unsupported"
         assert pack.unsupported_topics == ["przejście", "oświetlenie"]
 
-    def test_run__asks_the_retriever_for_the_configured_number_of_candidates(self) -> None:
-        """Verify candidate_k bounds what the reranker has to read."""
-        evidence_pipeline = pipeline([], candidate_k=7)
+    def test_run__candidate_k_bounds_what_the_reranker_has_to_read(self) -> None:
+        """Verify the reranker gets candidate_k candidates out of the whole hybrid ranking."""
+        candidates = [candidate(f"c{index}", f"doc-{index}") for index in range(10)]
+        reranker = RecordingReranker()
+        evidence_pipeline = pipeline(candidates, reranker=reranker, candidate_k=7)
 
         evidence_pipeline.run({})
 
-        assert evidence_pipeline.retriever.top_k == 7
+        assert evidence_pipeline.retriever.top_k is None
+        assert [c.chunk_id for c in reranker.candidates] == [f"c{i}" for i in range(7)]
+
+    def test_run__one_document_fills_at_most_its_share_of_the_candidates(self) -> None:
+        """Verify a large document cannot crowd smaller ones out of the reranker's list."""
+        reranker = RecordingReranker()
+        evidence_pipeline = pipeline(
+            leading_document_candidates(),
+            reranker=reranker,
+            candidate_k=6,
+            max_candidates_per_document=4,
+        )
+
+        evidence_pipeline.run({})
+
+        assert [c.chunk_id for c in reranker.candidates] == ["A0", "A1", "A2", "A3", "B0", "B1"]
 
     def test_run__stops_at_evidence_k_and_numbers_evidence_from_e1(self) -> None:
         """Verify the pack size limit holds and identifiers match the citation scheme."""

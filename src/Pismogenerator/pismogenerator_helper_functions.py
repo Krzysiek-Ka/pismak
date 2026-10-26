@@ -4,6 +4,12 @@ from src.Dopytywator.structures import CaseBrief
 from src.Pismogenerator.structures import DraftLetter
 from src.Zrodlowyszukiwator.brief_to_evidence.models import EvidencePack
 
+# Identyfikator źródła w nawiasach kwadratowych zamiast numeru przypisu: [E1], [U2].
+_BRACKETED_SOURCE_ID = re.compile(r"\[([EU]\d+)\]")
+# Dosłowny „\” na końcu wiersza albo tekstu (twarde łamanie wiersza w Markdownie).
+_LINE_END_BACKSLASH = re.compile(r"[ \t]*\\[ \t]*(\n|\Z)")
+_EXTRA_BLANK_LINES = re.compile(r"\n{3,}")
+
 
 def normalize_user_evidence(values: list[str] | None) -> list[str]:
     """Return the user's materials as numbered for U1, U2…: trimmed, without blank entries."""
@@ -58,17 +64,24 @@ def validate_draft(
     if illegal_sources:
         errors.append("Model dodał niedozwolone źródła: " + "; ".join(illegal_sources))
 
-    # Kontrola odwołań [1], [2], ...
-    refs = [int(x) for x in re.findall(r"\[(\d+)\]", draft.argumentation_markdown)]
+    # Kontrola odwołań [1], [2], ... w podsumowaniu wniosku i w argumentacji.
+    body = draft.request_summary + "\n" + draft.argumentation_markdown
+    refs = [int(x) for x in re.findall(r"\[(\d+)\]", body)]
     # Przypis bez listy źródeł nie ma celu, do którego czytelnik mógłby go odnieść.
     if refs and not draft.sources:
         errors.append("Argumentacja zawiera przypisy, ale lista sources jest pusta")
 
-    # Numery przypisów są pozycjami na liście sources; większy numer byłby nierozwiązywalny.
-    if refs and max(refs) > len(draft.sources):
+    # Numery przypisów są pozycjami na liście sources liczonymi od 1; inny numer byłby
+    # nierozwiązywalny.
+    if any(not 1 <= ref <= len(draft.sources) for ref in refs):
         errors.append(
             "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
         )
+
+    # [E1] albo [U1] zostaje w tekście po normalize_draft tylko wtedy, gdy nie jest dozwolony.
+    raw_ids = sorted({f"[{source_id}]" for source_id in _BRACKETED_SOURCE_ID.findall(body)})
+    if raw_ids:
+        errors.append("Przypisy wskazują źródła spoza dozwolonych: " + ", ".join(raw_ids))
 
     return errors
 
@@ -147,6 +160,43 @@ def normalize_request_summary(summary: str) -> str:
 def unescape_newlines(text: str) -> str:
     """Turn the literal "\\n" a model sometimes writes instead of a line break into one."""
     return text.replace("\\r\\n", "\n").replace("\\n", "\n")
+
+
+def normalize_draft(draft: DraftLetter, allowed_source_ids: list[str]) -> DraftLetter:
+    """
+    Turn [E1]-style citations into footnote numbers and drop literal backslashes.
+
+    Bielik pisał przypisy jako [E1] / [U1] zamiast [1], a nowe linie jako dosłowne "\\n" albo
+    twarde łamanie wiersza ("\\" na końcu wiersza) — renderer numeruje tylko listę sources,
+    więc czytelnik nie dopasowałby [E1] do pozycji listy (złoty zbiór, 2026-10-24).
+    """
+    sources = list(draft.sources)
+
+    def footnote(match: re.Match[str]) -> str:
+        source_id = match.group(1)
+        if source_id not in sources:
+            # Niedozwolony identyfikator zostaje w tekście i zgłasza go validate_draft.
+            if source_id not in allowed_source_ids:
+                return match.group(0)
+            sources.append(source_id)
+        return f"[{sources.index(source_id) + 1}]"
+
+    def clean(text: str) -> str:
+        text = unescape_newlines(text)
+        # Twarde łamanie staje się nowym akapitem: bez niego Markdown sklejałby wiersze.
+        text = _LINE_END_BACKSLASH.sub(lambda m: "\n\n" if m.group(1) else "", text)
+        text = _EXTRA_BLANK_LINES.sub("\n\n", text)
+        return _BRACKETED_SOURCE_ID.sub(footnote, text)
+
+    request_summary = clean(draft.request_summary)
+    argumentation = clean(draft.argumentation_markdown)
+    return draft.model_copy(
+        update={
+            "request_summary": request_summary,
+            "argumentation_markdown": argumentation,
+            "sources": sources,
+        }
+    )
 
 
 def strip_closing(argumentation: str) -> str:

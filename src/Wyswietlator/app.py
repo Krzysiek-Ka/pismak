@@ -286,13 +286,15 @@ def show_evidence(evidence_pack: EvidencePack) -> None:
                 "to najbardziej podobne fragmenty z wyszukiwania."
             )
 
-        for idx, item in enumerate(evidence, start=1):
+        for item in evidence:
             pages = (
                 str(item.page_start)
                 if item.page_start == item.page_end
                 else f"{item.page_start}–{item.page_end}"
             )
-            st.markdown(f"**[{idx}] {item.document_title} — s. {pages}**")
+            # Identyfikator zamiast kolejnego numeru: przypis [n] w piśmie wskazuje n-tą pozycję
+            # listy źródeł pisma, a ta ma inną kolejność niż pakiet ("[1] E3: …").
+            st.markdown(f"**{item.evidence_id}: {item.document_title} — s. {pages}**")
             if item.section_path:
                 st.caption(" > ".join(item.section_path))
             st.markdown(escape_markdown_links(item.relevance_reason))

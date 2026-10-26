@@ -1,0 +1,37 @@
+{
+  "id": "rag_eval_bike_08",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-08: „Jaką minimalną szerokość drogi rowerowej określa polityka rowerowa?” Trudny negatyw z pułapką liczbową: standardy dostępności (PDF s. 32) mają „2,00 m” i „2,50 m” obok szerokości drogi dla rowerów, ale jako próg wymogu bufora, a nie minimum. Polityka tylko odsyła do osobnego dokumentu standardów.",
+  "input": {
+    "title": "Minimalna szerokość drogi rowerowej",
+    "problem_description": "Chcę sprawdzić, jaką minimalną szerokość drogi rowerowej określa polityka rowerowa.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja, jaką minimalną szerokość drogi rowerowej określa polityka rowerowa.",
+    "requested_actions": [
+      "Podanie minimalnej szerokości drogi rowerowej określonej w polityce rowerowej."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-08",
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy.",
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Polityka Rowerowa Wrocławia nie podaje parametrów technicznych — odsyła do „Standardów projektowych i wykonawczych dla systemu rowerowego miasta Wrocławia” (s. 6), których nie ma w korpusie. Wrocławskie standardy dostępności podają tylko szerokości, od których droga dla rowerów musi być oddzielona od chodnika buforem (2,00 m i 2,50 m), a nie szerokość minimalną."
+  ]
+}

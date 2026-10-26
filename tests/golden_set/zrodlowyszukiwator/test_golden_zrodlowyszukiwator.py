@@ -5,7 +5,10 @@ Model (planner i reranker), baza RAG, embeddingi i filtry są prawdziwe; pipelin
 `services.build_zrodlowyszukiwator`, czyli ten sam kod, który wywołuje src/Wyswietlator/app.py.
 Na każdy dokument korpusu przypadają trzy przypadki: odpowiedź wprost w dokumencie, odpowiedź
 z połączenia kilku jego fragmentów i sprawa spoza korpusu. Nieobowiązująca Strategia 2030 ma
-przypadki, w których nie może trafić do pakietu.
+przypadki, w których nie może trafić do pakietu. Każde pytanie ewaluacji retrievalu
+(tests/golden_set/rag_eval) ma tu jeden odpowiednik: tę samą sprawę zapisaną jako CaseBrief
+(`rag_eval_<id>`), ocenianą tymi samymi dowodami co w rag_eval. Na modelu uruchamia się
+tylko 10 z nich (RUN_CASE_IDS); pozostałe przypadki przechodzą jedynie kontrole zbioru.
 
 Zawsze sprawdzane: schemat EvidencePack, numeracja E1…En, limity pakietu (6 fragmentów, 3 z
 dokumentu), fragmenty identyczne z tekstem w bazie i brak dokumentów jawnie nieobowiązujących.
@@ -13,7 +16,9 @@ Obsługiwane pola `expected` (SUPPORTED_EXPECTED):
 - expected_source_ids: każdy dokument jest w pakiecie, a pakiet ma ocenę `supported`,
 - min_fragments_from_expected: najmniejsza liczba fragmentów z tych dokumentów,
 - expect_no_relevant_source: pakiet pusty z oceną `unsupported`,
-- forbidden_source_ids: żaden z tych dokumentów nie jest w pakiecie.
+- forbidden_source_ids: żaden z tych dokumentów nie jest w pakiecie,
+- rag_eval_question: pytanie rag_eval, z którego pochodzi sprawa; pakiet zawiera co najmniej
+  jeden jego dowód (fragment z wszystkimi frazami `all_of`, jak w rag_eval).
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from tests.golden_set.golden_support import (
     runs,
     skip_run,
 )
+from tests.golden_set.rag_eval.rag_eval_support import load_questions, supported_items
 
 pytestmark = pytest.mark.golden
 
@@ -51,8 +57,33 @@ SUPPORTED_EXPECTED = {
     "min_fragments_from_expected",
     "expect_no_relevant_source",
     "forbidden_source_ids",
+    "rag_eval_question",
 }
 CASES = load_cases(MODULE_DIR, supported_expected=SUPPORTED_EXPECTED)
+RAG_EVAL_QUESTIONS = {question.id: question for question in load_questions()}
+CASE_KINDS = ("bezpośrednio", "łączenie informacji", "poza korpusem")
+RAG_EVAL_KIND = "pytanie rag_eval"
+# Na modelu uruchamiane jest tylko 10 odpowiedników pytań rag_eval (decyzja 2026-10-25): 4 bez
+# odpowiedzi w korpusie i 6 z odpowiedzią, w tym znane chybienia Polityki mobilności. Pozostałe
+# przypadki zostają w cases/ i przechodzą kontrole zbioru; uruchamia je dopiero
+# PISMAK_ZRODLOWYSZUKIWATOR_ALL_CASES=1.
+RUN_CASE_IDS = (
+    "rag_eval_bike_01",
+    "rag_eval_bike_02",
+    "rag_eval_bike_03",
+    "rag_eval_bike_07",
+    "rag_eval_bike_08",
+    "rag_eval_mob_02",
+    "rag_eval_mob_03",
+    "rag_eval_mob_06",
+    "rag_eval_mob_07",
+    "rag_eval_mob_08",
+)
+RUN_CASES = (
+    CASES
+    if os.getenv("PISMAK_ZRODLOWYSZUKIWATOR_ALL_CASES") == "1"
+    else [case for case in CASES if case.id in RUN_CASE_IDS]
+)
 EVIDENCE_K = 6
 MAX_PER_DOCUMENT = 3
 
@@ -77,14 +108,50 @@ class TestGoldenCases:
         from src.Zrodlowyszukiwator.rag_ingestion.catalog import load_catalog
         from src.Zrodlowyszukiwator.rag_ingestion.cli import DEFAULT_CATALOG_PATH
 
-        kinds = Counter()
-        for case in CASES:
-            label = case.description.split("]")[0].strip("[")
-            kind, document = (part.strip() for part in label.split(","))
-            kinds[(document, kind)] += 1
+        kinds = Counter(case_label(case) for case in CASES)
+        assert {kind for kind, _ in kinds} <= {*CASE_KINDS, RAG_EVAL_KIND}
         for metadata in load_catalog(DEFAULT_CATALOG_PATH).values():
-            for kind in ("bezpośrednio", "łączenie informacji", "poza korpusem"):
-                assert kinds[(metadata.document_id, kind)] == 1, (metadata.document_id, kind)
+            for kind in CASE_KINDS:
+                assert kinds[(kind, metadata.document_id)] == 1, (metadata.document_id, kind)
+
+    def test_cases__run_cases_are_ten_existing_rag_eval_cases(self) -> None:
+        """Verify the model runs exactly the chosen rag_eval mirrors, with and without answers."""
+        by_id = {case.id: case for case in CASES}
+        chosen = [by_id[case_id] for case_id in RUN_CASE_IDS]
+
+        assert len(set(RUN_CASE_IDS)) == 10
+        assert all(case_label(case)[0] == RAG_EVAL_KIND for case in chosen)
+        assert any(case.expected.get("expect_no_relevant_source") for case in chosen)
+        assert any(case.expected.get("expected_source_ids") for case in chosen)
+
+    def test_cases__every_rag_eval_question_has_one_case(self) -> None:
+        """Verify each rag_eval question is mirrored once, by a case labelled as its mirror."""
+        mirrored = Counter(case.expected.get("rag_eval_question") for case in CASES)
+        mirrored.pop(None, None)
+        assert mirrored == dict.fromkeys(RAG_EVAL_QUESTIONS, 1)
+        for case in CASES:
+            assert (case_label(case)[0] == RAG_EVAL_KIND) == ("rag_eval_question" in case.expected)
+
+    @pytest.mark.parametrize(
+        "case", [c for c in CASES if "rag_eval_question" in c.expected], ids=lambda case: case.id
+    )
+    def test_cases__rag_eval_case_expects_what_its_question_expects(self, case: GoldenCase) -> None:
+        """Verify a mirror wants the question's document, or abstention when it has no answer."""
+        question = RAG_EVAL_QUESTIONS[case.expected["rag_eval_question"]]
+
+        assert case_label(case)[1] == question.document_id
+        if question.answerable:
+            assert set(case.expected["expected_source_ids"]) <= question.source_document_ids
+            assert not case.expected.get("expect_no_relevant_source")
+        else:
+            assert case.expected.get("expect_no_relevant_source") is True
+
+
+def case_label(case: GoldenCase) -> tuple[str, str]:
+    """Return the (kind, document id) from the „[kind, document]” start of the description."""
+    label = case.description.split("]")[0].strip("[")
+    kind, document = (part.strip() for part in label.split(","))
+    return kind, document
 
 
 def indexed_chunks(chunk_ids: list[str]) -> dict[str, tuple[str, str]]:
@@ -149,9 +216,25 @@ def check_pack(run, case: GoldenCase, pack: EvidencePack) -> None:
         )
     for document_id in expected.get("forbidden_source_ids", []):
         run.check(f"forbidden_source:{document_id}", document_id not in documents, str(documents))
+    question = RAG_EVAL_QUESTIONS.get(expected.get("rag_eval_question"))
+    if question is not None and question.evidence:
+        covered = sorted(
+            {
+                label
+                for e in evidence
+                for label in supported_items(question, e.document_id, e.excerpt)
+            }
+        )
+        labels = [item.label for item in question.evidence]
+        run.details["rag_eval_evidence"] = {
+            "question": question.id,
+            "covered": covered,
+            "recall": round(len(covered) / len(labels), 3),
+        }
+        run.check("rag_eval_evidence", bool(covered), f"pokryte {covered} z {labels}")
 
 
-@pytest.mark.parametrize(("provider", "case"), runs(CASES))
+@pytest.mark.parametrize(("provider", "case"), runs(RUN_CASES))
 def test_golden_zrodlowyszukiwator(provider: Provider, case: GoldenCase) -> None:
     """Verify the real pipeline finds the case's document, or abstains when the corpus is silent.
 

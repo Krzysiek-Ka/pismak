@@ -287,6 +287,67 @@ class TestRetrievalRepositoryCounts:
         assert repository.counts() == (2, 63)
 
 
+class TestMentionsConcept:
+    @pytest.mark.parametrize(
+        ("text", "phrase"),
+        [
+            pytest.param("Jazda w kasku jest bezpieczniejsza.", "kask", id="short_word_inflected"),
+            pytest.param(
+                "Montaż stojaków rowerowych przy szkołach.", "stojak rowerowy", id="phrase"
+            ),
+            pytest.param("Cel: 15% do roku 2020.", "2020", id="number"),
+            pytest.param("Sieć dróg rowerowych.", "droga rowerowa", id="vowel_alternation"),
+            pytest.param("Remont szkół na osiedlu.", "szkoła", id="plural_genitive"),
+        ],
+    )
+    def test_mentions_concept__finds_every_word_of_the_phrase_in_any_form(
+        self, text: str, phrase: str
+    ) -> None:
+        """Verify Polish inflection does not hide the subject of a postulate."""
+        assert retrieval_repository.mentions_concept(text, phrase)
+
+    @pytest.mark.parametrize(
+        ("text", "phrase"),
+        [
+            pytest.param("Rozwój dróg rowerowych.", "kask", id="absent_word"),
+            pytest.param(
+                "Montaż stojaków przy szkołach.", "stojak rowerowy", id="one_word_missing"
+            ),
+            pytest.param("Cel na rok 20201.", "2020", id="number_is_exact"),
+            pytest.param("Jakikolwiek tekst.", "dla przez", id="only_function_words"),
+        ],
+    )
+    def test_mentions_concept__rejects_a_text_missing_part_of_the_phrase(
+        self, text: str, phrase: str
+    ) -> None:
+        """Verify a text sharing only the topic, or no significant word, is not a mention."""
+        assert not retrieval_repository.mentions_concept(text, phrase)
+
+
+class TestRetrievalRepositoryConceptShare:
+    def test_concept_share__counts_chunks_with_every_stem_among_retrievable_ones(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify the share query needs all words of the phrase, each as a prefix."""
+        repository, connection = make_repository(monkeypatch)
+        connection.fetchone = lambda: (3, 60)
+
+        share = repository.concept_share("Stojaki rowerowe")
+
+        assert share == 0.05
+        assert connection.params == ["stoja:* & rower:*"]
+        assert "d.retrieval_enabled" in connection.sql
+
+    def test_concept_share__phrase_without_significant_words_does_not_query(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify a phrase of function words cannot become an anchor that matches everything."""
+        repository, connection = make_repository(monkeypatch)
+
+        assert repository.concept_share("dla przez") is None
+        assert connection.sql == ""
+
+
 class TestRetrievalRepositoryFilterSql:
     def test_filter_sql__drops_only_documents_explicitly_out_of_force_by_default(self) -> None:
         """Verify the default keeps documents with unknown status and removes replaced ones."""

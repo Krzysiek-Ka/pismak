@@ -221,13 +221,6 @@ class TestValidateDraft:
         assert errors == []
         assert capsys.readouterr().out == ""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BŁĄD: validate_draft sprawdza tylko górną granicę przypisów; [0] przechodzi, "
-            "choć lista źródeł jest numerowana od [1]"
-        ),
-    )
     def test_validate_draft__footnote_zero_returns_an_error(self) -> None:
         """Verify [0] is caught like any other footnote that points at no source."""
         errors = validate(make_draft(argumentation_markdown=ARGUMENTATION + " Zob. [0]."))
@@ -235,6 +228,20 @@ class TestValidateDraft:
         assert errors == [
             "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
         ]
+
+    def test_validate_draft__footnote_in_the_request_summary_is_checked_too(self) -> None:
+        """Verify a dangling footnote in the request summary is caught like one in the text."""
+        errors = validate(make_draft(request_summary="wyznaczenie przejścia [3]"))
+
+        assert errors == [
+            "Argumentacja odwołuje się do numeru źródła, którego nie ma na liście sources"
+        ]
+
+    def test_validate_draft__source_id_left_in_brackets_returns_an_error(self) -> None:
+        """Verify [E7], which normalize_draft could not number, does not reach the letter."""
+        errors = validate(make_draft(argumentation_markdown=ARGUMENTATION + " Zob. [E7]."))
+
+        assert errors == ["Przypisy wskazują źródła spoza dozwolonych: [E7]"]
 
 
 class TestRenderList:
@@ -473,6 +480,49 @@ class TestUnescapeNewlines:
         text = "Wstęp.\\\nDalej."
 
         assert pismogenerator_helper_functions.unescape_newlines(text) == text
+
+
+class TestNormalizeDraft:
+    def test_normalize_draft__bracketed_source_ids_become_their_footnote_numbers(self) -> None:
+        """Verify [E1] points at its place in sources and an allowed [U1] is appended to them."""
+        draft = make_draft(
+            request_summary="wyznaczenie przejścia [E1]",
+            argumentation_markdown="Priorytet pieszych [E1]. Zdjęcie przejścia [U1].",
+        )
+
+        result = pismogenerator_helper_functions.normalize_draft(draft, ["E1", "U1"])
+
+        assert result.request_summary == "wyznaczenie przejścia [1]"
+        assert result.argumentation_markdown == "Priorytet pieszych [1]. Zdjęcie przejścia [2]."
+        assert result.sources == ["E1", "U1"]
+
+    def test_normalize_draft__disallowed_source_id_is_left_for_validation(self) -> None:
+        """Verify an id outside the case is neither numbered nor added to the sources."""
+        draft = make_draft(argumentation_markdown=ARGUMENTATION + " Zob. [E7].")
+
+        result = pismogenerator_helper_functions.normalize_draft(draft, ["E1"])
+
+        assert result.argumentation_markdown.endswith("Zob. [E7].")
+        assert result.sources == ["E1"]
+
+    def test_normalize_draft__literal_backslashes_become_paragraph_breaks(self) -> None:
+        """Verify escaped newlines and hard line breaks leave paragraphs and no backslash."""
+        draft = make_draft(
+            argumentation_markdown="**Problem:**\\\nDzieci przechodzą.\\\n\\\n"
+            "**Postulat:**\\n1. Przejście.\\"
+        )
+
+        result = pismogenerator_helper_functions.normalize_draft(draft, ["E1"])
+
+        assert result.argumentation_markdown == (
+            "**Problem:**\n\nDzieci przechodzą.\n\n**Postulat:**\n1. Przejście."
+        )
+
+    def test_normalize_draft__clean_draft_is_returned_unchanged(self) -> None:
+        """Verify a draft with footnote numbers and real line breaks is not rewritten."""
+        draft = make_draft(argumentation_markdown="Wstęp.\n\n" + ARGUMENTATION)
+
+        assert pismogenerator_helper_functions.normalize_draft(draft, ["E1"]) == draft
 
 
 class TestStripClosing:

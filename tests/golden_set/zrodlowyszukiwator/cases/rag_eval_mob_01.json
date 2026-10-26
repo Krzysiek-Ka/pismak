@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_01",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-01: „Ile procent przejazdów po Wrocławiu miało się odbywać bez auta do 2020 roku? Chodzi mi o oficjalny cel miasta.” Rozdział II.2 „Cele podstawowe” (PDF s. 4). Parafraza: „bez auta” zamiast „transport niesamochodowy”. Strategia Wrocław 2050 zawiera podobne, ale inne liczby (wizja „co najmniej 70 proc.” na 2050 r., stan 60,20% w 2024 r.), więc pytanie sprawdza też rozróżnianie dat i dokumentów.",
+  "input": {
+    "title": "Cel udziału przejazdów bez auta do 2020 roku",
+    "problem_description": "Chcę wiedzieć, ile procent przejazdów po Wrocławiu miało się odbywać bez auta do 2020 roku. Chodzi mi o oficjalny cel miasta.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja o oficjalnym celu miasta: ile procent przejazdów miało się odbywać bez auta do 2020 roku.",
+    "requested_actions": [
+      "Podanie, ile procent przejazdów miało się odbywać bez auta do 2020 roku."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-01",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Wrocławska polityka mobilności zakłada, że udział transportu niesamochodowego (transport zbiorowy, rowerowy i ruch pieszy) do roku 2020 powinien wynosić nie mniej niż 60%, a w dalszej perspektywie nie mniej niż 65%."
+  ]
+}

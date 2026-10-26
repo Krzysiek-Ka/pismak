@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_bike_01",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-01: „Jaki udział rowerów w ruchu miasto chciało osiągnąć w 2015, a jaki w 2020 roku? Chcę porównać z tym, co jest teraz.” Oba cele są w rozdziale II.1 „Cele strategiczne” (PDF s. 4 i 5). Pytanie parafrazuje „udział ruchu rowerowego” jako „udział rowerów w ruchu” i wymaga dwóch dat, czyli dwóch dowodów. Cel na 2015 r. stoi w linii zaczynającej się od „2015”, którą chunker w wersji 0.1 brał za nagłówek i usuwał z treści.",
+  "input": {
+    "title": "Cele udziału rowerów w ruchu na 2015 i 2020 rok",
+    "problem_description": "Chcę porównać to, co jest teraz, z udziałem rowerów w ruchu, który miasto chciało osiągnąć w 2015 i w 2020 roku, ale nie wiem, jakie cele przyjęto.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja, jaki udział rowerów w ruchu miasto chciało osiągnąć w 2015 i w 2020 roku.",
+    "requested_actions": [
+      "Podanie udziału rowerów w ruchu, który miasto chciało osiągnąć w 2015 i w 2020 roku."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-01",
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Według Polityki Rowerowej Wrocławia celem średnioterminowym było osiągnięcie w 2015 r. co najmniej 10% udziału ruchu rowerowego w liczbie podróży niepieszych, a głównym celem długoterminowym – co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży w 2020 r. Dokument nie podaje, jaki udział faktycznie osiągnięto."
+  ]
+}

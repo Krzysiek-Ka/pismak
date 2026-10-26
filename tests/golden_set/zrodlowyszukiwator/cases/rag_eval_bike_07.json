@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_bike_07",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-07: „Kto odpowiada za wdrażanie polityki rowerowej i jakie ma zadania?” Rozdział IV.7 „Instrumenty organizacyjne” (PDF s. 8–9, wydruk s. 7–8). Pytanie o listę: pełna odpowiedź wymaga dziewięciu faktów z dwóch stron, więc mierzy pokrycie (recall) dłuższego fragmentu.",
+  "input": {
+    "title": "Odpowiedzialni za wdrażanie polityki rowerowej",
+    "problem_description": "Chcę zgłosić uwagi do realizacji polityki rowerowej, ale nie wiem, kto odpowiada za jej wdrażanie ani jakie ma zadania.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Wiem, kto odpowiada za wdrażanie polityki rowerowej i jakie ma zadania.",
+    "requested_actions": [
+      "Wskazanie, kto odpowiada za wdrażanie polityki rowerowej i jakie ma zadania."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-07",
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Rada ds. rozwoju ruchu rowerowego, złożona z wydziałów UMW, jednostek gminy i organizacji pozarządowych. Przygotowuje wytyczne, opiniuje projekty drogowe, opracowuje zasady audytu rowerowego i monitoruje wdrażanie. Działania koordynuje oficer rowerowy z Sekcją w UMW: projekty 4-letnich Programów Rowerowych, roczne plany, kampanie, współpraca z NGO."
+  ]
+}

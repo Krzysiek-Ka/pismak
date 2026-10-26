@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_bike_04",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-04: „Jaki jest główny cel strategiczny Polityki Rowerowej Wrocławia?” Rozdział II.1 „Cele strategiczne” (PDF s. 4, wydruk s. 3). Plan działań rowerowych do 2030 roku powtarza cel 15% bez roku 2020 (s. 3 i 10), więc pytanie sprawdza, czy wyszukiwanie wskaże samą politykę.",
+  "input": {
+    "title": "Główny cel strategiczny Polityki Rowerowej Wrocławia",
+    "problem_description": "Przygotowuję pismo w sprawie ruchu rowerowego i chcę się w nim powołać na główny cel strategiczny Polityki Rowerowej Wrocławia.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Pismo powołuje się na główny cel strategiczny Polityki Rowerowej Wrocławia.",
+    "requested_actions": [
+      "Wskazanie głównego celu strategicznego Polityki Rowerowej Wrocławia."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-04",
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Co najmniej 15% udziału ruchu rowerowego w ogólnej liczbie podróży w mieście w 2020 r. Hasło: „Wrocław Miastem przyjaznym rowerzystom”."
+  ]
+}

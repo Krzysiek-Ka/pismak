@@ -110,13 +110,6 @@ class TestBuildTextUnits:
             ("Treść sekcji.", ["I. Wstęp"]),
         ]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BŁĄD: nagłówek „SPIS TREŚCI” zostaje na szczycie stosu sekcji, więc treść dalszych "
-            "stron dostaje section_path ['SPIS TREŚCI', …] (Plan działań rowerowych: 16 fragmentów)"
-        ),
-    )
     def test_build_text_units__table_of_contents_heading_does_not_frame_later_pages(self) -> None:
         """Verify the contents page does not become the parent section of the document body."""
         pages = [
@@ -138,6 +131,20 @@ class TestBuildTextUnits:
             ["Wstęp"],
             ["Wstęp"],
         ]
+        assert units[0].text == "SPIS TREŚCI"
+
+    @pytest.mark.parametrize("heading", ["Spis treści", "SPIS TRESCI", "Spis  treści"])
+    def test_build_text_units__contents_heading_in_any_spelling_is_not_a_section(
+        self, heading: str
+    ) -> None:
+        """Verify the heading is recognised regardless of case, spacing and diacritics."""
+        pages = [
+            ExtractedPage(page_number=2, text=f"{heading}\nTreść po spisie.", char_count=40),
+        ]
+
+        units = build_text_units(pages)
+
+        assert [unit.section_path for unit in units] == [[], []]
 
 
 class TestChunkUnits:

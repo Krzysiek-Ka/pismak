@@ -34,7 +34,13 @@ from urllib.parse import urlsplit
 import pytest
 
 from src._shared.model_context import detect_context_tokens
-from src._shared.serwer import OPENROUTER_KEY_PLACEHOLDER, LLMClient, error_log_detail
+from src._shared.serwer import (
+    OLLAMA_REQUEST_TIMEOUT_SECONDS,
+    OPENROUTER_KEY_PLACEHOLDER,
+    OPENROUTER_REQUEST_TIMEOUT_SECONDS,
+    LLMClient,
+    error_log_detail,
+)
 from src.Dopytywator import dopytywator
 from src.Dopytywator.dopytywator_helper_functions import validate_brief_readiness
 from src.Dopytywator.structures import CaseBrief, ClaimStatus, ConversationMessage
@@ -74,6 +80,7 @@ INFRA_ERROR_TYPES = {
     "LLMBusyError",
     "DatabaseConnectionError",
     "LLMConfigurationError",
+    "LLMServiceError",
 }
 CORRECTION_STATUSES = {
     "corrected": "poprawiono",
@@ -1204,7 +1211,8 @@ LIMITATIONS = (
     "Kontrole S1–S10 są heurystyczne (słowa-klucze, liczby, wzorce) — WARN wymaga ręcznej "
     "oceny na podstawie pełnego briefu, dowodów i pisma.",
     "Embeddingi zawsze liczy lokalny model z Ollamy, także w przebiegach OpenRouter.",
-    "Klient Ollamy ma limit 900 s, klient OpenRouter 60 s; przekroczenie kończy przebieg "
+    f"Klient Ollamy ma limit {OLLAMA_REQUEST_TIMEOUT_SECONDS:.0f} s, klient OpenRouter "
+    f"{OPENROUTER_REQUEST_TIMEOUT_SECONDS:.0f} s; przekroczenie kończy przebieg "
     "jako NIEUDANY z podanym powodem. Limit nie zawsze przerywa wywołanie po tym czasie — "
     "rzeczywiste czasy są w tabelach wywołań i w S9.",
     "W konfiguracjach mieszanych błąd należy do dostawcy etapu, w którym wystąpił: faza "

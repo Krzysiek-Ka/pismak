@@ -81,6 +81,20 @@ class TestEvidencePackToMarkdown:
         assert "Rozdział 1" in result
         assert "finansowanie" in result
 
+    def test_evidence_pack_to_markdown__leaves_out_the_unverified_reranker_reason(
+        self,
+    ) -> None:
+        """Verify the letter model sees the fragment itself, not the reranker's own summary."""
+        pack = make_pack()
+        reason = "Strategia 2050 w kontekście planów budowy metra."
+        pack.evidence[0].relevance_reason = reason
+
+        result = evidence_pack_to_markdown(pack)
+
+        assert reason not in result
+        assert "powód trafności" not in result
+        assert "Fragment źródłowy." in result
+
     def test_evidence_pack_to_markdown__tells_the_model_whether_each_source_is_in_force(
         self,
     ) -> None:

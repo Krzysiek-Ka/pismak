@@ -42,9 +42,9 @@ class HybridRetriever:
         intents: list[SearchIntent],
         *,
         filters: RetrievalFilters | None = None,
-        top_k: int = 20,
+        top_k: int | None = 20,
     ) -> list[RetrievedChunk]:
-        """Merge weighted semantic and lexical results with reciprocal rank fusion."""
+        """Merge weighted semantic and lexical results with reciprocal rank fusion (None: all)."""
         if not intents:
             return []
 

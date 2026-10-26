@@ -15,9 +15,10 @@ TEMPLATE """{{- $system := "" }}
 {{- end }}
 {{- end }}"""
 PARAMETER stop "[INST]"
-# Pełne okno kontekstu tego modelu. Większe okno zużywa więcej pamięci; na słabszym
-# komputerze zmniejsz tę wartość (np. do 16384) i ponownie wykonaj `ollama create`.
-PARAMETER num_ctx 131072
+# Okno 32 768 tokenów zamiast pełnych 131 072: pełne okno zajmowało ok. 6 GB i na komputerze
+# z 16 GB RAM model padał z braku pamięci (złote zbiory i E2E, 2026-10-24). Najdłuższy prompt
+# Pismaka (reranker) ma ok. 14 tys. tokenów. Po zmianie ponownie wykonaj `ollama create`.
+PARAMETER num_ctx 32768
 # Kara za powtórzenia. Pismak wysyła żądania przez endpoint zgodny z OpenAI, który jej nie
 # ustawia (w logu Ollamy: repeat_penalty = 1.000), a bez niej model potrafi powtarzać ten sam
 # fragment aż do limitu odpowiedzi. Wartość łagodna, bo w JSON-ie kara dotyczy też znaków

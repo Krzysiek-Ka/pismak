@@ -21,7 +21,7 @@ Jak cały `tests/golden_set`, testy uruchamia się tylko ręcznie przez `-m gold
 
 ## Metryki
 
-Porównywane konfiguracje to `vector`, `lexical`, `hybrid`, `pipeline` (EvidencePack: 6 fragmentów, najwyżej 3 z dokumentu) i opcjonalnie `pipeline+reranker`; warianty `*-ascii` są bez polskich znaków. Liczone są `source_hit@k`, `evidence_hit@k`, `evidence_recall@k`, MRR i `evidence_precision@6`.
+Porównywane konfiguracje to `vector`, `lexical`, `hybrid`, `pipeline` (EvidencePack: 6 fragmentów, najwyżej 3 z dokumentu, wybrane z 20 kandydatów, w których jeden dokument ma najwyżej 8) i opcjonalnie `pipeline+reranker`; warianty `*-ascii` są bez polskich znaków. Liczone są `source_hit@k`, `evidence_hit@k`, `evidence_recall@k`, MRR i `evidence_precision@6`.
 
 Raport zaczyna się od tabeli `precision@6` i `recall@6` dla każdej konfiguracji; te same liczby są w kluczu `headline` w `results.json`. Służą do szybkiego porównania przebiegów:
 - **precision@6:** średni udział fragmentów top-6, które wspierają odpowiedź.

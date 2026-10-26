@@ -15,7 +15,8 @@ from .repository import PgVectorRepository
 # 0.3: bez znaków sterujących i bez powtórzeń nagłówków/stopek stron.
 # 0.4: zakładka nie przekracza max_chars i nie tworzy osobnego fragmentu.
 # 0.5: linia z samą liczbą jest usuwana jako numer strony tylko na brzegu strony.
-INGESTION_VERSION = "0.5"
+# 0.6: nagłówek „Spis treści” nie jest sekcją dla treści dalszych stron.
+INGESTION_VERSION = "0.6"
 
 
 def file_sha256(path: str | Path) -> str:

@@ -2,10 +2,12 @@
 Wspólna infrastruktura złotych zbiorów: dostawcy modeli, przypadki, limity i raport przebiegu.
 
 Dostawcy pochodzą z konfiguracji projektu, a nie z listy w teście: każdy katalog
-`modele/<nazwa>/` z plikiem `Modelfile` to model Ollamy `pismak-<nazwa>` (README, rozdział 3),
-a OpenRouter to router `OPENROUTER_MODEL` z `src/_shared/serwer.py`. Zmienna
-PISMAK_GOLDEN_PROVIDERS (np. "bielik,openrouter") zawęża listę. Klienta LLM, okno kontekstu
-i limit czasu ustawia ten sam kod, którego używa aplikacja (`src/Wyswietlator/services.py`).
+`modele/<nazwa>/` z plikiem `Modelfile` to model Ollamy `pismak-<nazwa>` (README, rozdział 3).
+OpenRouter (`OPENROUTER_MODEL` z `src/_shared/serwer.py`) dokładają tylko testy E2E
+(`include_openrouter=True`): darmowe konto ma 50 żądań dziennie, a same złote zbiory zużyłyby
+je w jednym przebiegu. Zmienna PISMAK_GOLDEN_PROVIDERS (np. "bielik") zawęża listę. Klienta
+LLM, okno kontekstu i limit czasu ustawia ten sam kod, którego używa aplikacja
+(`src/Wyswietlator/services.py`).
 
 Każdy przebieg zapisuje `results/<czas>_<dostawca>_<przypadek>.json` w katalogu modułu
 (status, model, wynik każdej kontroli, czas, ponowienia, błędy, manual_review) oraz log
@@ -37,7 +39,13 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from src._shared.llm_runtime import LLMBusyError  # noqa: E402
 from src._shared.model_context import detect_context_tokens  # noqa: E402
-from src._shared.serwer import OPENROUTER_MODEL, LLMClient, LLMConfigurationError  # noqa: E402
+from src._shared.serwer import (  # noqa: E402
+    OPENROUTER_MODEL,
+    LLMClient,
+    LLMConfigurationError,
+    LLMServiceError,
+    error_log_detail,
+)
 from src.Wyswietlator import services  # noqa: E402
 from src.Zrodlowyszukiwator.rag_retrieval.repository import (  # noqa: E402
     DatabaseConnectionError,
@@ -62,6 +70,7 @@ INFRA_ERRORS = (
     LLMBusyError,
     DatabaseConnectionError,
     LLMConfigurationError,
+    LLMServiceError,
 )
 
 
@@ -71,18 +80,19 @@ INFRA_ERRORS = (
 
 @dataclass(frozen=True)
 class Provider:
-    label: str  # w identyfikatorze testu i nazwie raportu: "bielik", "pllum", "openrouter"
-    provider: str  # "ollama" albo "openrouter", jak w services.get_llm_client
+    label: str  # w identyfikatorze testu i nazwie raportu: "bielik", "pllum"
+    provider: str  # "ollama", jak w services.get_llm_client
     model: str
 
 
-def configured_providers() -> list[Provider]:
-    """Return the project's models: one per modele/<name>/Modelfile, then OpenRouter."""
+def configured_providers(*, include_openrouter: bool = False) -> list[Provider]:
+    """Return the project's models, one per modele/<name>/Modelfile, and OpenRouter for E2E."""
     providers = [
         Provider(path.parent.name, "ollama", f"pismak-{path.parent.name}:latest")
         for path in sorted((PROJECT_ROOT / "modele").glob("*/Modelfile"))
     ]
-    providers.append(Provider("openrouter", "openrouter", OPENROUTER_MODEL))
+    if include_openrouter:
+        providers.append(Provider("openrouter", "openrouter", OPENROUTER_MODEL))
     wanted = [x.strip() for x in os.getenv("PISMAK_GOLDEN_PROVIDERS", "").split(",") if x.strip()]
     if wanted:
         unknown = sorted(set(wanted) - {p.label for p in providers})
@@ -96,24 +106,27 @@ def configured_providers() -> list[Provider]:
 
 
 _OLLAMA_MODELS: list[str] | None = None
+SKIP_DETAIL_CHARS = 200
+
+
+def failure(exc: Exception) -> str:
+    """Name an exception with its shortened message for a skip reason."""
+    # Sam typ („RuntimeError”) nie mówił, dlaczego 21 przypadków pominięto (2026-10-24).
+    detail = error_log_detail(exc)[:SKIP_DETAIL_CHARS]
+    name = type(exc).__name__
+    return name if detail == name else f"{name}: {detail}"
 
 
 def provider_skip_reason(provider: Provider) -> str | None:
-    """Return why the provider cannot be used on this machine, or None when it can."""
+    """Return why the local model cannot be used on this machine, or None when it can."""
     global _OLLAMA_MODELS
-    if provider.provider == "ollama":
-        if _OLLAMA_MODELS is None:
-            try:
-                _OLLAMA_MODELS = services.list_generation_models(services.get_openai_client())
-            except Exception as exc:
-                return f"Ollama nie odpowiada ({type(exc).__name__})"
-        if provider.model not in _OLLAMA_MODELS:
-            return f"model {provider.model} nie jest zarejestrowany w Ollamie"
-        return None
-    try:
-        services.get_llm_client(provider.provider)
-    except LLMConfigurationError as exc:
-        return str(exc)
+    if _OLLAMA_MODELS is None:
+        try:
+            _OLLAMA_MODELS = services.list_generation_models(services.get_openai_client())
+        except Exception as exc:
+            return f"Ollama nie odpowiada ({failure(exc)})"
+    if provider.model not in _OLLAMA_MODELS:
+        return f"model {provider.model} nie jest zarejestrowany w Ollamie"
     return None
 
 
@@ -125,7 +138,7 @@ def database_skip_reason() -> str | None:
     try:
         _, chunks = RetrievalRepository(database_url).counts()
     except Exception as exc:
-        return f"baza RAG niedostępna ({type(exc).__name__})"
+        return f"baza RAG niedostępna ({failure(exc)})"
     return None if chunks else "baza RAG jest pusta — wykonaj rag_ingestion"
 
 
@@ -140,7 +153,7 @@ def embeddings_skip_reason() -> str | None:
             timeout=60.0,
         ).embed(["test"])
     except Exception as exc:
-        return f"model embeddingów niedostępny ({type(exc).__name__})"
+        return f"model embeddingów niedostępny ({failure(exc)})"
     return None
 
 

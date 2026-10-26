@@ -95,16 +95,17 @@ Zasady:
 3. Nie traktuj przypuszczeń użytkownika jako potwierdzonych faktów.
 4. Nie zmieniaj sensu postulatów użytkownika.
 5. Możesz skrócić i uporządkować wypowiedzi, ale nie dodawaj nowych żądań.
-6. Jeżeli użytkownik nie zna adresata lub instytucji, użyj null.
+6. institution i addressee wpisz tylko wtedy, gdy użytkownik sam je podał. Jeżeli ich nie zna albo nie podał, użyj null i nie zgaduj ich z tematu sprawy. Przykład: użytkownik pisze „nie wiem, która instytucja za to odpowiada” → institution=null, addressee=null, a nie „Zarząd Dróg i Utrzymania Miasta”. Tak samo nie dopisuj dat, których użytkownik nie podał.
 7. Brakujące informacje wpisz do missing_information.
 8. Twierdzenia wymagające potwierdzenia wpisz do facts_to_verify.
 9. Każde istotne twierdzenie umieść w claims z odpowiednim statusem.
 10. Deklarowany przez użytkownika dowód nie oznacza niezależnego potwierdzenia.
-11. desired_outcome opisuje końcowy rezultat oczekiwany przez użytkownika.
-12. requested_actions zawiera konkretne czynności, o które ma zostać poproszony urząd.
-13. likely_counterarguments mogą wynikać tylko z logicznych luk widocznych w rozmowie.
-14. Jeśli obowiązkowej informacji nie da się ustalić bez wymyślania, użyj pustego tekstu / pustej listy i wpisz brak do missing_information.
-15. Zwróć wyłącznie dane zgodne ze schematem CaseBrief.
+11. available_evidence zawiera wyłącznie materiały, które użytkownik ma: zdjęcia, pomiary, pisma, nagrania. Obserwacje, opinie i opis sytuacji wpisz do claims, a brak materiałów — do missing_information. Jeśli użytkownik nie ma materiałów, zwróć pustą listę. Przykład: „Użytkownik stwierdził, że kierowcy jeżdżą za szybko” albo „Brak pomiarów prędkości” nie są materiałami.
+12. desired_outcome opisuje końcowy rezultat oczekiwany przez użytkownika.
+13. requested_actions zawiera konkretne czynności, o które ma zostać poproszony urząd.
+14. likely_counterarguments mogą wynikać tylko z logicznych luk widocznych w rozmowie.
+15. Jeśli obowiązkowej informacji nie da się ustalić bez wymyślania, użyj pustego tekstu / pustej listy i wpisz brak do missing_information.
+16. Zwróć wyłącznie dane zgodne ze schematem CaseBrief.
 """.strip()
 
 

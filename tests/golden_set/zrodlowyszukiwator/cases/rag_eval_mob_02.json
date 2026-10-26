@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_02",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-02: „Mieszkam w centrum, w strefie płatnego parkowania. Czy miasto przewiduje dla mieszkańców jakieś zniżki za parkowanie?” Obszar 8 „Polityka parkingowa”, punkt a) „na obszarze centrum” (PDF s. 10). Synonim: „zniżki” zamiast „preferencji cenowych”. Strategia Wrocław 2050 (s. 123) mówi o rozszerzaniu strefy płatnego parkowania, ale nie o preferencjach dla mieszkańców.",
+  "input": {
+    "title": "Zniżki za parkowanie dla mieszkańców centrum",
+    "problem_description": "Mieszkam w centrum, w strefie płatnego parkowania, i płacę za parkowanie pod domem.",
+    "location": "Wrocław, centrum, strefa płatnego parkowania",
+    "time_context": null,
+    "desired_outcome": "Mieszkańcy strefy płatnego parkowania płacą mniej za parkowanie przy domu.",
+    "requested_actions": [
+      "Wprowadzenie zniżek za parkowanie dla mieszkańców strefy płatnego parkowania."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-02",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Tak, jako kierunek działania. Dla obszaru centrum polityka mobilności przewiduje „wprowadzenie preferencji cenowych dla stałych mieszkańców strefy płatnego parkowania”. Nie określa wysokości opłat ani zniżek."
+  ]
+}

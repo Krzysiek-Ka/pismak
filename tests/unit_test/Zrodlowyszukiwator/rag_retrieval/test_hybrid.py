@@ -189,6 +189,14 @@ class TestHybridRetrieverRetrieve:
 
         assert [item.chunk_id for item in result] == ["c0", "c1"]
 
+    def test_retrieve__without_top_k_returns_the_whole_ranking(self) -> None:
+        """Verify the pipeline can pick candidates beyond the first 20 for its per-document cap."""
+        repository = ScriptedRepository([[chunk(f"c{index}") for index in range(25)]])
+
+        result = retrieve(repository, [intent("sprawa")], top_k=None)
+
+        assert len(result) == 25
+
     def test_retrieve__passes_the_same_filters_to_both_searches(self) -> None:
         """Verify an out-of-force document cannot return through the full-text path."""
         filters = RetrievalFilters(active_only=True)

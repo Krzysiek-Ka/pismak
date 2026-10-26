@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 
 from .models import ChunkRecord, DocumentMetadata, ExtractedPage, TextUnit
 
@@ -47,6 +48,12 @@ def _looks_like_heading(line: str) -> tuple[bool, int]:
                 return True, 2
 
     return False, 0
+
+
+def _is_contents_heading(line: str) -> bool:
+    """Return whether the line is the "Spis treści" heading, in any case and with or without diacritics."""
+    plain = unicodedata.normalize("NFKD", line).encode("ascii", "ignore").decode()
+    return " ".join(plain.casefold().split()) == "spis tresci"
 
 
 def _join_lines(lines: list[str]) -> str:
@@ -101,7 +108,9 @@ def _split_page_to_units(page: ExtractedPage) -> list[tuple[str, int | None]]:
         is_heading, level = _looks_like_heading(line)
         if is_heading:
             flush()
-            out.append((line, level))
+            # „SPIS TREŚCI” zostaje w treści, ale nie staje się sekcją: inaczej treść dalszych
+            # stron dostawała section_path ["SPIS TREŚCI", …] (Plan działań rowerowych).
+            out.append((line, None if _is_contents_heading(line) else level))
         else:
             paragraph.append(line)
 

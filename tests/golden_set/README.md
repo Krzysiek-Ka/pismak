@@ -23,11 +23,11 @@ Każdy moduł testów ma `pytestmark = pytest.mark.golden`; zwykłe `python -m p
 $env:PISMAK_GOLDEN_PROVIDERS = "bielik,pllum"                                               # opcjonalnie: wybrani dostawcy
 ```
 
-- **Dostawcy** pochodzą z konfiguracji projektu: każdy `modele/<nazwa>/Modelfile` to model Ollamy `pismak-<nazwa>`, a OpenRouter to `openrouter/free`. Identyfikator testu: `<dostawca>-<przypadek>`.
+- **Dostawcy** pochodzą z konfiguracji projektu: każdy `modele/<nazwa>/Modelfile` to model Ollamy `pismak-<nazwa>`. Identyfikator testu: `<dostawca>-<przypadek>`.
 - **Brak usługi** (model, baza, embeddingi) przed startem kończy się pominięciem z powodem.
 - **Limity:** limit tokenów modułu, limit czasu żądania (`limits.timeout_seconds` albo ten z aplikacji) i `limits.max_questions` dla Dopytywatora.
 - **Raport:** każdy przebieg zapisuje `results/<czas>_<dostawca>_<przypadek>.json` (model, status `passed` / `failed_check` / `infra_error` / `skipped`, wynik każdej kontroli, czas, ponowienia, błędy, `manual_review`) i log obok. Sekrety z `.env` są zastępowane znacznikiem.
-- **OpenRouter:** darmowy router ma dzienny limit żądań (50 bez doładowania konta); po jego wyczerpaniu przebiegi kończą się statusem `infra_error`.
+- **OpenRouter** jest tylko w E2E (`tests/e2e`), nie w złotych zbiorach: darmowe konto ma 50 żądań dziennie, a jeden przebieg złotych zbiorów zużyłby je w całości.
 
 ## Przypadek
 

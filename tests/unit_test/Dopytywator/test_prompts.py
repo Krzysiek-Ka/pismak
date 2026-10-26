@@ -35,3 +35,31 @@ class TestBriefUserPrompt:
         assert "Pełna historia rozmowy:" in prompt
         assert "Chcę przejrzeć dokumenty." in prompt
         assert "Utwórz końcowy CaseBrief" in prompt
+
+
+class TestBuildBriefSystemPrompt:
+    def test_build_brief_system_prompt__keeps_observations_out_of_available_evidence(
+        self,
+    ) -> None:
+        """Verify the brief rules say what counts as a material, with a counter-example."""
+        prompt = prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT
+
+        assert "available_evidence zawiera wyłącznie materiały, które użytkownik ma" in prompt
+        assert "„Brak pomiarów prędkości” nie są materiałami" in prompt
+
+    def test_build_brief_system_prompt__unknown_institution_stays_null(self) -> None:
+        """Verify the rules forbid guessing the institution from the topic of the case."""
+        prompt = prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT
+
+        assert "nie zgaduj ich z tematu sprawy" in prompt
+        assert "institution=null, addressee=null" in prompt
+
+    def test_build_brief_system_prompt__rules_are_numbered_in_order(self) -> None:
+        """Verify no rule number is skipped or repeated after rules were added."""
+        numbers = [
+            int(line.split(".", 1)[0])
+            for line in prompts.DOPYTYWATOR_BUILD_BRIEF_SYSTEM_PROMPT.splitlines()
+            if line[:1].isdigit()
+        ]
+
+        assert numbers == list(range(1, len(numbers) + 1))

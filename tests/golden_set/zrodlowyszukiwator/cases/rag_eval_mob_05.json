@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_05",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-05: „Jakie docelowe średnie prędkości komunikacyjne tramwajów i autobusów przyjęto jako mierniki?” Tabela czynników i mierników w rozdziale V (PDF s. 16). Wartości stoją w komórkach tabeli („Vśrkt > 20 km/h”, „Vśrka > 25 km/h”), więc pytanie sprawdza ekstrakcję i chunkowanie tabel. Pytanie mówi „prędkości”, tabela — „prędkość komunikacyjna” i skróty.",
+  "input": {
+    "title": "Docelowe prędkości tramwajów i autobusów",
+    "problem_description": "Tramwaje i autobusy w moim rejonie jeżdżą bardzo wolno. Chcę wiedzieć, jakie docelowe średnie prędkości komunikacyjne tramwajów i autobusów przyjęto jako mierniki.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja o docelowych średnich prędkościach komunikacyjnych tramwajów i autobusów przyjętych jako mierniki.",
+    "requested_actions": [
+      "Podanie docelowych średnich prędkości komunikacyjnych tramwajów i autobusów przyjętych jako mierniki."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-05",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Tramwaje powyżej 20 km/h, autobusy powyżej 25 km/h. Miernik analizowany raz w roku."
+  ]
+}

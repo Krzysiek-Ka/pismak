@@ -172,6 +172,7 @@ class TestBuildDraft:
             problem_description="Problem z dostępem do dokumentów.",
             desired_outcome="Przywrócenie dostępu.",
             requested_actions=["Sprawdzenie dokumentacji"],
+            institution="Urząd Miejski Wrocławia",
             available_evidence=["Zdjęcie 1"],
             facts_to_verify=[],
         )
@@ -315,6 +316,54 @@ class TestBuildDraft:
         assert schema["properties"]["sources"]["items"]["enum"] == ["E1", "U1"]
         assert type(result) is DraftLetter
         assert result.sources == ["E1", "U1"]
+
+    @pytest.mark.parametrize(
+        ("addressee", "institution", "expected"),
+        [
+            pytest.param(None, None, "", id="no_addressee_or_institution"),
+            pytest.param(" ", "", "", id="blank_addressee_and_institution"),
+            pytest.param(None, "Zarząd Zieleni Miejskiej", "Urząd", id="institution_only"),
+            pytest.param("Prezydent Wrocławia", None, "Urząd", id="addressee_only"),
+        ],
+    )
+    def test_build_draft__recipient_is_kept_only_when_the_brief_names_one(
+        self, addressee: str | None, institution: str | None, expected: str
+    ) -> None:
+        """Verify a recipient the model invented for a brief without addressee is cleared."""
+
+        class FakeLLM:
+            def generate_structured(self, **kwargs):
+                return DraftLetter(
+                    recipient="Urząd",
+                    request_summary="dostęp do dokumentacji",
+                    argumentation_markdown="A" * 200,
+                    sources=["E1"],
+                )
+
+        brief = make_brief().model_copy(update={"addressee": addressee, "institution": institution})
+
+        result = pismogenerator.build_draft(brief, make_evidence_pack(), FakeLLM())
+
+        assert result.recipient == expected
+
+    def test_build_draft__raw_source_ids_and_backslashes_are_normalized_before_validation(
+        self,
+    ) -> None:
+        """Verify a Bielik-style answer with [E1] and a literal "\\n" becomes a valid draft."""
+
+        class FakeLLM:
+            def generate_structured(self, **kwargs):
+                return DraftLetter(
+                    recipient="",
+                    request_summary="dostęp do dokumentacji",
+                    argumentation_markdown="**Problem:**\\\n" + "A" * 200 + " [E1].\\n",
+                    sources=[],
+                )
+
+        result = pismogenerator.build_draft(make_brief(), make_evidence_pack(), FakeLLM())
+
+        assert result.argumentation_markdown == "**Problem:**\n\n" + "A" * 200 + " [1].\n"
+        assert result.sources == ["E1"]
 
 
 class TestBuildLetter:

@@ -26,7 +26,7 @@ from pydantic import ValidationError
 
 from src._shared.context_budget import LLMInputLimitError
 from src._shared.llm_runtime import LLMBusyError
-from src._shared.serwer import LLMConfigurationError, LLMResponseError
+from src._shared.serwer import LLMConfigurationError, LLMResponseError, LLMServiceError
 from src.Pismogenerator.pismogenerator import DraftValidationError
 from src.Pismogenerator.structures import DraftLetter
 from src.Pismopoprawiator.structures import Correction, CorrectionResult
@@ -251,6 +251,14 @@ class TestLlmErrorMessage:
         assert expected in message
         assert "sk-or-v1" not in message
         assert "upstream" not in message
+
+    def test_llm_error_message__service_error_says_the_model_is_unavailable(self) -> None:
+        """Verify a crashed local runner is not blamed on the model's answer or the user."""
+        message = services.llm_error_message(
+            LLMServiceError("Serwer modelu zakończył żądanie bez odpowiedzi.")
+        )
+
+        assert message == "Usługa modelu jest chwilowo niedostępna. Spróbuj później."
 
     def test_llm_error_message__busy_local_model_suggests_retrying_or_openrouter(self) -> None:
         """Verify a case that waited too long learns the model is busy, not that it failed."""

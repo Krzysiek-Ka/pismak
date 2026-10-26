@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_bike_05",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-05: „Jaki cel średnioterminowy wyznaczono na 2015 r.?” Rozdział II.1 „Cele strategiczne” (PDF s. 5, wydruk s. 4). Pytanie nie nazywa dokumentu ani tematu (rower), a poprawna odpowiedź wymaga zastrzeżenia „podróży niepieszych”.",
+  "input": {
+    "title": "Cel średnioterminowy na 2015 rok",
+    "problem_description": "Chcę sprawdzić, jaki cel średnioterminowy wyznaczono na 2015 rok.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja o celu średnioterminowym wyznaczonym na 2015 rok.",
+    "requested_actions": [
+      "Podanie celu średnioterminowego wyznaczonego na 2015 rok."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-05",
+    "expected_source_ids": [
+      "wroclaw-bicycle-policy-2010"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Co najmniej 10% udziału ruchu rowerowego, liczony w podróżach niepieszych, a nie we wszystkich podróżach."
+  ]
+}

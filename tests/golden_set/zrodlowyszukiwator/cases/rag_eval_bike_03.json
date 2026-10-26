@@ -1,0 +1,37 @@
+{
+  "id": "rag_eval_bike_03",
+  "description": "[pytanie rag_eval, wroclaw-bicycle-policy-2010] Sprawa z pytania rag_eval bike-03: „Ile kosztuje wypożyczenie roweru miejskiego we Wrocławiu?” Trudny negatyw: korpus zawiera bliskie fragmenty o rowerze miejskim, a Plan działań rowerowych (s. 37) — zasadę darmowych pierwszych 20 minut, ale bez cen i stawek. System powinien rozpoznać brak cennika zamiast przedstawić te fragmenty jako odpowiedź. Do 23.10.2026 pytanie brzmiało „…i czy pierwsze minuty są za darmo?”; po dodaniu Planu korpus odpowiada na tę część, więc ją usunięto — wyniki bike-03 sprzed tej daty nie są wprost porównywalne.",
+  "input": {
+    "title": "Cena wypożyczenia roweru miejskiego",
+    "problem_description": "Chcę zacząć jeździć rowerem miejskim, ale nie wiem, ile kosztuje wypożyczenie.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja, ile kosztuje wypożyczenie roweru miejskiego we Wrocławiu.",
+    "requested_actions": [
+      "Podanie ceny wypożyczenia roweru miejskiego we Wrocławiu."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "bike-03",
+    "expect_no_relevant_source": true
+  },
+  "manual_review": [
+    "Żaden zwrócony fragment nie jest tylko tematycznie podobny do sprawy.",
+    "Oczekiwana odpowiedź: Brak podstaw w korpusie. Żaden z dokumentów nie podaje cennika ani stawek opłat za rower miejski. Plan działań rowerowych do 2030 roku mówi tylko, że korzystanie z roweru jest darmowe w pierwszych 20 minutach wypożyczenia (s. 37), a polityki wspominają wypożyczalnię jako element systemu."
+  ]
+}

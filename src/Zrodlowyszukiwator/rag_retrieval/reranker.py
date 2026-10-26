@@ -1,29 +1,22 @@
 from __future__ import annotations
 
+import difflib
 import json
 import logging
+import re
+import unicodedata
+from collections import Counter
 from dataclasses import dataclass
-from time import perf_counter
-from typing import Any, TypeVar
+from typing import Any
 
-from openai.lib._parsing import type_to_response_format_param
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
-from src._shared.context_budget import fit_output_tokens, input_char_budget, usage_summary
-from src._shared.llm_runtime import LLMBusyError, llm_generation_lock
-from src._shared.serwer import (
-    COMPACT_OUTPUT_INSTRUCTION,
-    REPAIR_PROMPT,
-    LLMOutputLimitError,
-    LLMResponseError,
-    error_log_detail,
-    log_model_response,
-    provider_request_options,
-    recover_partial_structured_response,
-    structured_output_error_detail,
-)
+from src._shared.context_budget import input_char_budget
+from src._shared.llm_runtime import LLMBusyError
+from src._shared.serwer import LLMClient
 
 from .models import RetrievedChunk
+from .repository import fold_text, mentions_concept
 
 ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS = 4096
 # Miejsce zostawiane na odpowiedź przy dopasowywaniu promptu do okna kontekstu.
@@ -39,6 +32,10 @@ LOGGER = logging.getLogger("pismak")
 
 class RerankedItem(BaseModel):
     chunk_id: str
+    # Numer postulatu (z listy postulates), który fragment popiera.
+    postulate: int = 1
+    # Dosłowny cytat z fragmentu o przedmiocie postulatu; kod sprawdza go w tekście fragmentu.
+    quote: str = ""
     score: int = Field(ge=0, le=100)
     reason: str
 
@@ -57,7 +54,60 @@ class RerankOutcome:
     assessed: bool
 
 
-T = TypeVar("T", bound=BaseModel)
+# Przeniesienie wyrazu z PDF („rowe- rzystów”), także z innym znakiem łącznika.
+_DASHES = re.compile(r"[‐‑‒–—―]")
+_LINE_BREAK_HYPHEN = re.compile(r"(?<=[^\W\d_])- (?=[a-ząćęłńóśźż])")
+# Cytat liczy się jako wzięty z fragmentu, gdy tyle jego słów jest we fragmencie i gdy ma
+# tyle kolejnych słów dokładnie jak w tekście (pominięty środek „…” jest wtedy dozwolony).
+QUOTE_MIN_WORD_SHARE = 0.8
+QUOTE_MIN_RUN = 5
+
+
+def postulates(case_brief: dict) -> list[str]:
+    """Return the brief's postulates: its requested actions, or the desired outcome alone."""
+    actions = [str(a).strip() for a in case_brief.get("requested_actions") or [] if str(a).strip()]
+    outcome = str(case_brief.get("desired_outcome") or "").strip()
+    return actions or ([outcome] if outcome else [])
+
+
+def _words(text: str) -> list[str]:
+    """Return the words of a text without diacritics, with line-break hyphenation joined."""
+    text = _DASHES.sub("-", unicodedata.normalize("NFKC", text).lower())
+    text = _LINE_BREAK_HYPHEN.sub("", " ".join(text.split()))
+    return re.findall(r"[^\W_]+", fold_text(text))
+
+
+def quote_in_text(quote: str, text: str) -> bool:
+    """
+    Return whether the quote comes from the text, allowing a few miscopied words.
+
+    Bielik przepisuje cytaty prawie dosłownie, ale psuje w nich polskie znaki
+    („najskuteczniejszìyh”, „nadéczne” — złoty zbiór, 2026-10-25), więc dokładny podciąg
+    odrzucał prawdziwe cytaty. Wymagane: co najmniej QUOTE_MIN_WORD_SHARE słów cytatu we
+    fragmencie i ciąg QUOTE_MIN_RUN kolejnych słów (albo cały krótszy cytat) dokładnie z tekstu.
+    """
+    quote_words = _words(quote)
+    text_words = _words(text)
+    if not quote_words or not text_words:
+        return False
+    vocabulary = set(text_words)
+    share = sum(word in vocabulary for word in quote_words) / len(quote_words)
+    matcher = difflib.SequenceMatcher(None, quote_words, text_words, autojunk=False)
+    run = matcher.find_longest_match(0, len(quote_words), 0, len(text_words)).size
+    return share >= QUOTE_MIN_WORD_SHARE and run >= min(QUOTE_MIN_RUN, len(quote_words))
+
+
+def unsupported_quote(
+    item: RerankedItem, text: str, key_concepts: dict[int, list[str]]
+) -> str | None:
+    """Return why the item's quote is not support for its postulate, or None when it is."""
+    if not quote_in_text(item.quote, text):
+        return "quote_not_in_fragment"
+    # Zły numer postulatu to częsty błąd małego modelu; wtedy liczy się przedmiot dowolnego.
+    phrases = key_concepts.get(item.postulate) or [p for ps in key_concepts.values() for p in ps]
+    if phrases and not any(mentions_concept(item.quote, phrase) for phrase in phrases):
+        return "quote_without_concept"
+    return None
 
 
 class LLMReranker:
@@ -90,6 +140,11 @@ Zasady:
    0-39 - fragment jest tylko tematycznie podobny i niczego w sprawie nie popiera.
 8. Nie wybieraj fragmentów, które są tylko tematycznie podobne. Jeśli żaden fragment
    nie wspiera sprawy, zwróć pustą listę selected - to poprawna odpowiedź.
+9. Dla każdego wybranego fragmentu podaj postulate - numer postulatu z listy postulates,
+   który fragment popiera - oraz quote: jedno zdanie z pola text tego fragmentu (najwyżej
+   200 znaków), które wprost mówi o przedmiocie postulatu (key_concepts). Przepisz je
+   słowo w słowo, nie streszczaj. Fragment, w którym nie ma zdania o przedmiocie
+   postulatu, nie popiera go - nie wybieraj go. reason: najwyżej 12 słów.
 """.strip()
 
     def __init__(
@@ -115,208 +170,28 @@ Zasady:
         self.allow_fallback = allow_fallback
         self.provider = provider
         self.context_tokens = context_tokens
-        self.last_model: str | None = None
-
-    def _log_request_failed(
-        self,
-        error: Exception,
-        *,
-        response_model: type[BaseModel],
-        attempt: int,
-        retry_scheduled: bool,
-        finish_reason: str | None,
-        content: str | None,
-        started: float,
-        max_tokens: int,
-    ) -> None:
-        """Log why a reranking request failed, with the rejected response when there is one."""
-        LOGGER.error(
-            "llm_request_failed stage=reranking session_id=%s provider=%s model=%s "
-            "response_model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s "
-            "finish_reason=%s error_type=%s error_detail=%s elapsed_seconds=%.3f",
-            self.session_id or "-",
-            self.provider,
-            self.last_model or self.model,
-            response_model.__name__,
-            max_tokens,
-            attempt,
-            str(retry_scheduled).lower(),
-            finish_reason or "-",
-            type(error).__name__,
-            error_log_detail(error),
-            perf_counter() - started,
-            extra={"session_id": self.session_id},
-        )
-        log_model_response(
-            outcome="invalid",
+        # Wywołanie, ponowienia i logi zapytania do modelu obsługuje wyłącznie LLMClient.
+        self.llm = LLMClient(
+            client=client,
+            model_name=model,
+            on_wait=on_wait,
             stage="reranking",
-            session_id=self.session_id,
-            response=content,
-            provider=self.provider,
-            model=self.last_model or self.model,
-            attempt=attempt,
+            session_id=session_id,
+            provider=provider,
+            context_tokens=context_tokens,
         )
 
-    def _structured(self, user_prompt: str, response_model: type[T]) -> T:
-        """Request and validate one structured reranking response from the model."""
-        started = perf_counter()
-        prompt = user_prompt
-        content: str | None = None
-        finish_reason: str | None = None
-        attempt = 1
-        max_tokens = ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS
-        try:
-            for attempt in (1, 2):
-                # Log błędu tej próby nie może pokazać odpowiedzi z poprzedniej.
-                content = None
-                finish_reason = None
-                max_tokens = fit_output_tokens(
-                    provider=self.provider,
-                    prompt_chars=len(self.SYSTEM_PROMPT) + len(prompt),
-                    max_output_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
-                    stage="reranking",
-                    session_id=self.session_id,
-                    context_tokens=self.context_tokens,
-                )
-                with llm_generation_lock(
-                    self.on_wait,
-                    stage="reranking",
-                    session_id=self.session_id,
-                    provider=self.provider,
-                ):
-                    response = self.client.chat.completions.create(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": self.SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.0,
-                        max_tokens=max_tokens,
-                        # Schemat zgodny z trybem strict. Z model_json_schema() pole selected
-                        # nie było wymagane, więc pusty obiekt {} przechodził jako „nic nie
-                        # wspiera sprawy”.
-                        response_format=type_to_response_format_param(response_model),
-                        **provider_request_options(self.provider),
-                    )
-                self.last_model = getattr(response, "model", None)
-                choice = response.choices[0]
-                content = choice.message.content
-                finish_reason = getattr(choice, "finish_reason", None)
-                if finish_reason == "length":
-                    LOGGER.warning(
-                        "llm_output_truncated stage=reranking session_id=%s provider=%s "
-                        "model=%s max_output_tokens=%d attempt=%d retry_scheduled=%s",
-                        self.session_id or "-",
-                        self.provider,
-                        self.last_model or self.model,
-                        max_tokens,
-                        attempt,
-                        str(attempt == 1).lower(),
-                        extra={"session_id": self.session_id},
-                    )
-                    log_model_response(
-                        outcome="truncated",
-                        stage="reranking",
-                        session_id=self.session_id,
-                        response=content,
-                        provider=self.provider,
-                        model=self.last_model or self.model,
-                        attempt=attempt,
-                    )
-                    if attempt == 1:
-                        prompt += "\n\n" + COMPACT_OUTPUT_INSTRUCTION
-                        continue
-                    partial = recover_partial_structured_response(content, response_model)
-                    if partial is not None:
-                        LOGGER.warning(
-                            "llm_partial_response_recovered stage=reranking session_id=%s",
-                            self.session_id or "-",
-                            extra={"session_id": self.session_id},
-                        )
-                        return partial
-                    raise LLMOutputLimitError(
-                        "Wynik rerankera został ucięty i nie dało się go zwalidować.",
-                        partial_response=content,
-                    )
-                try:
-                    if not content:
-                        raise LLMResponseError("Reranker zwrócił pustą odpowiedź")
-                    result = response_model.model_validate_json(content)
-                except (ValidationError, LLMResponseError) as exc:
-                    detail = structured_output_error_detail(exc)
-                    if attempt == 2:
-                        raise LLMResponseError(
-                            "Model nie zwrócił poprawnego structured output dla "
-                            f"{response_model.__name__} mimo ponowienia. Ostatni błąd: {detail}"
-                        ) from exc
-                    self._log_request_failed(
-                        exc,
-                        response_model=response_model,
-                        attempt=attempt,
-                        retry_scheduled=True,
-                        finish_reason=finish_reason,
-                        content=content,
-                        started=started,
-                        max_tokens=max_tokens,
-                    )
-                    prompt += "\n\n" + REPAIR_PROMPT.format(validation_errors=detail)
-                    continue
-                break
-            else:
-                raise RuntimeError("Reranker nie zwrócił odpowiedzi.")
-        except LLMOutputLimitError:
-            LOGGER.warning(
-                "llm_output_limit stage=reranking session_id=%s provider=%s model=%s "
-                "max_output_tokens=%d elapsed_seconds=%.3f",
-                self.session_id or "-",
-                self.provider,
-                self.last_model or self.model,
-                max_tokens,
-                perf_counter() - started,
-                extra={"session_id": self.session_id},
-            )
-            log_model_response(
-                outcome="invalid",
-                stage="reranking",
-                session_id=self.session_id,
-                response=content,
-                provider=self.provider,
-                model=self.last_model or self.model,
-                attempt=attempt,
-            )
-            raise
-        except Exception as exc:
-            self._log_request_failed(
-                exc,
-                response_model=response_model,
-                attempt=attempt,
-                retry_scheduled=False,
-                finish_reason=finish_reason,
-                content=content,
-                started=started,
-                max_tokens=max_tokens,
-            )
-            raise
-        self.last_model = getattr(response, "model", None)
-        LOGGER.info(
-            "llm_request_completed stage=reranking session_id=%s provider=%s model=%s "
-            "max_output_tokens=%d attempt=%d elapsed_seconds=%.3f %s",
-            self.session_id or "-",
-            self.provider,
-            self.last_model or self.model,
-            max_tokens,
-            attempt,
-            perf_counter() - started,
-            usage_summary(response),
-            extra={"session_id": self.session_id},
-        )
-        return result
+    @property
+    def last_model(self) -> str | None:
+        """Return the model that answered the last reranking request."""
+        return self.llm.last_model
 
     def _user_prompt(
         self,
         case_brief: dict,
         candidates: list[RetrievedChunk],
         text_chars: int,
+        key_concepts: dict[int, list[str]],
     ) -> str:
         """Serialize the brief and the candidates with their text cut to the given length."""
         candidate_payload = []
@@ -337,6 +212,10 @@ Zasady:
         return json.dumps(
             {
                 "case_brief": case_brief,
+                "postulates": [
+                    {"number": number, "text": text, "key_concepts": key_concepts.get(number, [])}
+                    for number, text in enumerate(postulates(case_brief), start=1)
+                ],
                 "max_selected": self.max_selected,
                 "candidates": candidate_payload,
             },
@@ -344,7 +223,12 @@ Zasady:
             indent=2,
         )
 
-    def _fitted_user_prompt(self, case_brief: dict, candidates: list[RetrievedChunk]) -> str:
+    def _fitted_user_prompt(
+        self,
+        case_brief: dict,
+        candidates: list[RetrievedChunk],
+        key_concepts: dict[int, list[str]],
+    ) -> str:
         """Shorten candidate texts, then drop the lowest-ranked ones, until the prompt fits."""
         budget = input_char_budget(
             self.provider,
@@ -353,7 +237,7 @@ Zasady:
         ) - len(self.SYSTEM_PROMPT)
         text_chars = RERANKER_MAX_TEXT_CHARS
         count = len(candidates)
-        user_prompt = self._user_prompt(case_brief, candidates, text_chars)
+        user_prompt = self._user_prompt(case_brief, candidates, text_chars, key_concepts)
 
         # Kandydaci są posortowani malejąco, więc odpadają najsłabsze trafienia.
         while len(user_prompt) > budget and (text_chars > RERANKER_MIN_TEXT_CHARS or count > 1):
@@ -361,7 +245,9 @@ Zasady:
                 text_chars = max(RERANKER_MIN_TEXT_CHARS, int(text_chars * 0.8))
             else:
                 count -= 1
-            user_prompt = self._user_prompt(case_brief, candidates[:count], text_chars)
+            user_prompt = self._user_prompt(
+                case_brief, candidates[:count], text_chars, key_concepts
+            )
 
         if count < len(candidates) or text_chars < RERANKER_MAX_TEXT_CHARS:
             LOGGER.info(
@@ -388,15 +274,29 @@ Zasady:
         *,
         case_brief: dict,
         candidates: list[RetrievedChunk],
+        key_concepts: dict[int, list[str]] | None = None,
     ) -> RerankOutcome:
-        """Select candidates the model scores as support, rejecting unknown or duplicate IDs."""
+        """
+        Select candidates the model scores as support, rejecting unknown or duplicate IDs.
+
+        key_concepts: numer postulatu → frazy jego przedmiotu (z planu). Wsparciem jest tylko
+        fragment z dosłownym cytatem, który występuje w jego tekście i wspomina przedmiot
+        postulatu; bez key_concepts sprawdzany jest sam cytat.
+        """
         if not candidates:
             return RerankOutcome(selected=[], assessed=True)
+        key_concepts = key_concepts or {}
 
-        user_prompt = self._fitted_user_prompt(case_brief, candidates)
+        user_prompt = self._fitted_user_prompt(case_brief, candidates, key_concepts)
 
         try:
-            result = self._structured(user_prompt, RerankResult)
+            result = self.llm.generate_structured(
+                system_prompt=self.SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                response_model=RerankResult,
+                temperature=0.0,
+                max_output_tokens=ZRODLOWYSZUKIWACZ_RERANKER_MAX_OUTPUT_TOKENS,
+            )
         except LLMBusyError:
             # Zajęty model to brak kolejki, nie słaba odpowiedź: bez cichego zastępstwa.
             raise
@@ -418,14 +318,33 @@ Zasady:
 
         seen: set[str] = set()
         selected: list[tuple[RetrievedChunk, str, int]] = []
+        rejected: Counter[str] = Counter()
 
         for item in sorted(known, key=lambda x: x.score, reverse=True):
             if item.chunk_id in seen or item.score < self.min_score:
                 continue
-            selected.append((candidate_map[item.chunk_id], item.reason, item.score))
+            chunk = candidate_map[item.chunk_id]
+            # Ocena 0-100 nie odróżniała spraw spoza korpusu (negatywy dostawały 40-100 pkt):
+            # wsparciem jest tylko sprawdzony cytat o przedmiocie postulatu (plan, punkt 4.1).
+            problem = unsupported_quote(item, chunk.text, key_concepts)
+            if problem:
+                rejected[problem] += 1
+                continue
+            selected.append((chunk, f"{item.reason} Cytat: „{item.quote.strip()}”", item.score))
             seen.add(item.chunk_id)
             if len(selected) >= self.max_selected:
                 break
+
+        if rejected:
+            LOGGER.info(
+                "reranker_support_rejected session_id=%s kept=%d quote_not_in_fragment=%d "
+                "quote_without_concept=%d",
+                self.session_id or "-",
+                len(selected),
+                rejected["quote_not_in_fragment"],
+                rejected["quote_without_concept"],
+                extra={"session_id": self.session_id},
+            )
 
         # Pusta lista po poprawnej odpowiedzi to ocena modelu: żaden kandydat nie wspiera
         # sprawy. Wcześniej trafiał wtedy do pisma ranking hybrydowy jako rzekome dowody.

@@ -1,0 +1,39 @@
+{
+  "id": "rag_eval_mob_04",
+  "description": "[pytanie rag_eval, wroclaw-mobility-policy-2013] Sprawa z pytania rag_eval mob-04: „Jaki udział transportu niesamochodowego w podróżach po mieście zakłada polityka mobilności?” Rozdział II.2 „Cele podstawowe” (PDF s. 4). Pełna odpowiedź wymaga trzech faktów z jednego akapitu: celu na 2020 r., celu dalszego i definicji transportu niesamochodowego. Strategia Wrocław 2050 podaje inne liczby (70% w 2050 r.), więc pytanie sprawdza też rozróżnianie dokumentów.",
+  "input": {
+    "title": "Udział transportu niesamochodowego w polityce mobilności",
+    "problem_description": "Przygotowuję uwagi do planów transportowych i chcę wiedzieć, jaki udział transportu niesamochodowego w podróżach po mieście zakłada polityka mobilności.",
+    "location": "Wrocław",
+    "time_context": null,
+    "desired_outcome": "Informacja, jaki udział transportu niesamochodowego w podróżach po mieście zakłada polityka mobilności.",
+    "requested_actions": [
+      "Podanie udziału transportu niesamochodowego w podróżach po mieście, który zakłada polityka mobilności."
+    ],
+    "institution": null,
+    "addressee": null,
+    "affected_groups": [],
+    "public_interest_arguments": [],
+    "claims": [],
+    "available_evidence": [],
+    "previous_actions": [],
+    "likely_counterarguments": [],
+    "missing_information": [],
+    "facts_to_verify": [],
+    "preferred_tone": "neutralny",
+    "user_notes": []
+  },
+  "limits": {
+    "timeout_seconds": 900
+  },
+  "expected": {
+    "rag_eval_question": "mob-04",
+    "expected_source_ids": [
+      "wroclaw-mobility-policy-2013"
+    ]
+  },
+  "manual_review": [
+    "Powód trafności (relevance_reason) opisuje, co fragment wnosi do sprawy.",
+    "Oczekiwana odpowiedź: Co najmniej 60% do 2020 r., a w dalszej perspektywie co najmniej 65%. Transport niesamochodowy to tu transport zbiorowy, rowerowy i ruch pieszy. Najpilniejszym celem było odwrócenie wzrostu udziału ruchu samochodowego."
+  ]
+}
